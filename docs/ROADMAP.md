@@ -61,6 +61,25 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
 
 ---
 
+## Phase 2c: Pet Visual Identity & Graphics Engine Evaluation
+Evaluation and prototyping phase to determine the long-term character rendering architecture for the virtual companion:
+- [ ] **Path 1: AI Pixel Art / Retro Sprite Sheets**
+  - Prompt AI tools (Retro Diffusion, Midjourney, DALL-E) to generate 16-bit Tamagotchi-style sprite sheets.
+  - Implement a lightweight Compose frame-cycling animator (`SpriteSheetRenderer`) for idle, eating, and sleeping loops.
+  - Benchmark texture memory footprint and watch battery drain on Wear OS.
+- [ ] **Path 2: Rive Community Character & State Machine**
+  - Integrate `rive-android` runtime into `:core:ui`.
+  - Source a CC-licensed community creature (blob, animal, or robot) with pre-rigged states (`idle`, `happy`, `sad`, `eat`, `sleep`).
+  - Connect `MoodCalculator` outputs and user tap events to Rive State Machine inputs.
+  - Profile APK size impact (Rive C++ runtime overhead) and frame rendering performance on round displays.
+- [ ] **Path 3: AI Vector Generation $\rightarrow$ Custom Rive Rigging**
+  - Generate layered SVG character assets using AI vector tools (Recraft.ai / ChatGPT).
+  - Import SVG into the Rive web editor, configure bone deformers and timeline animations.
+  - Export custom `.riv` asset and bind into the watch app.
+- [ ] **Final Graphics Engine Decision**: Choose between Procedural Vectors, Rive State Machine, or Retro Pixel Sprites based on battery consumption, APK size, and visual appeal.
+
+---
+
 ## Phase 3: Wear OS Native Surfaces & Micro-Interactions
 - [ ] Interactive Wear OS Carousel Tile with direct 1-tap "+250ml Water" action button via ProtoLayout.
 - [ ] Watch Face Complication Provider (`PetMoodComplicationService`): Show pet mood icon or step-progress ring directly on standard watch dials.

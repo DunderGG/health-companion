@@ -12,7 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -22,27 +22,26 @@ class PetViewModel(
 ) : ViewModel() {
 
     private val _isPetting = MutableStateFlow(false)
+    private var lastPetTimestamp: Long = 0L
 
-    val uiState: StateFlow<PetUiState> = getPetStateUseCase.execute()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = null
-        ).let { flow ->
-            val result = MutableStateFlow<PetUiState>(PetUiState.Loading)
-            viewModelScope.launch {
-                flow.collect { petWithMood ->
-                    if (petWithMood != null) {
-                        result.value = PetUiState.Success(
-                            pet = petWithMood.pet,
-                            mood = petWithMood.mood,
-                            isPettingFeedbackActive = _isPetting.value
-                        )
-                    }
-                }
-            }
-            result.asStateFlow()
-        }
+    companion object {
+        const val PET_COOLDOWN_MS = 10_000L // 10-second cooldown between petting interactions
+    }
+
+    val uiState: StateFlow<PetUiState> = combine(
+        getPetStateUseCase.execute(),
+        _isPetting
+    ) { petWithMood, isPetting ->
+        PetUiState.Success(
+            pet = petWithMood.pet,
+            mood = petWithMood.mood,
+            isPettingFeedbackActive = isPetting
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = PetUiState.Loading
+    )
 
     fun logWater(ml: Int = 250) {
         viewModelScope.launch {
@@ -56,13 +55,19 @@ class PetViewModel(
         }
     }
 
-    fun petCompanion() {
+    fun petCompanion(): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - lastPetTimestamp < PET_COOLDOWN_MS || _isPetting.value) {
+            return false
+        }
+        lastPetTimestamp = now
         viewModelScope.launch {
             _isPetting.value = true
             logHabitUseCase.execute(HabitType.PettingInteraction(1.0f))
-            delay(1200)
+            delay(1500)
             _isPetting.value = false
         }
+        return true
     }
 }
 

@@ -17,13 +17,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -103,14 +107,24 @@ fun PetScreen(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         // Modern Animated Companion Sprite (Clickable for Petting)
+                        val haptic = LocalHapticFeedback.current
+                        val petInteractionSource = remember { MutableInteractionSource() }
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)
-                                .clickable { viewModel.petCompanion() },
+                                .clickable(
+                                    interactionSource = petInteractionSource,
+                                    indication = null
+                                ) {
+                                    if (viewModel.petCompanion()) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             ModernPetCanvas(
                                 mood = mood,
+                                isPetting = state.isPettingFeedbackActive,
                                 canvasSize = 110.dp
                             )
                         }
