@@ -211,7 +211,64 @@ $$\text{decay} = \frac{\text{currentTime} - \text{lastUpdatedTimestamp}}{3600000
 
 ---
 
-## 5. Wear OS Performance & Battery Best Practices
+## 5. Runtime Permissions & Degraded Mode
+
+### Required Permissions
+
+The app declares two **dangerous** (runtime) permissions in the Wear OS manifest, plus several **normal** (auto-granted) permissions:
+
+| Permission | Protection Level | Purpose | Module |
+| :--- | :--- | :--- | :--- |
+| `BODY_SENSORS` | **Dangerous** | Access heart-rate sensor and other on-body biometrics via Health Services | `:core:health` |
+| `ACTIVITY_RECOGNITION` | **Dangerous** | Detect step counts, walking, and workout activity via `PassiveMonitoringClient` | `:core:health` |
+| `WAKE_LOCK` | Normal | Keep CPU awake during WorkManager background decay processing | `:core:data` |
+| `RECEIVE_BOOT_COMPLETED` | Normal | Restart WorkManager tasks and passive listeners after device reboot | `:wearApp` |
+| `VIBRATE` | Normal | Haptic feedback on petting, evolution, and goal completion | `:wearApp` |
+
+### Why Runtime Permissions Are Needed
+
+On Android 6.0+ (API 23+), `BODY_SENSORS` and `ACTIVITY_RECOGNITION` are classified as **dangerous permissions** — the OS will not grant them automatically at install time. The app must explicitly request them at runtime via a system dialog, and the user can deny or revoke them at any time through system Settings.
+
+On Wear OS specifically:
+- The system permission dialog is shown directly on the watch (no phone companion involved, since this is a standalone app).
+- After the user taps **"Deny"** twice for the same permission, the system sets a **"Don't ask again"** flag. Subsequent calls to `requestPermissions()` will return an immediate denial without showing a dialog. The only recovery path is for the user to manually toggle the permission in **Settings → Apps → Health Companion → Permissions**.
+- `shouldShowRequestPermissionRationale()` returns `false` in two cases: (1) the permission has never been requested, and (2) the user selected "Don't ask again." We distinguish these by tracking whether a request has been launched.
+
+### Design Philosophy: Graceful Degradation
+
+The app follows a **degraded mode** strategy rather than blocking the user behind a permission wall:
+
+1. **First launch**: A lightweight `PermissionScreen` explains why sensor access is needed and presents an "Allow" button. This is the only time the app proactively interrupts the user.
+2. **Permission granted**: The app enters **full mode** — passive step tracking registers via `HealthServicesManager`, and the companion's fitness vital reflects real-world activity.
+3. **Permission denied**: The app enters **degraded mode** — `PetScreen` renders normally with all manual features functional (water, meals, petting), but a subtle `⚠ Enable sensors` chip appears above the companion name. Tapping the chip opens the system's app permission settings. Step tracking remains inactive.
+4. **Permission re-granted** (via Settings): When the user returns from Settings, `MainActivity` re-checks permissions on `ON_RESUME` and silently transitions to full mode, registering the passive listener.
+
+This ensures the app is **always usable** — the virtual pet can still be fed, hydrated, and petted without sensor data. Sensor permissions enhance the experience but are not a hard gate.
+
+### Implementation Architecture
+
+```
+MainActivity (ON_RESUME)
+  └── PermissionViewModel
+        ├── checkPermissions() ←── HealthPermissions.hasPermissions(context)
+        ├── onPermissionResult(grants, shouldShowRationale)
+        │     ├── all granted → PermissionState.Granted → registerPassiveDataService()
+        │     └── any denied  → PermissionState.Denied  → degraded mode
+        └── permissionState: StateFlow<PermissionState>
+              └── observed by MainActivity setContent { when(permState) { ... } }
+```
+
+| File | Responsibility |
+| :--- | :--- |
+| [`HealthPermissions.kt`](../core/health/src/main/java/com/healthcompanion/core/health/HealthPermissions.kt) | Defines `REQUIRED_PERMISSIONS` array and `hasPermissions(context)` check |
+| [`PermissionState.kt`](../wearApp/src/main/java/com/healthcompanion/wear/presentation/permission/PermissionState.kt) | Sealed interface: `Checking`, `Required`, `Granted`, `Denied` |
+| [`PermissionViewModel.kt`](../wearApp/src/main/java/com/healthcompanion/wear/presentation/permission/PermissionViewModel.kt) | Orchestrates permission checks, result callbacks, and Health Services registration |
+| [`PermissionScreen.kt`](../wearApp/src/main/java/com/healthcompanion/wear/presentation/permission/PermissionScreen.kt) | Compact onboarding UI with sensor icon, explanation, and "Allow" button |
+| [`MainActivity.kt`](../wearApp/src/main/java/com/healthcompanion/wear/MainActivity.kt) | Hosts `RequestMultiplePermissions` launcher and routes between screens |
+
+---
+
+## 6. Wear OS Performance & Battery Best Practices
 - **Passive Health Services**: Using `PassiveMonitoringClient` delegates sensor polling to the OS hardware hub, consuming near-zero extra battery.
 - **Pure Vector UI**: All companion graphics are drawn via hardware-accelerated Compose Canvas paths, eliminating large bitmap assets from memory.
 - **Ambient Mode Compatible**: Pure black OLED backgrounds (`#0A0E14`) maximize battery preservation.

@@ -22,8 +22,18 @@ class HealthServicesManager(private val context: Context) {
     }
 
     suspend fun registerPassiveDataService() {
+        tryRegisterPassiveDataService()
+    }
+
+    /**
+     * Attempts to register the passive step-tracking listener.
+     *
+     * @return `true` if registration succeeded (permissions granted),
+     *         `false` if permissions are missing.
+     */
+    suspend fun tryRegisterPassiveDataService(): Boolean {
         if (!HealthPermissions.hasPermissions(context)) {
-            return
+            return false
         }
 
         val config = PassiveListenerConfig.builder()
@@ -35,6 +45,8 @@ class HealthServicesManager(private val context: Context) {
             PassiveDataService::class.java,
             config
         ).await()
+
+        return true
     }
 
     suspend fun unregisterPassiveDataService() {

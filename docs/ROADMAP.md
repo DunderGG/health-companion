@@ -18,7 +18,7 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
 ---
 
 ## Phase 2: Sensor Calibration & Passive Health Sync
-- [ ] Runtime permission flow on watch for `BODY_SENSORS` and `ACTIVITY_RECOGNITION`.
+- [x] Runtime permission flow on watch for `BODY_SENSORS` and `ACTIVITY_RECOGNITION`.
 - [ ] Connect `HealthServicesManager` to live watch hardware sensors.
 - [ ] Real-time step delta mapping: Convert real-world step bursts into instant companion animation reactions (e.g. running alongside user).
 - [ ] Battery profiling and verification on Wear OS emulator / physical test watch.
