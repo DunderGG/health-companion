@@ -34,7 +34,30 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
   - **Paravita**: A creature living a parallel life alongside your daily routine.
   - **Vitecho**: A responsive companion where daily habits echo directly into vitals.
   - **AuraSync**: Synchronizing your aura and well-being directly with watch sensors.
-- [ ] **Brand Refactor**: Update `strings.xml`, launcher application label, package namespace, and documentation to reflect the chosen name.
+- [ ] **Brand Refactor**: Update all references to the working title across the project:
+  - **App identity**
+    - [ ] `wearApp/src/main/res/values/strings.xml` — `app_name` string value (`"Health Companion"`)
+    - [ ] `wearApp/build.gradle.kts` — `namespace` and `applicationId` (`com.healthcompanion.wear`)
+    - [ ] `wearApp/src/main/AndroidManifest.xml` — `android:name=".HealthCompanionApp"` (if the Application class is renamed)
+  - **Kotlin source & package namespace** (affects all 31 `.kt` files — use IDE refactor: *Rename Package*)
+    - [ ] All `package com.healthcompanion.*` declarations
+    - [ ] All `import com.healthcompanion.*` statements
+    - [ ] `core/*/build.gradle.kts` — `namespace` in each module (`com.healthcompanion.core.*`)
+    - [ ] `wearApp/src/main/java/com/healthcompanion/wear/HealthCompanionApp.kt` — class name and file
+    - [ ] `core/ui/src/main/java/com/healthcompanion/core/ui/theme/Theme.kt` — `HealthCompanionTheme` function name and all call sites
+    - [ ] Physical source directory tree (`src/main/java/com/healthcompanion/…`) — renamed automatically by IDE package refactor
+  - **Build configuration**
+    - [ ] `settings.gradle.kts` — `rootProject.name = "HealthCompanion"`
+  - **Documentation**
+    - [ ] `README.md` — title heading, CI badge URL, and `git clone` URL
+    - [ ] `docs/ARCHITECTURE.md` — `Health Companion` in overview, `HealthCompanionApp.kt` reference, package path in module diagram, `com/healthcompanion/wear/` source tree
+    - [ ] `docs/ROADMAP.md` — title heading (`# Health Companion: Project Roadmap`) and this checklist itself
+    - [ ] `CONTRIBUTING.md` — title, working-title note, `git clone` URL, `health-companion/` folder references, project structure tree
+    - [ ] `NOTICE` — project name and GitHub URL on lines 1 and 5
+  - **CI / GitHub**
+    - [ ] `.github/workflows/ci.yml` — `name:` field and the uploaded artifact name (`wearApp-debug`)
+    - [ ] GitHub repository name itself (Settings → Repository name) — this automatically redirects the old URL, but update all hardcoded URLs above to match
+    - [ ] README CI badge URL (`https://github.com/DunderGG/health-companion/…`)
 
 ---
 

@@ -1,5 +1,7 @@
 # Health Companion (Wear OS)
 
+[![CI](https://github.com/DunderGG/health-companion/actions/workflows/ci.yml/badge.svg)](https://github.com/DunderGG/health-companion/actions/workflows/ci.yml)
+
 A health-mirroring virtual pet companion for Wear OS smartwatches, inspired by the classic Tamagotchi toy. Your companion's vitals (Energy, Hydration, Nutrition, Fitness, and Happiness) directly reflect your real-world habits.
 
 ---
