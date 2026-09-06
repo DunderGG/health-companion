@@ -1,0 +1,61 @@
+# Built application files
+*.apk
+*.aar
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java / Kotlin class files
+*.class
+
+# Generated files & Build outputs
+build/
+**/build/
+bin/
+gen/
+out/
+.externalNativeBuild
+.cxx
+captures/
+.navigation/
+
+# Gradle files
+.gradle/
+
+# Kotlin
+.kotlin/
+
+# Local configuration file (contains local Android SDK path)
+local.properties
+
+# Android Studio & IntelliJ IDEA
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Signing keystores & credentials
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+
+# Google Services / Firebase (credentials & environment configs)
+google-services.json
+
+# Log files
+*.log
+
+# Android heap dumps (from Android Studio profiler)
+*.hprof
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+

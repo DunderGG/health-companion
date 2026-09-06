@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Health Companion</string>
+    <string name="tile_name">Pet Status</string>
+    <string name="pet_name_default">Aura</string>
+    <string name="action_drink_water">+250ml Water</string>
+    <string name="action_healthy_meal">Healthy Meal</string>
+    <string name="action_snack">Quick Snack</string>
+    <string name="action_pet">Pet Companion</string>
+</resources>
+
