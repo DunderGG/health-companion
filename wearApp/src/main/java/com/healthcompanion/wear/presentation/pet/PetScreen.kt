@@ -27,15 +27,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.wear.compose.material3.Button
-import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
+import com.healthcompanion.core.ui.components.MealActionToken
 import com.healthcompanion.core.ui.components.ModernPetCanvas
 import com.healthcompanion.core.ui.components.VitalsRing
-import com.healthcompanion.core.ui.theme.BrightAqua
-import com.healthcompanion.core.ui.theme.SunsetOrange
+import com.healthcompanion.core.ui.components.WaterActionToken
 
 @Composable
 fun PetScreen(
@@ -119,39 +117,19 @@ fun PetScreen(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // Micro Quick Action Buttons (Water & Meal)
+                        // Micro Quick Action Buttons (Meal & Water)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Quick Water (+250ml)
-                            Button(
-                                onClick = { viewModel.logWater(250) },
-                                modifier = Modifier.size(36.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = BrightAqua.copy(alpha = 0.85f)
-                                )
-                            ) {
-                                Text(
-                                    text = "💧",
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
+                            MealActionToken(
+                                onClick = { viewModel.logMeal(isHealthy = true) }
+                            )
 
-                            // Quick Healthy Meal
-                            Button(
-                                onClick = { viewModel.logMeal(isHealthy = true) },
-                                modifier = Modifier.size(36.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = SunsetOrange.copy(alpha = 0.85f)
-                                )
-                            ) {
-                                Text(
-                                    text = "🥗",
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
+                            WaterActionToken(
+                                onClick = { viewModel.logWater(250) }
+                            )
                         }
                     }
                 }
