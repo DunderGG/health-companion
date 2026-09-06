@@ -145,6 +145,45 @@ coreDomain --> coreModel : Evaluates Game Rules
 6. **[`:core:model`](../core/model)**:
    - Pure domain models (`Pet`, `Vitals`, `Mood`, `HabitType`, `EvolutionStage`, `PetArchetype`). Zero Android UI dependencies.
 
+### Directory & Source Tree
+
+```
+health-companion/
+├── build.gradle.kts                      # Root build configuration
+├── settings.gradle.kts                   # Multi-module settings
+├── gradle/libs.versions.toml             # Version catalog (Compose, Wear, Health, etc.)
+│
+├── docs/                                 # Project documentation & design specs
+│   ├── ARCHITECTURE.md                   # System architecture & PlantUML diagrams
+│   └── ROADMAP.md                        # Phased timeline & testing guide
+│
+├── wearApp/                              # Wear OS Application Module
+│   ├── src/main/AndroidManifest.xml      # Standalone watch app configuration
+│   └── src/main/java/com/healthcompanion/wear/
+│       ├── HealthCompanionApp.kt         # Application setup & WorkManager scheduling
+│       ├── MainActivity.kt               # Main Wear ComponentActivity
+│       ├── presentation/pet/             # PetScreen, PetViewModel, PetUiState
+│       └── tiles/PetStatusTileService.kt # Wear OS Carousel Tile
+│
+├── core/
+│   ├── model/                            # Pure domain models (Pet, Vitals, Mood, Habits)
+│   ├── domain/                           # Pure Kotlin game engine & use cases
+│   │   ├── engine/PetDecayEngine.kt      # Mathematical decay & habit application
+│   │   ├── engine/MoodCalculator.kt      # Dynamic mood evaluation
+│   │   └── engine/EvolutionEngine.kt     # Evolution thresholds & archetypes
+│   ├── data/                             # Persistence & Repository layer
+│   │   ├── db/CompanionDatabase.kt       # Room Database
+│   │   ├── repository/PetRepositoryImpl.kt
+│   │   └── workers/PetDecayWorker.kt     # Periodic background maintenance
+│   ├── health/                           # Wear OS Health Services integration
+│   │   ├── HealthServicesManager.kt      # PassiveMonitoringClient wrapper
+│   │   └── PassiveDataService.kt         # PassiveListenerService for step counting
+│   └── ui/                               # Wear OS Compose UI Components
+│       ├── components/ModernPetCanvas.kt # Dynamic vector companion
+│       ├── components/VitalsRing.kt      # Circular multi-vital progress arcs
+│       └── theme/Theme.kt                # Wear Material3 Dark OLED Palette
+```
+
 ---
 
 ## 4. Health Mirroring Game Engine

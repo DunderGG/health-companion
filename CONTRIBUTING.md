@@ -122,15 +122,33 @@ adb shell am broadcast -a "androidx.health.services.client.action.SIMULATE_DATA"
 
 ---
 
-## Code Style
+## Code Style & Conventions
 
 - Kotlin code style is set to `official` (enforced via `kotlin.code.style=official` in `gradle.properties`).
 - Format your code with Android Studio's built-in formatter (**Code → Reformat Code**) before committing.
 - Follow the existing Clean Architecture module boundaries — domain logic belongs in `:core:domain`, not in `:wearApp`.
+
+### License Header
+
+Every new Kotlin (`.kt`) or Java (`.java`) source file must begin with the project's SPDX-compliant copyright header (build scripts such as `.kts` and configuration files are excluded):
+
+```kotlin
+// Copyright 2026 DunderGG
+// SPDX-License-Identifier: Apache-2.0
+```
+
+> [!TIP]
+> **Android Studio Automation**: You can configure Android Studio to automatically prepend this header to every newly created file:
+> 1. Open **Settings / Preferences** (`Ctrl + Alt + S` on Windows/Linux or `Cmd + ,` on macOS).
+> 2. Navigate to **Editor → File and Code Templates → Includes → File Header**.
+> 3. Paste:
+>    ```kotlin
+>    // Copyright ${YEAR} DunderGG
+>    // SPDX-License-Identifier: Apache-2.0
+>    ```
 
 ---
 
 ## License
 
 By contributing, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).
-
