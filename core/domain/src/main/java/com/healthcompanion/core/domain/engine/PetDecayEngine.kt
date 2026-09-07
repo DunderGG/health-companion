@@ -96,9 +96,10 @@ object PetDecayEngine {
                 )
             }
             is HabitType.Workout -> {
-                xpEarned = habit.durationMinutes * 2
+                val calorieBonus = if (habit.calories > 0) (habit.calories / 100f) * 5f else 0f
+                xpEarned = habit.durationMinutes * 2 + (habit.calories / 50)
                 decayed.copy(
-                    fitness = (decayed.fitness + 25f).coerceAtMost(100f),
+                    fitness = (decayed.fitness + 25f + calorieBonus).coerceAtMost(100f),
                     energy = (decayed.energy - 10f).coerceAtLeast(0f),
                     happiness = (decayed.happiness + 15f).coerceAtMost(100f)
                 )
@@ -115,6 +116,21 @@ object PetDecayEngine {
                 xpEarned = 5
                 decayed.copy(
                     happiness = (decayed.happiness + (5f * habit.intensity)).coerceAtMost(100f)
+                )
+            }
+            is HabitType.HeartRate -> {
+                // Passive HR readings provide a small fitness signal.
+                // Resting HR (< 70 bpm) indicates good cardiovascular fitness.
+                // Elevated HR (> 100 bpm) indicates active exercise.
+                val fitnessBoost = when {
+                    habit.bpm < 60f -> 3f    // Excellent resting HR
+                    habit.bpm < 75f -> 2f    // Good resting HR
+                    habit.bpm > 100f -> 5f   // Active exercise detected
+                    else -> 1f               // Normal range
+                }
+                xpEarned = 5
+                decayed.copy(
+                    fitness = (decayed.fitness + fitnessBoost).coerceAtMost(100f)
                 )
             }
         }

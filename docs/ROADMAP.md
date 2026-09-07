@@ -19,7 +19,13 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
 
 ## Phase 2: Sensor Calibration & Passive Health Sync
 - [x] Runtime permission flow on watch for `BODY_SENSORS` and `ACTIVITY_RECOGNITION`.
-- [ ] Connect `HealthServicesManager` to live watch hardware sensors.
+- [x] Connect `HealthServicesManager` to live watch hardware sensors.
+  - [x] Query device capabilities via `getCapabilitiesAsync()` to discover supported passive data types.
+  - [x] Subscribe to all available passive sensors: `HEART_RATE_BPM`, `CALORIES_DAILY`, `DISTANCE_DAILY`, `FLOORS_DAILY` (in addition to existing `STEPS_DAILY`).
+  - [x] Expand `PassiveDataService` to dispatch heart rate, calories, distance, and floor data to the pet engine.
+  - [x] Add `HabitType.HeartRate(bpm)` to domain model and handle `SampleDataType` vs `IntervalDataType` differences.
+  - [x] Integrate new sensor data into `PetDecayEngine` (heart rate → fitness, calories → workout bonus).
+  - [x] Graceful capability fallbacks: skip unsupported data types on watches without specific sensors.
 - [ ] Real-time step delta mapping: Convert real-world step bursts into instant companion animation reactions (e.g. running alongside user).
 - [ ] Battery profiling and verification on Wear OS emulator / physical test watch.
 - [ ] Local push notifications via WorkManager when hydration or hunger reaches critical thresholds.

@@ -56,7 +56,7 @@ Vitals --> Complication : Updates Watch Dial
 | **Target Platform** | Wear OS 3.0+ (API 30–36) | Standalone wearable app (`com.google.android.wearable.standalone = true`). |
 | **UI Framework** | Jetpack Compose for Wear OS (`compose-material3`, `compose-foundation`) | Hardware-accelerated, declarative UI optimized for circular displays. |
 | **Wear Utilities** | Horologist (`horologist-compose-layout`) | Rotary crown input, ambient mode scaffolds, and volume/haptics. |
-| **Health & Sensors** | Health Services for Wear OS (`androidx.health:health-services-client`) | Passive step counting via `PassiveMonitoringClient` and `PassiveListenerService`. |
+| **Health & Sensors** | Health Services for Wear OS (`androidx.health:health-services-client`) | Capability-aware passive monitoring via `PassiveMonitoringClient`: steps, heart rate, calories, distance, and floors. |
 | **Glance Surfaces** | AndroidX Wear Tiles & ProtoLayout | Instant-access carousel card with 1-tap micro-interactions. |
 | **Watch Face Integration** | AndroidX WatchFace Complications | Live mood and vital progress complications on third-party watch faces. |
 | **Architecture Pattern** | Clean Architecture + MVI (UDF) | Unidirectional Data Flow with immutable `StateFlow<PetUiState>`. |
@@ -139,8 +139,8 @@ coreDomain --> coreModel : Evaluates Game Rules
 
 5. **[`:core:health`](../core/health)**:
    - Wraps Wear OS **Health Services API** (`androidx.health:health-services-client`).
-   - `PassiveMonitoringClient`: Subscribes to daily step counts and passive goals without active battery drain.
-   - `PassiveDataService`: Listens for OS-batched step updates and applies them to the companion.
+   - `HealthServicesManager`: Queries device capabilities via `getCapabilitiesAsync()` and registers a `PassiveListenerService` for the intersection of desired and supported data types (`STEPS_DAILY`, `HEART_RATE_BPM`, `CALORIES_DAILY`, `DISTANCE_DAILY`, `FLOORS_DAILY`). Gracefully skips unsupported sensors.
+   - `PassiveDataService`: Receives OS-batched sensor data and dispatches each type to the appropriate `HabitType` for the game engine. Handles both `IntervalDataType` (steps, calories, distance, floors) and `SampleDataType` (heart rate).
 
 6. **[`:core:model`](../core/model)**:
    - Pure domain models (`Pet`, `Vitals`, `Mood`, `HabitType`, `EvolutionStage`, `PetArchetype`). Zero Android UI dependencies.
@@ -195,7 +195,7 @@ $$\text{decay} = \frac{\text{currentTime} - \text{lastUpdatedTimestamp}}{3600000
 
 | Vital | Range | Hourly Decay | Real-World Restoration Trigger | Effect on Companion |
 | :--- | :--- | :--- | :--- | :--- |
-| **Fitness / Vitality** | 0–100 | $1.5\% / \text{hr}$ | Step tracking via `PassiveMonitoringClient` & active workouts | High fitness triggers athletic evolutions and energetic animations |
+| **Fitness / Vitality** | 0–100 | $1.5\% / \text{hr}$ | Steps, heart rate, calories, distance, and floors via `PassiveMonitoringClient`; active workouts | High fitness triggers athletic evolutions and energetic animations |
 | **Hydration** | 0–100 | $3.0\% / \text{hr}$ | $+250\text{ml}$ quick tap on watch / Tile | Thirsty pet appears droopy; sends gentle haptic reminder |
 | **Hunger / Nutrition**| 0–100 | $2.5\% / \text{hr}$ | Healthy Meal ($+30\%$) / Snack ($+20\%$) | Starving pet refuses to play; well-fed pet smiles and dances |
 | **Energy** | 0–100 | $2.0\% / \text{hr}$ | Night sleep and rest periods | Sleepy pet yawns and sleeps when watch is in ambient mode |

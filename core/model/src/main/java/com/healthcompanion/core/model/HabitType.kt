@@ -13,5 +13,6 @@ sealed interface HabitType {
     data class Workout(val durationMinutes: Int, val calories: Int = 0) : HabitType
     data class Sleep(val durationMinutes: Int, val qualityScore: Float = 0.8f) : HabitType
     data class PettingInteraction(val intensity: Float = 1.0f) : HabitType
+    data class HeartRate(val bpm: Float) : HabitType
 }
 
