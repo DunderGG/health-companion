@@ -4,7 +4,6 @@
 package com.healthcompanion.wear.presentation.permission
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.healthcompanion.core.health.HealthPermissions
@@ -41,13 +40,22 @@ class PermissionViewModel(
     fun checkPermissions() {
         val granted = HealthPermissions.hasPermissions(application)
         if (granted) {
-            _permissionState.value = PermissionState.Granted
-            registerHealthServicesIfNeeded()
-        } else if (_permissionState.value != PermissionState.Denied) {
-            // Only move to Required if we haven't already been denied.
-            // This prevents resetting a Denied state on resume when
-            // the user hasn't actually changed anything in Settings.
-            _permissionState.value = PermissionState.Required
+            if (_permissionState.value != PermissionState.Granted) {
+                _permissionState.value = PermissionState.Granted
+                registerHealthServicesIfNeeded()
+            }
+        } else when (_permissionState.value) {
+            // Initial check — permissions haven't been requested yet.
+            PermissionState.Checking -> _permissionState.value = PermissionState.Required
+
+            // Permissions were previously granted but have since been revoked
+            // (e.g. user toggled them off in system Settings). Move to Denied
+            // so the degraded-mode chip appears.
+            PermissionState.Granted -> _permissionState.value = PermissionState.Denied
+
+            // Already in Required or Denied — no change needed.
+            // The onPermissionResult callback handles transitions after requests.
+            else -> { /* no-op */ }
         }
     }
 
@@ -56,33 +64,27 @@ class PermissionViewModel(
      *
      * @param grants Map of permission name → granted boolean from
      *               [ActivityResultContracts.RequestMultiplePermissions].
-     * @param shouldShowRationale Lambda that checks
-     *        [Activity.shouldShowRequestPermissionRationale] for a given permission.
-     *        When false after a denial, the system won't show the dialog again (permanent deny).
      */
-    fun onPermissionResult(
-        grants: Map<String, Boolean>,
-        shouldShowRationale: (String) -> Boolean
-    ) {
+    fun onPermissionResult(grants: Map<String, Boolean>) {
         val allGranted = grants.values.all { it }
 
         if (allGranted) {
             _permissionState.value = PermissionState.Granted
             registerHealthServicesIfNeeded()
-        } else {
-            // Check if any denied permission can no longer show rationale —
-            // that means the user selected "Don't ask again" (permanent denial).
-            val permanentlyDenied = grants
-                .filter { !it.value }
-                .any { !shouldShowRationale(it.key) }
-
-            if (permanentlyDenied) {
-                _permissionState.value = PermissionState.Denied
-            } else {
-                // User denied but can still be asked again on next attempt.
-                _permissionState.value = PermissionState.Denied
-            }
+            return
         }
+
+        // The grants map from the callback can disagree with the actual
+        // permission state on Wear OS emulators and some devices (e.g.
+        // permission group mechanics granting one permission implicitly).
+        // Verify ground truth before committing to Denied.
+        if (HealthPermissions.hasPermissions(application)) {
+            _permissionState.value = PermissionState.Granted
+            registerHealthServicesIfNeeded()
+            return
+        }
+
+        _permissionState.value = PermissionState.Denied
     }
 
     private fun registerHealthServicesIfNeeded() {

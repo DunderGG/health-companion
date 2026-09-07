@@ -69,12 +69,7 @@ class MainActivity : ComponentActivity() {
                 val permissionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestMultiplePermissions()
                 ) { grants ->
-                    permissionViewModel.onPermissionResult(
-                        grants = grants,
-                        shouldShowRationale = { permission ->
-                            shouldShowRequestPermissionRationale(permission)
-                        }
-                    )
+                    permissionViewModel.onPermissionResult(grants)
                 }
 
                 when (permState) {
