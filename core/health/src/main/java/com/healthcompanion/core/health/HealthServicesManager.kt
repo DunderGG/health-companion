@@ -22,9 +22,24 @@ import kotlinx.coroutines.guava.await
  * watch hardware supports, and subscribes only to the intersection of desired and
  * available types. This ensures graceful degradation on watches without specific
  * sensors (e.g. no heart rate sensor on some models).
+ *
+ * ### Kotlin vs C++ Note:
+ * - **Property Delegation (`by lazy`)**: Initializes [passiveMonitoringClient] on first access
+ *   with thread-safe synchronization, equivalent to a local static variable initialized once or
+ *   `std::call_once` in C++.
+ * - **Future-to-Coroutine Bridging (`.await()`)**: The underlying Google Play Services API returns
+ *   Guava `ListenableFuture<T>`. Calling `.await()` suspends the current coroutine until the future
+ *   completes without blocking the calling thread, analogous to awaiting a `std::future` via `co_await`.
+ * - **Generics with Star Projections (`DataType<*, *>`)**: In Kotlin, `<*, *>` represents an unknown/any
+ *   type parameter, similar to generic wildcards or type erasure in C++ template programming.
+ *
+ * @param context Android context used to obtain Health Services client handles.
  */
 class HealthServicesManager(private val context: Context) {
 
+    /**
+     * Lazy client handle to Wear OS PassiveMonitoringClient.
+     */
     private val passiveMonitoringClient: PassiveMonitoringClient by lazy {
         HealthServices.getClient(context).passiveMonitoringClient
     }
@@ -41,6 +56,9 @@ class HealthServicesManager(private val context: Context) {
         DataType.FLOORS_DAILY
     )
 
+    /**
+     * Convenience wrapper around [tryRegisterPassiveDataService] ignoring boolean result.
+     */
     suspend fun registerPassiveDataService() {
         tryRegisterPassiveDataService()
     }
@@ -96,13 +114,17 @@ class HealthServicesManager(private val context: Context) {
     }
 
     /**
-     * Whether the device supports passive heart rate monitoring.
-     * Useful for UI to decide whether to show HR-related features.
+     * Checks whether the device hardware supports passive heart rate monitoring.
+     *
+     * @return `true` if PPG heart rate monitoring is supported, `false` otherwise.
      */
     suspend fun hasHeartRateCapability(): Boolean {
         return DataType.HEART_RATE_BPM in getSupportedPassiveDataTypes()
     }
 
+    /**
+     * Unregisters the passive background listener service, stopping further sensor event delivery.
+     */
     suspend fun unregisterPassiveDataService() {
         passiveMonitoringClient.clearPassiveListenerServiceAsync().await()
     }

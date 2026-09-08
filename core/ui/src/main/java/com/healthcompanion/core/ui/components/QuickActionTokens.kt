@@ -44,6 +44,21 @@ import com.healthcompanion.core.ui.theme.SurfaceDark
  * Modern glassmorphic quick-action button designed for round Wear OS displays.
  * Features a dark OLED-friendly translucent container, glowing accent gradient border,
  * tactile spring press animation, and haptic feedback.
+ *
+ * ### Kotlin vs C++ Note:
+ * - **`remember { ... }`**: In Compose, a function can re-execute hundreds of times (recomposition).
+ *   `remember { MutableInteractionSource() }` allocates the object once and stores it in the Compose
+ *   runtime slot table, analogous to a local `static` variable in a C++ function, but strictly scoped
+ *   to the lifespan of this UI node.
+ * - **`animateFloatAsState` with Springs**: Declaratively computes physics-based interpolated values
+ *   (bouncy scale down on press, bounce back on release) driven by mass-spring-damper equations.
+ *
+ * @param accentColor Glow and border gradient color.
+ * @param contentDescription Accessibility label for screen readers and talkback.
+ * @param onClick Invoked when the user taps the button (also triggers watch vibration).
+ * @param modifier Compose layout modifier.
+ * @param size Button diameter in [Dp] (defaults to 40.dp, sized for watch fingertips).
+ * @param icon Composable vector icon slot drawn in the center of the token.
  */
 @Composable
 fun QuickActionToken(
@@ -111,6 +126,10 @@ fun QuickActionToken(
 
 /**
  * Quick meal action token with a custom vector salad/nourishment bowl icon.
+ *
+ * @param onClick Invoked when tapped to log a healthy meal.
+ * @param modifier Layout modifier.
+ * @param size Button diameter (defaults to 40.dp).
  */
 @Composable
 fun MealActionToken(
@@ -134,6 +153,10 @@ fun MealActionToken(
 
 /**
  * Quick water action token with a custom vector teardrop icon.
+ *
+ * @param onClick Invoked when tapped to log 250ml water intake.
+ * @param modifier Layout modifier.
+ * @param size Button diameter (defaults to 40.dp).
  */
 @Composable
 fun WaterActionToken(
@@ -157,6 +180,13 @@ fun WaterActionToken(
 
 /**
  * Procedural vector water droplet with a curved teardrop body and a glossy specular highlight.
+ *
+ * ### Vector Math Note:
+ * Renders mathematical cubic Bézier curves ([androidx.compose.ui.graphics.Path.cubicTo]) on an immediate-mode
+ * Compose [Canvas], avoiding bitmap asset overhead and scaling crisply to any watch display density.
+ *
+ * @param color Tint color for the droplet body.
+ * @param modifier Layout modifier specifying canvas dimensions.
  */
 @Composable
 fun WaterDropletVector(

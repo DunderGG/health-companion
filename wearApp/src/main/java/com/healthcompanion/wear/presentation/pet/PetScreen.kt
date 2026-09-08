@@ -39,6 +39,25 @@ import com.healthcompanion.core.ui.components.ModernPetCanvas
 import com.healthcompanion.core.ui.components.VitalsRing
 import com.healthcompanion.core.ui.components.WaterActionToken
 
+/**
+ * Primary interactive Wear OS screen displaying the virtual companion character,
+ * bezel vitals ring, and quick-action buttons.
+ *
+ * ### Kotlin vs C++ Note:
+ * - **`collectAsState()` with `by` Delegation**:
+ *   `val uiState by viewModel.uiState.collectAsState()` connects Kotlin Coroutines' reactive `StateFlow`
+ *   to Compose's reactive runtime. The `by` keyword delegates read access, automatically unwrapping
+ *   `State<T>.value` (similar to dereferencing a smart pointer). Whenever `uiState` updates, Compose
+ *   automatically recomposes this function.
+ * - **Smart Casting**: `when (val state = uiState)` with `is PetUiState.Success`. Once the type check succeeds,
+ *   the compiler automatically casts `state` to [PetUiState.Success] for that branch, eliminating the need
+ *   for manual `dynamic_cast` or `std::get<T>` calls common in C++.
+ *
+ * @param viewModel The [PetViewModel] managing companion state and actions.
+ * @param modifier Compose layout modifier applied to the root container.
+ * @param showSensorChip When `true`, renders an alert chip warning that health sensors are disabled.
+ * @param onSensorChipClick Callback triggered when the sensor chip is tapped (opens system Settings).
+ */
 @Composable
 fun PetScreen(
     viewModel: PetViewModel,

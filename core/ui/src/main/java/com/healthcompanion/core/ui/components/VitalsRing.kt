@@ -24,7 +24,25 @@ import com.healthcompanion.core.ui.theme.HealthyGreen
 import com.healthcompanion.core.ui.theme.SunsetOrange
 
 /**
- * Circular multi-vital progress arcs fitted specifically for round Wear OS displays.
+ * Circular multi-vital progress arcs fitted specifically around the bezel of round Wear OS displays.
+ *
+ * ### Wear OS Circular Geometry:
+ * Instead of taking up central screen estate, vitals are mapped to four quadrant arcs along the outer watch edge:
+ * 1. **Top-Right (280° - 350°)**: Fitness / Steps ([HealthyGreen]).
+ * 2. **Bottom-Right (10° - 80°)**: Hydration ([BrightAqua]).
+ * 3. **Bottom-Left (100° - 170°)**: Hunger / Nutrition ([SunsetOrange]).
+ * 4. **Top-Left (190° - 260°)**: Energy / Sleep ([ElectricPurple]).
+ *
+ * ### Kotlin vs C++ Note:
+ * - **`Modifier` Chaining**: The `Modifier` argument is Compose's standard decoration pattern,
+ *   analogous to a fluent builder pattern in C++ (`Modifier().fillMaxSize().padding(...)`).
+ * - **Canvas**: An immediate-mode 2D drawing surface executed inside Compose (similar to an HTML5 Canvas
+ *   or an ImGui draw list).
+ *
+ * @param vitals Current companion vitals ([Vitals]).
+ * @param modifier Compose layout modifier applied to the outer container.
+ * @param strokeWidth Thickness of the gauge arcs in density-independent pixels ([Dp], default 5.dp).
+ * @param content Nested composable slot rendered in the center of the ring (e.g. companion sprite and actions).
  */
 @Composable
 fun VitalsRing(
@@ -95,6 +113,23 @@ fun VitalsRing(
     }
 }
 
+/**
+ * Helper extension function on [androidx.compose.ui.graphics.drawscope.DrawScope] to draw a two-pass arc:
+ * first a semi-transparent background track (alpha 0.2), then a solid progress arc with rounded caps.
+ *
+ * ### Kotlin vs C++ Note:
+ * - **Extension Functions**: `fun DrawScope.drawVitalArc(...)` extends `DrawScope` with a new method
+ *   without subclassing or modifying its original source code. Under the hood, the compiler emits a static
+ *   free function whose first parameter is `DrawScope self` (identical to `void drawVitalArc(DrawScope& self, ...)`).
+ *
+ * @param startAngle Angle in degrees where the arc begins (0° = 3 o'clock).
+ * @param sweepTotal Total span in degrees of the arc segment.
+ * @param progress Normalized fraction in range `[0.0, 1.0]`.
+ * @param color Primary accent color for the vital indicator.
+ * @param topLeft Top-left coordinate offset of the bounding ellipse.
+ * @param size Dimensions of the bounding ellipse.
+ * @param strokePx Stroke width in physical screen pixels.
+ */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawVitalArc(
     startAngle: Float,
     sweepTotal: Float,

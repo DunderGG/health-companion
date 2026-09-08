@@ -24,8 +24,25 @@ import com.healthcompanion.wear.presentation.permission.PermissionViewModel
 import com.healthcompanion.wear.presentation.pet.PetScreen
 import com.healthcompanion.wear.presentation.pet.PetViewModel
 
+/**
+ * Main activity and single-screen host for the Wear OS companion application.
+ *
+ * ### Kotlin vs C++ Note:
+ * - **Property Delegation (`by viewModels { factory }`)**: Kotlin's `by` keyword delegates property access
+ *   to an underlying delegate instance. `viewModels` retains the [PetViewModel] across Activity recreation
+ *   events (such as orientation/theme changes) by retrieving it from Android's ViewModelStore.
+ * - **Anonymous Classes (`object : ViewModelProvider.Factory`)**: Kotlin's `object : Interface` syntax
+ *   creates an anonymous object implementing an interface on the fly, similar to declaring a local C++
+ *   struct that inherits an abstract class and instantiating it inline.
+ * - **Type Casting (`as T`)**: Unchecked downcasting equivalent to `static_cast<T*>` in C++.
+ * - **Reactive Activity Flow**: Observes [PermissionViewModel.permissionState] and routes between
+ *   permission onboarding ([PermissionScreen]) and the interactive pet UI ([PetScreen]).
+ */
 class MainActivity : ComponentActivity() {
 
+    /**
+     * Companion game view model managing pet state, petting interaction cooldown, and habit dispatch.
+     */
     private val petViewModel: PetViewModel by viewModels {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -39,6 +56,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * View model managing sensor runtime permissions and Health Services registration.
+     */
     private val permissionViewModel: PermissionViewModel by viewModels {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -52,6 +72,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Initializes activity lifecycle, binds permission observers, and sets up Compose UI content tree.
+     *
+     * @param savedInstanceState Saved instance state bundle if recreating after process death.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 

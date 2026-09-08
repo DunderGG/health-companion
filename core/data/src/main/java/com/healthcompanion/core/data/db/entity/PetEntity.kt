@@ -11,7 +11,28 @@ import com.healthcompanion.core.model.PetArchetype
 import com.healthcompanion.core.model.Vitals
 
 /**
- * Room database entity persisting companion state.
+ * Room database entity representing a persistent table row for the companion.
+ *
+ * ### Kotlin vs C++ Note:
+ * - **Room ORM**: Room is an SQLite Object-Relational Mapping library for Android.
+ *   `@Entity(tableName = "pets")` generates the underlying SQLite table `CREATE TABLE pets (...)`.
+ * - **Flattening / Data Mapping**: Domain models like [Pet] contain nested value objects ([Vitals])
+ *   and enums. In relational storage, these are flattened into primitive column types (TEXT, REAL, INTEGER).
+ * - **Serialization**: `toDomain()` and `fromDomain()` act as conversion operators / serializers
+ *   between the database representation and the rich domain model.
+ *
+ * @property id Primary key column identifying the companion (defaults to `"companion_primary"`).
+ * @property name User-facing display name stored as text.
+ * @property stage Stored string representation of [EvolutionStage] enum constant.
+ * @property archetype Stored string representation of [PetArchetype] enum constant.
+ * @property energy Companion energy stat in range `[0, 100]`.
+ * @property hunger Companion hunger stat in range `[0, 100]`.
+ * @property hydration Companion hydration stat in range `[0, 100]`.
+ * @property fitness Companion fitness stat in range `[0, 100]`.
+ * @property happiness Companion happiness stat in range `[0, 100]`.
+ * @property lastUpdatedTimestamp Epoch timestamp in milliseconds of last state update.
+ * @property experiencePoints Total experience points accumulated.
+ * @property bornTimestamp Epoch timestamp in milliseconds of pet creation.
  */
 @Entity(tableName = "pets")
 data class PetEntity(
@@ -28,6 +49,12 @@ data class PetEntity(
     val experiencePoints: Int,
     val bornTimestamp: Long
 ) {
+
+    /**
+     * Converts this flat database entity into the rich, type-safe domain [Pet] entity.
+     *
+     * @return Fully populated [Pet] instance with nested [Vitals] and validated invariants.
+     */
     fun toDomain(): Pet {
         return Pet(
             id = id,
@@ -48,6 +75,12 @@ data class PetEntity(
     }
 
     companion object {
+        /**
+         * Creates a flat [PetEntity] from a domain [Pet] instance ready for SQLite insertion.
+         *
+         * @param pet Domain [Pet] instance to flatten.
+         * @return [PetEntity] table row object.
+         */
         fun fromDomain(pet: Pet): PetEntity {
             return PetEntity(
                 id = pet.id,

@@ -45,10 +45,23 @@ import com.healthcompanion.core.ui.theme.SoftPink
 import com.healthcompanion.core.ui.theme.SunsetOrange
 
 /**
- * Procedural vector virtual companion character.
+ * Procedural vector virtual companion character drawn on an immediate-mode Compose Canvas.
  * Features organic breathing physics, animated twitching ears, a wagging tail,
  * cute front paws, expressive anime catchlight eyes, dynamic mood coloring,
  * and contextual floating aura particles (sparkles, Zzz, water droplets).
+ *
+ * ### Kotlin vs C++ Note:
+ * - **`rememberInfiniteTransition`**: Analogous to an engine animation clock running continuous harmonic
+ *   oscillations (sine/cosine loops). The Compose runtime automatically drives redraws at the display's
+ *   refresh rate (e.g. 60Hz) only when these animated properties are active.
+ * - **Procedural Drawing**: No raster image files (PNG/WebP) are used. The entire character is computed
+ *   mathematically using Bézier splines, vector transforms (`withTransform { translate; rotate }`),
+ *   and radial gradient brushes. This provides pixel-perfect rendering across varying smartwatch pixel densities.
+ *
+ * @param mood The companion's current emotional state ([Mood]) determining colors and expressions.
+ * @param modifier Layout modifier applied to the character's bounding box.
+ * @param isPetting When `true`, triggers a joyful hop animation and bursts floating heart particles.
+ * @param canvasSize Dimensions of the square drawing canvas in [Dp] (default: 140.dp).
  */
 @Composable
 fun ModernPetCanvas(

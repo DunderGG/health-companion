@@ -27,11 +27,25 @@ import kotlinx.coroutines.launch
  * - [DataType.CALORIES_DAILY] → [HabitType.Workout] (passive calorie burn)
  * - [DataType.DISTANCE_DAILY] → [HabitType.Steps] (converted to step equivalent)
  * - [DataType.FLOORS_DAILY] → [HabitType.Steps] (converted to step equivalent)
+ *
+ * ### Kotlin vs C++ Note:
+ * - **`CoroutineScope(SupervisorJob() + Dispatchers.IO)`**:
+ *   Combines context elements via the overloaded `+` operator.
+ *   - `SupervisorJob()`: Failure of one child coroutine does not cancel other children (unlike a standard `Job`).
+ *   - `Dispatchers.IO`: Thread pool dispatcher backed by an elastic thread pool optimized for blocking IO/DB calls.
+ * - **`serviceScope.launch { ... }`**: Spawns a concurrent "fire-and-forget" coroutine, analogous to
+ *   dispatching a task to a thread pool via `std::async(std::launch::async, ...)`.
  */
 class PassiveDataService : PassiveListenerService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /**
+     * Callback invoked by Wear OS when batched passive sensor readings arrive.
+     * Launches a background coroutine to persist habit data without blocking the main/binder thread.
+     *
+     * @param dataPoints Container holding all received [androidx.health.services.client.data.DataPoint] lists.
+     */
     override fun onNewDataPointsReceived(dataPoints: DataPointContainer) {
         serviceScope.launch {
             val db = CompanionDatabase.getInstance(applicationContext)
@@ -47,6 +61,12 @@ class PassiveDataService : PassiveListenerService() {
 
     // ── Steps (IntervalDataType) ─────────────────────────────────────
 
+    /**
+     * Extracts cumulative daily steps from [dataPoints] and logs [HabitType.Steps].
+     *
+     * @param dataPoints Health Services data payload.
+     * @param repository Companion repository to record the habit.
+     */
     private suspend fun processSteps(
         dataPoints: DataPointContainer,
         repository: PetRepositoryImpl
@@ -61,6 +81,12 @@ class PassiveDataService : PassiveListenerService() {
 
     // ── Heart Rate (SampleDataType) ──────────────────────────────────
 
+    /**
+     * Extracts the latest heart rate sample in BPM and logs [HabitType.HeartRate].
+     *
+     * @param dataPoints Health Services data payload.
+     * @param repository Companion repository to record the habit.
+     */
     private suspend fun processHeartRate(
         dataPoints: DataPointContainer,
         repository: PetRepositoryImpl
@@ -76,6 +102,12 @@ class PassiveDataService : PassiveListenerService() {
 
     // ── Calories (IntervalDataType) ──────────────────────────────────
 
+    /**
+     * Extracts passive calorie burn and logs it as a [HabitType.Workout] with zero active duration.
+     *
+     * @param dataPoints Health Services data payload.
+     * @param repository Companion repository to record the habit.
+     */
     private suspend fun processCalories(
         dataPoints: DataPointContainer,
         repository: PetRepositoryImpl
@@ -91,6 +123,12 @@ class PassiveDataService : PassiveListenerService() {
 
     // ── Distance (IntervalDataType, meters) ──────────────────────────
 
+    /**
+     * Extracts total daily distance in meters and converts it to equivalent step counts (avg stride ~0.75m).
+     *
+     * @param dataPoints Health Services data payload.
+     * @param repository Companion repository to record the habit.
+     */
     private suspend fun processDistance(
         dataPoints: DataPointContainer,
         repository: PetRepositoryImpl
@@ -107,6 +145,12 @@ class PassiveDataService : PassiveListenerService() {
 
     // ── Floors (IntervalDataType) ────────────────────────────────────
 
+    /**
+     * Extracts climbed floors and converts each floor into ~20 equivalent steps.
+     *
+     * @param dataPoints Health Services data payload.
+     * @param repository Companion repository to record the habit.
+     */
     private suspend fun processFloors(
         dataPoints: DataPointContainer,
         repository: PetRepositoryImpl

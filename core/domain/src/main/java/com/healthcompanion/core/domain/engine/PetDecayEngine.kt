@@ -11,18 +11,47 @@ import kotlin.math.min
 /**
  * Battery-efficient time-delta game engine.
  * Calculates vitals degradation based on timestamps rather than waking up the CPU constantly.
+ *
+ * ### Kotlin vs C++ Note:
+ * - **`object` singleton**: In Kotlin, an `object` declaration defines a singleton class and its single
+ *   instance simultaneously (equivalent to a C++ Meyer's Singleton `static Class& getInstance()` or a
+ *   namespace with free functions).
+ * - **Immutable Value Types**: Functions here are **pure functions**; they do not mutate their arguments
+ *   in place (unlike passing `Vitals*` or `Vitals&`). Instead, they return a new copy via `.copy(...)`
+ *   with clamped values (analogous to `std::clamp` in C++17 via Kotlin's `.coerceIn(...)` and `.coerceAtMost(...)`).
  */
 object PetDecayEngine {
 
-    // Hourly decay percentages
+    /** Hourly loss of hydration stat (percent per hour). */
     const val HYDRATION_DECAY_PER_HOUR = 3.0f
+
+    /** Hourly loss of hunger/nutrition stat (percent per hour). */
     const val HUNGER_DECAY_PER_HOUR = 2.5f
+
+    /** Hourly loss of energy stat (percent per hour). */
     const val ENERGY_DECAY_PER_HOUR = 2.0f
+
+    /** Hourly loss of cardiovascular fitness stat (percent per hour). */
     const val FITNESS_DECAY_PER_HOUR = 1.5f
+
+    /** Base hourly loss of happiness stat (percent per hour). */
     const val HAPPINESS_DECAY_PER_HOUR = 2.0f
 
     /**
-     * Calculates updated vitals by applying decay for the elapsed time since last update.
+     * Calculates updated vitals by applying linear time decay for the elapsed time since last update.
+     *
+     * ### Algorithm & Battery Design:
+     * Smartwatch processors consume substantial battery if woken frequently. Instead of running a continuous
+     * timer loop (1-second tick), this function uses delta time: `Δt = currentTimeMillis - lastUpdatedTimestamp`.
+     * Decay is only computed on demand when the screen turns on, when a habit is logged, or during periodic
+     * 2-hour WorkManager maintenance windows.
+     *
+     * In addition, a neglect penalty of 1.5x is applied to happiness if hydration or hunger drop below 20%.
+     *
+     * @param vitals The base companion vitals before applying time decay.
+     * @param currentTimeMillis The current epoch timestamp in milliseconds (defaults to `System.currentTimeMillis()`).
+     * @return A new [Vitals] instance with degraded stats clamped to `[0.0, 100.0]` and updated timestamp.
+     *         Returns the unchanged [vitals] if [currentTimeMillis] <= [vitals.lastUpdatedTimestamp].
      */
     fun calculateDecay(vitals: Vitals, currentTimeMillis: Long = System.currentTimeMillis()): Vitals {
         if (currentTimeMillis <= vitals.lastUpdatedTimestamp) {
@@ -52,8 +81,19 @@ object PetDecayEngine {
     }
 
     /**
-     * Applies a user health habit to the current vitals.
-     * Always computes decay up to the current timestamp first.
+     * Applies a health habit or interaction to the companion's vitals.
+     *
+     * ### Execution Flow:
+     * 1. Evaluates elapsed decay up to [currentTimeMillis] first to ensure stats are up-to-date.
+     * 2. Evaluates the habit type via smart-casting in `when (habit)` (like `std::visit` on `std::variant`).
+     * 3. Computes the corresponding stat bonus and awarded experience points (XP).
+     * 4. Clamps all values to valid ranges (`[0, 100]`) and stamps `lastUpdatedTimestamp`.
+     *
+     * @param vitals Current base vitals before applying habit.
+     * @param habit The health event being recorded ([HabitType]).
+     * @param currentTimeMillis Current epoch timestamp in milliseconds (defaults to `System.currentTimeMillis()`).
+     * @return A [Pair] containing the updated [Vitals] (first) and the experience points awarded (second),
+     *         analogous to `std::pair<Vitals, int>` in C++.
      */
     fun applyHabit(
         vitals: Vitals,

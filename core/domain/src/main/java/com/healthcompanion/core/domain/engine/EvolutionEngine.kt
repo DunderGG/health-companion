@@ -8,10 +8,27 @@ import com.healthcompanion.core.model.Pet
 import com.healthcompanion.core.model.PetArchetype
 
 /**
- * Manages evolution milestones and archetype branching.
+ * Manages companion evolution milestones and personality archetype branching.
+ *
+ * Tracks XP thresholds and permanently unlocks specialized archetypes once the companion
+ * matures into adolescence ([EvolutionStage.TEEN]).
  */
 object EvolutionEngine {
 
+    /**
+     * Evaluates whether awarded experience points trigger a stage evolution or archetype specialization.
+     *
+     * ### Archetype Branching Logic:
+     * When reaching [EvolutionStage.TEEN] (level 3, 750+ XP), if the companion's archetype is still
+     * [PetArchetype.BALANCED], its lifestyle habit vitals are inspected to lock in a persona:
+     * - `fitness > 80f` -> [PetArchetype.CARDIO_RUNNER] (focused on running/steps)
+     * - `hydration > 80f && energy > 80f` -> [PetArchetype.ZEN_SAGE] (focused on recovery/hydration)
+     * - Otherwise -> Remains [PetArchetype.BALANCED]
+     *
+     * @param pet The current [Pet] state prior to XP addition.
+     * @param additionalXp Non-negative experience points gained from the recent habit or interaction.
+     * @return A new [Pet] instance with updated [Pet.stage], [Pet.archetype], and cumulative [Pet.experiencePoints].
+     */
     fun checkEvolution(pet: Pet, additionalXp: Int): Pet {
         val totalXp = pet.experiencePoints + additionalXp
         val newStage = EvolutionStage.fromXp(totalXp)

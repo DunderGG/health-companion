@@ -14,12 +14,23 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Manages runtime permission state for BODY_SENSORS and ACTIVITY_RECOGNITION.
+ * Manages runtime permission state for `BODY_SENSORS` and `ACTIVITY_RECOGNITION`.
  *
  * Responsible for:
  * - Checking current permission grants on startup and resume.
  * - Processing the result of the system permission dialog.
  * - Triggering Health Services registration after a successful grant.
+ *
+ * ### Kotlin vs C++ Note:
+ * - **`MutableStateFlow` vs `StateFlow` Encapsulation**:
+ *   A `MutableStateFlow` is a thread-safe observable state container (like an atomic variable with pub-sub).
+ *   Kotlin architectures use the backing property pattern:
+ *   `private val _permissionState = MutableStateFlow(...)` (read-write, internal to ViewModel)
+ *   `val permissionState: StateFlow = _permissionState.asStateFlow()` (read-only view for UI observers).
+ *   This prevents external UI code from modifying state directly, matching C++ const-reference exposure.
+ *
+ * @param application Android application context used for permission querying.
+ * @param healthServicesManager Manager for registering sensor listener upon permission grant.
  */
 class PermissionViewModel(
     private val application: Application,
@@ -27,6 +38,10 @@ class PermissionViewModel(
 ) : ViewModel() {
 
     private val _permissionState = MutableStateFlow<PermissionState>(PermissionState.Checking)
+
+    /**
+     * Read-only public [StateFlow] observed by the Activity / Compose UI layer.
+     */
     val permissionState: StateFlow<PermissionState> = _permissionState.asStateFlow()
 
     init {

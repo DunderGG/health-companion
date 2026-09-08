@@ -21,10 +21,29 @@ import com.healthcompanion.core.domain.engine.PetDecayEngine
 import kotlinx.coroutines.runBlocking
 
 /**
- * Wear OS Carousel Tile providing instant glanceable pet vitals from the watch face.
+ * Wear OS Carousel Tile providing instant glanceable pet vitals directly from the watch face carousel.
+ *
+ * ### Kotlin vs C++ Note:
+ * - **ProtoLayout**: Wear OS Tiles do not use Jetpack Compose directly. Instead, they construct a
+ *   declarative ProtoLayout schema builder tree that is serialized into protocol buffers and transmitted
+ *   via IPC to the system Watch Face UI process for rendering.
+ * - **`runBlocking { ... }`**: Bridges the asynchronous Kotlin Coroutines world to synchronous/future APIs.
+ *   Unlike `launch`, `runBlocking` blocks the worker thread until the coroutine completes (identical to
+ *   calling `future.get()` on a `std::future` in C++). Used here because `onTileRequest` expects a
+ *   `ListenableFuture<Tile>` return value.
+ * - **ResolvableFuture**: Functions like a `std::promise` in C++, allowing asynchronous completion of a future.
  */
 class PetStatusTileService : TileService() {
 
+    /**
+     * Constructs and returns the Tile layout whenever Wear OS requests a tile render or update.
+     *
+     * Queries current pet vitals from SQLite, calculates decay and mood, builds the ProtoLayout
+     * text column, and sets a 10-minute cache freshness interval to conserve battery.
+     *
+     * @param requestParams Parameters including screen dimensions, device density, and tile state.
+     * @return [ListenableFuture] completing with the rendered [TileBuilders.Tile].
+     */
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
         val future = ResolvableFuture.create<TileBuilders.Tile>()
 
@@ -85,6 +104,12 @@ class PetStatusTileService : TileService() {
         return future
     }
 
+    /**
+     * Supplies static graphical resources (images, icons) referenced by the ProtoLayout tree.
+     *
+     * @param requestParams Parameters including requested resource version and device capabilities.
+     * @return [ListenableFuture] delivering the populated [ResourceBuilders.Resources] bundle.
+     */
     override fun onTileResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> {
         val future = ResolvableFuture.create<ResourceBuilders.Resources>()
         val resources = ResourceBuilders.Resources.Builder()

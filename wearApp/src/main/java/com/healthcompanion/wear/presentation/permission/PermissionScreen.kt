@@ -26,7 +26,11 @@ import androidx.wear.compose.material3.Text
  * and presents an "Allow" button to trigger the system permission dialog.
  *
  * Designed for Wear OS round displays — content is vertically centered
- * with minimal text to suit ~1.4" watch screens.
+ * with minimal text to suit small ~1.4" watch screens.
+ *
+ * @param onRequestPermission Callback lambda invoked when the user taps the "Allow" button,
+ *                            launching the system runtime permission prompt.
+ * @param modifier Compose layout modifier applied to the outer container.
  */
 @Composable
 fun PermissionScreen(
