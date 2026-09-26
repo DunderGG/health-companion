@@ -5,6 +5,17 @@
     <string name="action_drink_water">+250ml Water</string>
     <string name="tile_log_water_description">Log 250 milliliters of water</string>
 
+    <!-- Vitals page (crown / swipe up from the pet) -->
+    <!-- %1$s pet name, %2$d overall health percent -->
+    <string name="vitals_overall">%1$s · %2$d%%</string>
+    <string name="vital_energy">Energy</string>
+    <string name="vital_hunger">Hunger</string>
+    <string name="vital_hydration">Hydration</string>
+    <string name="vital_fitness">Fitness</string>
+    <string name="vital_happiness">Happiness</string>
+    <!-- %1$s vital name, %2$d percent -->
+    <string name="vital_row_description">%1$s %2$d%%</string>
+
     <!-- Watch face complication -->
     <string name="complication_name">Pet Mood</string>
     <!-- %1$s pet name, %2$s mood label, %3$d overall health percent -->

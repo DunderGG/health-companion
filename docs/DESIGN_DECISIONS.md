@@ -89,6 +89,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-42](#dd-42--the-tile-logs-water-in-place-through-a-loadaction-deduplicated-by-a-per-render-click-id) | The tile logs water in place through a `LoadAction`, deduplicated by a per-render click id | Surfaces | Accepted · 🟠 verify on device |
 | [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress) | The complication shows mood and overall health, not step progress | Surfaces | Accepted · 🟠 verify on device · 🟣 your call |
 | [DD-44](#dd-44--the-pet-screen-stays-on-in-ambient-mode-as-a-static-outline-and-releases-the-step-sensor) | The pet screen stays on in ambient mode as a static outline, and releases the step sensor | Surfaces / battery | Accepted · 🟠 verify on device |
+| [DD-45](#dd-45--the-crown-pages-between-the-pet-and-a-vitals-breakdown-petting-stays-a-tap) | The crown pages between the pet and a vitals breakdown; petting stays a tap | UI / input | Accepted |
 
 ---
 
@@ -620,7 +621,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Status**: Accepted (2026-09-26).
 - **Decision**:
   - `MainActivity` registers `AmbientLifecycleObserver` (`androidx.wear:wear` 1.4.0, a new dependency). When the watch dims and always-on is enabled, the app stays on screen instead of returning to the watch face.
-  - **Look**: in ambient mode the pet screen shows the time (`TimeText`), the pet's name, and a static outline pet in its current mood (ears, eyes, mouth, and the Zzz when asleep). The vitals ring becomes thin outline arcs without background tracks, inset so the time fits along the top. Everything is grey (`AmbientGray`) on black, or pure white on low-bit displays, where grey could be quantized to black. Buttons, the sensor chip, the stage line, gradients, cheeks and particles are hidden.
+  - **Look**: in ambient mode the pet screen shows the time (plain text: Material's `TimeText` draws a filled pill behind the time even in ambient), the pet's name, and a static outline pet in its current mood (ears, eyes, mouth, and the Zzz when asleep). The vitals ring becomes thin outline arcs without background tracks, inset so the time fits along the top. Everything is grey (`AmbientGray`) on black, or pure white on low-bit displays, where grey could be quantized to black. Buttons, the sensor chip, the stage line, gradients, cheeks and particles are hidden.
   - **No animation**: the ambient pet creates no infinite transitions, so nothing redraws between updates.
   - **Burn-in**: when `burnInProtectionRequired`, the whole screen moves by up to 4 dp per axis on each once-a-minute update, walking a fixed 8-step loop around the centre (`BurnInShift`).
   - **Sensors and refresh**: `PetViewModel.setAmbient(true)` swaps the live step flow for a constant `IDLE` (`flatMapLatest`), which unregisters the step listener. `onUpdateAmbient` feeds `GetPetStateUseCase.execute(refresh = …)`, so decay and mood are re-evaluated every minute even if the CPU slept through the ticker's `delay`.
@@ -642,3 +643,23 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - The activity stays resumed, so the once-a-minute updates are actually drawn: the time and ring advance, and the shift moves on burn-in devices.
 > - The step sensor is released while ambient.
 > - Ambient still engages if WorkManager's `WAKE_LOCK` ever disappears from the merged manifest.
+
+---
+
+## Rotary crown (Phase 3)
+
+### DD-45 — The crown pages between the pet and a vitals breakdown; petting stays a tap
+- **Status**: Accepted (2026-09-26), chosen by the project owner from four options.
+- **Decision**:
+  - The pet screen is now page 1 of a two-page `VerticalPagerScaffold` (`PetPager`). Page 2 (`VitalsScreen`) lists all five vitals with a whole-number percentage and a bar in the ring's colours, under "Aura · 92%" (overall health).
+  - Turning the crown snaps between the pages, with haptic ticks. This is the scaffold's default rotary behaviour (`PagerDefaults.snapRotaryScrollableBehavior`), so no rotary code of our own is needed. Swiping does the same, and a vertical page indicator shows the position.
+  - The Vitals page is a fixed column, not a scrolling list, so the crown never has two jobs on one page.
+  - Happiness appears for the first time: it has no arc on the ring.
+  - In ambient mode the ambient pet is shown whichever page was open, and the page is restored afterwards (DD-44).
+- **Why**: Paging is the standard Wear OS use of the crown and is discoverable. The roadmap's three ideas (zoom, vitals breakdown, petting) compete for one input, and a vitals breakdown is the most useful.
+- **Alternatives**:
+  - Crown petting (strokes with haptic ticks), alone or mixed with paging: playful, but a slow turn meaning "stroke" and a fast turn meaning "scroll" is ambiguous and hard to tune.
+  - Crown zoom on the pet: the least useful of the three.
+- **Consequences**:
+  - Zooming and crown petting are dropped from the roadmap item. Petting stays a tap on the pet.
+  - The vitals rows are sized for the 5-row layout. A sixth row (e.g. XP or level) would need a scrolling list, and with it a rotary scroll inside the page.

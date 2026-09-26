@@ -151,7 +151,7 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 - [x] Interactive Wear OS Carousel Tile with direct 1-tap "+250ml Water" action button via ProtoLayout. Each tap logs once, tapping the vitals opens the app (DD-42).
 - [x] Watch Face Complication Provider (`PetMoodComplicationService`): pet mood face (short text / icon) and an overall-health ring on standard watch dials, refreshed from the same `NotifyingPetRepository` callback as the tile (DD-43). A step-progress ring needs a daily step goal first (DD-43, your call).
 - [x] Ambient Mode support: Low-power grayscale rendering for always-on displays. Static outline pet and ring, time shown, burn-in shift, step sensor released (DD-44).
-- [ ] Rotary Crown Integration: Use watch crown for smooth zooming, inspecting vitals breakdown, and interactive petting.
+- [x] Rotary Crown Integration: the crown (or a swipe) pages between the pet and a new Vitals page with all five vitals. Zoom and crown petting were considered and dropped; petting stays a tap (DD-45).
 - [ ] Haptic Feedback: Custom vibration patterns on petting, evolution, and goal completion.
 
 ---

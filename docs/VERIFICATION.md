@@ -10,7 +10,7 @@ Manual checks that unit tests can't cover: behaviour on a Wear OS emulator or a 
 **Contents**
 - [0. Setup](#0-setup)
 - [1. Tools](#1-tools)
-- [2. Functional checks](#2-functional-checks) (V1–V9)
+- [2. Functional checks](#2-functional-checks) (V1–V10)
 - [3. Battery profiling](#3-battery-profiling) (B1–B6)
 - [Results log](#results-log)
 
@@ -197,6 +197,13 @@ Enable **Settings → Display → Always-on screen**, open the pet screen, then 
 - [ ] On a physical OLED watch (burn-in protection), the content moves by a few dp each minute.
 - [ ] Walking while ambient doesn't animate the pet, and `dumpsys sensorservice` shows no step listener for the app (§1.3).
 
+### V10 — Rotary crown ([DD-45](DESIGN_DECISIONS.md#dd-45--the-crown-pages-between-the-pet-and-a-vitals-breakdown-petting-stays-a-tap))
+On the emulator, use the rotary control in the extended controls (**⋯**), or `adb shell input rotaryencoder scroll --axis SCROLL,-1` (repeat a few times; positive values scroll back up).
+- [ ] Turning the crown one way snaps from the pet to the Vitals page, and the other way snaps back. The page indicator follows. On a watch, each snap gives a haptic tick.
+- [ ] Swiping up and down does the same.
+- [ ] The Vitals page shows all five vitals, fully inside the round display on the smallest supported screen, with values matching the tile.
+- [ ] Tapping the pet and the meal/water buttons still works on the pet page.
+
 ---
 
 ## 3. Battery profiling
@@ -250,4 +257,6 @@ Force Doze (§1.5) with an alert check pending.
 
 | Date | Check | Device / image | Result | Notes |
 | :--- | :--- | :--- | :--- | :--- |
+| 2026-09-26 | V10 (partial) | Wear_OS_Large_Round, API 37 | Pass | Crown (`rotaryencoder scroll --axis SCROLL,±1`) and swipe both snap between the pet and Vitals pages. The Vitals page fits the large round screen. Tapping water on the pet page still logs (hydration capped at 100, shown as 99% because values are truncated). Haptics and small screens not checked. |
+| 2026-09-26 | V9 (partial) | Wear_OS_Large_Round, API 37 | Pass | `KEYCODE_SLEEP` enters the ambient look (time, name, outline pet, thin ring), also from the Vitals page. Found and fixed: Material `TimeText` drew a filled pill behind the time. Minute updates, burn-in shift and sensor release not checked. |
 | | | | | |

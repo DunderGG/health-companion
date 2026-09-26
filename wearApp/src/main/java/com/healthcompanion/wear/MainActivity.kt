@@ -25,7 +25,7 @@ import com.healthcompanion.wear.presentation.ambient.AmbientState
 import com.healthcompanion.wear.presentation.permission.PermissionScreen
 import com.healthcompanion.wear.presentation.permission.PermissionState
 import com.healthcompanion.wear.presentation.permission.PermissionViewModel
-import com.healthcompanion.wear.presentation.pet.PetScreen
+import com.healthcompanion.wear.presentation.pet.PetPager
 import com.healthcompanion.wear.presentation.pet.PetViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -42,7 +42,7 @@ import kotlinx.coroutines.flow.update
  *   struct that inherits an abstract class and instantiating it inline.
  * - **Type Casting (`as T`)**: Unchecked downcasting equivalent to `static_cast<T*>` in C++.
  * - **Reactive Activity Flow**: Observes [PermissionViewModel.permissionState] and routes between
- *   permission onboarding ([PermissionScreen]) and the interactive pet UI ([PetScreen]).
+ *   permission onboarding ([PermissionScreen]) and the pet UI ([PetPager]: pet and vitals pages).
  * - **Ambient (always-on) mode**: [AmbientLifecycleObserver] keeps the activity on screen when the watch
  *   dims, instead of returning to the watch face. Its callbacks feed [ambientState] (rendering) and
  *   [PetViewModel] (sensor release, once-a-minute refresh). See DD-44.
@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Interactive or ambient; read by [PetScreen] to switch to its low-power look. */
+    /** Interactive or ambient; read by [PetPager] to switch to its low-power look. */
     private val ambientState = MutableStateFlow<AmbientState>(AmbientState.Interactive)
 
     private val ambientObserver = AmbientLifecycleObserver(
@@ -170,7 +170,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     is PermissionState.Granted -> {
-                        PetScreen(
+                        PetPager(
                             viewModel = petViewModel,
                             ambientState = ambient,
                             showSensorChip = false
@@ -178,7 +178,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     is PermissionState.Denied -> {
-                        PetScreen(
+                        PetPager(
                             viewModel = petViewModel,
                             ambientState = ambient,
                             showSensorChip = true,

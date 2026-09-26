@@ -58,7 +58,8 @@ Vitals --> Complication : Updates Watch Dial
 | **Target Platform** | Wear OS 3.0+ (API 30–36) | Standalone wearable app (`com.google.android.wearable.standalone = true`). |
 | **UI Framework** | Jetpack Compose for Wear OS (`compose-material3`, `compose-foundation`) | Hardware-accelerated, declarative UI optimized for circular displays. |
 | **Ambient (Always-On)** | `androidx.wear:wear` (`AmbientLifecycleObserver`) | Keeps the pet screen visible when the watch dims, as a static grey outline with the time, a burn-in shift, and once-a-minute updates (DD-44). |
-| **Wear Utilities** | Horologist (`horologist-compose-layout`) | Rotary crown input and volume/haptics. |
+| **Rotary Crown** | Wear Compose Material3 `VerticalPagerScaffold` | The crown snaps between the pet page and the vitals page, with haptics (DD-45). |
+| **Wear Utilities** | Horologist (`horologist-compose-layout`) | Volume/haptics. |
 | **Health & Sensors** | Health Services for Wear OS (`androidx.health:health-services-client`) | Capability-aware passive monitoring via `PassiveMonitoringClient`: steps, floors, and heart rate. |
 | **Glance Surfaces** | AndroidX Wear Tiles & ProtoLayout | Instant-access carousel card with 1-tap micro-interactions. |
 | **Watch Face Integration** | AndroidX WatchFace Complications (`SuspendingComplicationDataSourceService`) | `PetMoodComplicationService`: mood face and overall-health ring on any watch face that accepts complications (DD-43). |
@@ -128,6 +129,7 @@ coreDomain --> coreModel : Evaluates Game Rules
    - Dynamic animations: breathing physics, eye blinking, mood facial expressions (Happy, Ecstatic, Hungry, Thirsty, Tired, Sleeping, Grumpy).
    - Live gait (`PetActivity`): a bobbing trot with alternating paws when walking, a forward lean with speed lines when running.
    - Circular multi-vital progress ring (`VitalsRing`) designed for round watch dials.
+   - Vitals page (`VitalsScreen`), one crown turn below the pet, listing all five vitals with bars (DD-45).
    - Wear Material3 Theme & Color tokens.
 
 3. **[`:core:domain`](../core/domain)**:
@@ -180,7 +182,7 @@ health-companion/
 │       ├── HealthCompanionApp.kt         # Application: owns AppContainer, WorkManager scheduling
 │       ├── AppContainer.kt               # Composition root (manual DI)
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
-│       ├── presentation/pet/             # PetScreen, PetViewModel, PetUiState
+│       ├── presentation/pet/             # PetPager (pet + vitals pages), PetScreen, VitalsScreen, PetViewModel
 │       ├── presentation/ambient/         # AmbientState, BurnInShift (always-on mode)
 │       ├── complications/                # PetMoodComplicationService, MoodPresentation
 │       ├── notifications/                # VitalAlertWorker, VitalAlertNotifier

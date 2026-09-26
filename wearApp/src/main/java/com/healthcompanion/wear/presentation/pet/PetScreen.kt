@@ -35,7 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
-import androidx.wear.compose.material3.TimeText
+import androidx.wear.compose.material3.TimeTextDefaults
 import com.healthcompanion.core.ui.components.MealActionToken
 import com.healthcompanion.core.ui.components.ModernPetCanvas
 import com.healthcompanion.core.ui.components.VitalsRing
@@ -191,8 +191,17 @@ fun PetScreen(
         }
 
         // The watch face (and its clock) is hidden while the app is always-on, so show the time instead.
+        // Plain text rather than Material's TimeText, which draws a filled pill behind the time even in ambient.
         if (isAmbient) {
-            TimeText()
+            val timeSource = TimeTextDefaults.rememberTimeSource(TimeTextDefaults.timeFormat())
+            Text(
+                text = timeSource.currentTime(),
+                style = MaterialTheme.typography.labelMedium,
+                color = displayMode.ambientColor,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 6.dp)
+            )
         }
     }
 }
