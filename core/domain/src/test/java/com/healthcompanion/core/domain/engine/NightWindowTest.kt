@@ -27,6 +27,13 @@ class NightWindowTest {
     }
 
     @Test
+    fun `next daytime is now by day and the night's end at night`() {
+        assertEquals(at("2026-01-10T12:00:00Z"), window.nextDaytime(at("2026-01-10T12:00:00Z"), utc))
+        assertEquals(at("2026-01-11T07:00:00Z"), window.nextDaytime(at("2026-01-10T22:00:00Z"), utc))
+        assertEquals(at("2026-01-11T07:00:00Z"), window.nextDaytime(at("2026-01-11T03:15:00Z"), utc))
+    }
+
+    @Test
     fun `night is evaluated in the given zone`() {
         val instant = at("2026-01-10T20:00:00Z")
 

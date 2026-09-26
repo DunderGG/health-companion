@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.work.WorkManager
 import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
 import com.healthcompanion.core.health.PassiveDataDependencies
+import com.healthcompanion.wear.notifications.VitalAlertWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,14 +40,19 @@ class HealthCompanionApp : Application(), PassiveDataDependencies {
         get() = container.ingestPassiveDataUseCase
 
     /**
-     * Builds the dependency graph, removes obsolete background work,
-     * and syncs passive sensor tracking via Health Services.
+     * Builds the dependency graph, removes obsolete background work, prepares critical-vital
+     * notifications, and syncs passive sensor tracking via Health Services.
      */
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
 
         cancelLegacyDecayWork()
+
+        // Critical-vital notifications: the channel must exist before the first post,
+        // and a check is scheduled unless one is already pending.
+        container.vitalAlertNotifier.createChannel()
+        VitalAlertWorker.ensureScheduled(this)
 
         // Sync the passive Health Services registration with the current permissions.
         // Cheap no-op when nothing changed; re-registers after a reboot or permission change.

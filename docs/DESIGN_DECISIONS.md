@@ -24,6 +24,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-34](#dd-34--the-pet-always-sleeps-at-night): pet always asleep at night, hiding thirst and hunger warnings?
 > - [DD-36](#dd-36--archetype-from-7-day-consistency-locked-in-once-at-teen): archetype thresholds (6,000 steps; workout or heart rate ≥ 100; 1,500 ml + 2 meals; 4 of 7 days)?
 > - [DD-39](#dd-39--walkrun-from-burst-cadence-with-hysteresis-a-sleeping-pet-does-not-react): live walk/run thresholds, and should moving wake a sleeping pet?
+> - [DD-41](#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night): alert threshold, reminders for long episodes, quiet hours, and a quick "+250 ml" action?
 
 > [!WARNING]
 > **🟠 Needs verification on an emulator or watch**
@@ -32,6 +33,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-24](#dd-24--idempotent-registration-keyed-on-permitted-sensors--boot-count): whether the passive registration survives app updates.
 > - [DD-25](#dd-25--boot-re-registration-via-a-non-exported-receiver-and-workmanager): whether the boot receiver fires and passive data resumes after a reboot.
 > - [DD-37](#dd-37--live-steps-come-from-the-platform-step-detector-only-while-the-screen-is-visible): whether the watch has a step detector, how quickly it reports, and the battery cost of live reactions.
+> - [DD-40](#dd-40--alerts-are-scheduled-at-the-predicted-crossing-not-polled): alert timing under Doze, clearing after logging, and surviving a reboot.
 
 ---
 
@@ -78,6 +80,8 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-37](#dd-37--live-steps-come-from-the-platform-step-detector-only-while-the-screen-is-visible) | Live steps come from the platform step detector, only while the screen is visible | Sensors / battery | Accepted · 🟠 verify on device |
 | [DD-38](#dd-38--live-steps-are-cosmetic-only) | Live steps are cosmetic only | Sensors / balance | Accepted |
 | [DD-39](#dd-39--walkrun-from-burst-cadence-with-hysteresis-a-sleeping-pet-does-not-react) | Walk/run from burst cadence with hysteresis; a sleeping pet does not react | Game design / UI | Accepted · 🟣 your call |
+| [DD-40](#dd-40--alerts-are-scheduled-at-the-predicted-crossing-not-polled) | Alerts are scheduled at the predicted crossing, not polled | Background / battery | Accepted · 🟠 verify on device |
+| [DD-41](#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night) | One alert per critical episode, at the mood threshold, never at night | Game design / notifications | Accepted · 🟣 your call |
 
 ---
 
@@ -504,3 +508,45 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - Thresholds: 3 steps to react, 2.5 s pause to stop, run at ≥ 145 steps/min and back to walking below 130.
 > - Should walking or running wake a sleeping pet at night (e.g. a sleepy stumble), instead of it staying asleep?
 > - Should the mood change the gait, e.g. a `TIRED` pet refusing to run?
+
+---
+
+## Critical-vital notifications (Phase 2)
+
+### DD-40 — Alerts are scheduled at the predicted crossing, not polled
+- **Status**: Accepted (2026-09-26).
+- **Decision**:
+  - Hydration and hunger decay linearly (DD-02), so `VitalAlertPlanner` computes exactly when each will cross its critical threshold. A single one-time WorkManager job (`VitalAlertWorker`, unique work `CriticalVitalCheck`) is scheduled for the earliest crossing, 1 minute past it so the vital is clearly below the line.
+  - The worker posts alerts for newly critical vitals, cancels alerts for recovered ones, and appends the next delayed check (`APPEND_OR_REPLACE`, so it never cancels itself while running).
+  - Every committed pet write requests an immediate re-check (`REPLACE`), through the same `NotifyingPetRepository` callback that refreshes the tile (DD-29). Logging water therefore clears the thirst notification and pushes the next check out.
+  - Process start and app resume call `ensureScheduled()` (`KEEP`), which leaves a pending check alone. WorkManager persists the job across reboots, so no boot hook is needed.
+  - The check never writes the pet (vitals are decayed in memory), so it can't trigger itself through the write callback.
+- **Why**: DD-32 removed all periodic work. A prediction gives one wake-up per actual event instead of polling every N minutes, and it stays correct because any write that changes the prediction reschedules it.
+- **Alternatives**:
+  - A periodic worker (at least 15 minutes): wakes the watch dozens of times a day and alerts up to 15 minutes late anyway.
+  - `AlarmManager` exact alarms: precise, but need `SCHEDULE_EXACT_ALARM` (denied by default since API 33), don't survive reboot, and a pet's thirst doesn't need to-the-minute precision.
+- **Consequences**:
+  - WorkManager delays are inexact. Under Doze an alert can arrive later than predicted.
+  - Every pet write (UI tap, sensor batch) runs one short worker. Sensor batches arrive minutes apart, so this is cheap.
+  - Without notification permission the worker skips the check entirely, without recording anything, and the chain stops. Granting the permission (onboarding result) or reopening the app restarts it.
+
+> [!WARNING]
+> **🟠 Verify on device:** how late a delayed check actually runs under Doze on a real watch, that an alert appears (and is cleared after logging water), and that a scheduled check survives `adb reboot`. The quickest test is to set hydration low: log nothing for a while, or temporarily lower the threshold.
+
+### DD-41 — One alert per critical episode, at the mood threshold, never at night
+- **Status**: Accepted (2026-09-26).
+- **Decision**:
+  - **Threshold**: hydration or hunger below **25**, the same line where the pet turns `THIRSTY` or `HUNGRY` (`MoodCalculator.THIRSTY_BELOW` / `HUNGRY_BELOW`, now named constants shared by both).
+  - **Once per episode**: an alerted vital is stored in a small `vital_alerts` DataStore file and isn't alerted again until it has recovered to at least 25. It is not re-alerted if the user just dismisses the notification.
+  - **Quiet hours**: no alerts inside the pet's `NightWindow` (22:00–07:00). A vital that is, or becomes, critical at night is alerted at 07:00 if it is still critical then.
+  - **Content**: one notification per vital ("Aura is thirsty" / "Aura is hungry"), channel "Pet needs" at default importance. Tapping it opens the app.
+  - **Permission**: `POST_NOTIFICATIONS` (API 33+) is requested in the same onboarding request as the health permissions. It is optional and doesn't affect degraded mode.
+- **Why**: Matching the mood means the notification and the pet's face always agree. One alert per episode, and silence at night, avoid a nagging watch, which is the fastest way to get notifications disabled.
+- **Consequences**: Because hydration and hunger keep decaying overnight (DD-33), users who went to bed with low vitals will often get a 07:00 alert. Installs that finished onboarding before this change are never asked for the notification permission; the app is unreleased, so that only affects development builds.
+
+> [!IMPORTANT]
+> **🟣 Your call: alert rules.**
+> - Alert at the mood threshold (25), or earlier/later (e.g. 20, where the happiness neglect penalty starts)?
+> - A reminder if a vital stays critical for hours (e.g. once more after 4 h), or strictly once per episode?
+> - Quiet hours tied to the pet's night (22:00–07:00), or separate/configurable?
+> - Add a "+250 ml" action button on the thirst notification, so it can be answered without opening the app?

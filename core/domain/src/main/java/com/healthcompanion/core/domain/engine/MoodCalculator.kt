@@ -16,6 +16,12 @@ import com.healthcompanion.core.model.Vitals
  */
 object MoodCalculator {
 
+    /** Hydration below this is critical: the pet is [Mood.THIRSTY] (and a vital alert is due). */
+    const val THIRSTY_BELOW = 25f
+
+    /** Hunger below this is critical: the pet is [Mood.HUNGRY] (and a vital alert is due). */
+    const val HUNGRY_BELOW = 25f
+
     /**
      * Determines the companion's current emotional state by evaluating vitals against priority thresholds.
      *
@@ -39,8 +45,8 @@ object MoodCalculator {
         return when {
             isNightTime -> Mood.SLEEPING
             vitals.energy < 20f -> Mood.TIRED
-            vitals.hydration < 25f -> Mood.THIRSTY
-            vitals.hunger < 25f -> Mood.HUNGRY
+            vitals.hydration < THIRSTY_BELOW -> Mood.THIRSTY
+            vitals.hunger < HUNGRY_BELOW -> Mood.HUNGRY
             vitals.happiness < 30f -> Mood.GRUMPY
             vitals.overallHealth >= 80f -> Mood.ECSTATIC
             vitals.overallHealth >= 55f -> Mood.HAPPY

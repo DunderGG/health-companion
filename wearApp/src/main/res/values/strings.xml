@@ -6,5 +6,13 @@
     <string name="action_healthy_meal">Healthy Meal</string>
     <string name="action_snack">Quick Snack</string>
     <string name="action_pet">Pet Companion</string>
+
+    <!-- Critical-vital notifications -->
+    <string name="vital_alert_channel_name">Pet needs</string>
+    <string name="vital_alert_channel_description">Alerts when your companion is critically thirsty or hungry</string>
+    <string name="vital_alert_thirsty_title">%1$s is thirsty</string>
+    <string name="vital_alert_thirsty_text">Log some water to perk them up.</string>
+    <string name="vital_alert_hungry_title">%1$s is hungry</string>
+    <string name="vital_alert_hungry_text">Log a meal before they get grumpy.</string>
 </resources>
 

@@ -63,8 +63,8 @@ Vitals --> Complication : Updates Watch Dial
 | **Watch Face Integration** | AndroidX WatchFace Complications | *(planned — dependency declared, no data source service yet)* Live mood and vital progress complications on third-party watch faces. |
 | **Architecture Pattern** | Clean Architecture + MVI (UDF) | Unidirectional Data Flow with immutable `StateFlow<PetUiState>`. |
 | **Persistence** | Jetpack Room SQLite Database | Offline-first local storage for pet vitals, health logs, and history. |
-| **Preferences** | Jetpack DataStore Preferences | *(planned — dependency declared, not yet used)* Lightweight key-value storage for user settings and daily goals. |
-| **Background Processing**| Jetpack WorkManager (`work-runtime-ktx`) | One-time re-registration of passive monitoring after boot (`PassiveRegistrationWorker`). No periodic work: decay is computed on read (AR-5). |
+| **Preferences** | Jetpack DataStore Preferences | Small key-value bookkeeping: consumed sensor totals (`passive_sync`) and alerted vitals (`vital_alerts`). User settings and daily goals are planned. |
+| **Background Processing**| Jetpack WorkManager (`work-runtime-ktx`) | One-time jobs only: re-registration of passive monitoring after boot (`PassiveRegistrationWorker`) and critical-vital checks scheduled at the predicted threshold crossing (`VitalAlertWorker`, DD-40). No periodic work: decay is computed on read (AR-5). |
 
 ---
 
@@ -120,6 +120,7 @@ coreDomain --> coreModel : Evaluates Game Rules
    - UI orchestration, Wear Navigation, ViewModel bindings.
    - Composition root: `AppContainer` builds the single dependency graph (clock, database, repositories, use cases, `HealthServicesManager`). `HealthCompanionApp` owns it and implements `PassiveDataDependencies` for `:core:health`.
    - Wear OS surfaces: `PetStatusTileService` (Carousel Tile) and Watch Face Complications *(planned)*.
+   - Critical-vital notifications: `VitalAlertWorker` (scheduling) and `VitalAlertNotifier` (channel, posting, clearing).
 
 2. **[`:core:ui`](../core/ui)**:
    - Modern vector-based companion renderer (`ModernPetCanvas`).
@@ -136,14 +137,16 @@ coreDomain --> coreModel : Evaluates Game Rules
    - `DailyTotalTracker`: Converts cumulative daily sensor totals into apply-once deltas.
    - `NightWindow`: The pet's local-time night (22:00–07:00): energy recovery and the `SLEEPING` mood.
    - `ArchetypeSelector`: Picks the archetype from 7-day habit consistency when the pet reaches `TEEN`.
+   - `VitalAlertPlanner`: Predicts when hydration/hunger cross their critical threshold and which alerts to post or clear.
    - `StepCadence`: Turns live step timestamps into `IDLE` / `WALKING` / `RUNNING` (burst cadence with hysteresis).
-   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`, `ObservePetActivityUseCase`.
-   - Repository interfaces: `PetRepository`, `PassiveSyncRepository`. Sensor interface: `LiveStepSource`.
+   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`, `ObservePetActivityUseCase`, `CheckCriticalVitalsUseCase`.
+   - Repository interfaces: `PetRepository`, `PassiveSyncRepository`, `VitalAlertStateRepository`. Sensor interface: `LiveStepSource`.
 
 4. **[`:core:data`](../core/data)**:
    - Offline-first persistence via Jetpack Room (`CompanionDatabase`, `PetDao`, `PetEntity`).
    - `PetRepositoryImpl`: Coordinates between SQLite database and domain engine.
    - `PassiveSyncRepositoryImpl`: DataStore-backed bookkeeping of consumed sensor totals and heart-rate award timing.
+   - `VitalAlertStateRepositoryImpl`: DataStore-backed set of vitals already alerted in their current critical episode.
 
 5. **[`:core:health`](../core/health)**:
    - Wraps Wear OS **Health Services API** (`androidx.health:health-services-client`).
@@ -176,6 +179,7 @@ health-companion/
 │       ├── AppContainer.kt               # Composition root (manual DI)
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
 │       ├── presentation/pet/             # PetScreen, PetViewModel, PetUiState
+│       ├── notifications/                # VitalAlertWorker, VitalAlertNotifier
 │       └── tiles/PetStatusTileService.kt # Wear OS Carousel Tile
 │
 ├── core/
@@ -487,6 +491,7 @@ deactivate GetUseCase
   - All habits from one batch are applied with `PetRepository.recordHabits()` in a single transaction.
 - **Unified Single Source of Truth**: Because `PassiveDataService` writes directly to Room SQLite via `PetRepositoryImpl`, the active `PetScreen` automatically receives the updated vitals through its database observation stream.
   - **Pull-based surfaces**: Tiles cannot observe the `Flow`. `AppContainer` therefore wraps the repository in `NotifyingPetRepository`, which calls `TileService.getUpdater(context).requestUpdate(PetStatusTileService::class.java)` after every committed write, from the UI or the sensors. The tile also declares a 10-minute freshness interval so decay shows even without writes. Complications will hook into the same callback once a provider exists.
+  - **Critical-vital alerts**: The same callback requests an immediate `VitalAlertWorker` check. It runs `CheckCriticalVitalsUseCase` (read-only: vitals decayed in memory), posts or clears the thirsty/hungry notifications, and schedules the next check for the moment `VitalAlertPlanner` predicts the next threshold crossing, deferred past the pet's night (DD-40, DD-41).
 
 ---
 
@@ -836,6 +841,7 @@ Runtime permissions are resolved per API level in [`HealthPermissions.kt`](../co
 | `health.READ_HEALTH_DATA_IN_BACKGROUND` | ≥ 36 | **Dangerous** | Passive heart rate in the background | Optional. Requested separately after the foreground grant |
 | `WAKE_LOCK` | all | Normal | Not declared by the app. Merged in from WorkManager's own manifest (used for boot re-registration) | — |
 | `RECEIVE_BOOT_COMPLETED` | all | Normal | `BootCompletedReceiver` re-registers passive monitoring after reboot | — |
+| `POST_NOTIFICATIONS` | ≥ 33 | **Dangerous** | Critical-vital alerts (thirsty / hungry) | Optional. Requested with the health permissions during onboarding |
 | `VIBRATE` | all | Normal | Haptic feedback on petting, evolution, and goal completion | — |
 
 Heart rate is registered only when **both** its foreground and (API 33+) background permission are granted, because passive delivery happens in the background.
@@ -903,6 +909,7 @@ BOOT_COMPLETED → BootCompletedReceiver → PassiveRegistrationWorker → ensur
 
 ## 8. Wear OS Performance & Battery Best Practices
 - **Passive Health Services**: Using `PassiveMonitoringClient` delegates sensor polling to the OS hardware hub, consuming near-zero extra battery.
+- **Predicted, not polled, alerts**: Critical-vital notifications wake the watch once per predicted threshold crossing (plus a short check after each pet write), never on a timer (DD-40).
 - **Foreground-only live sensors**: The step detector used for live reactions (§4.4) is registered only while the pet screen is visible. It is never held in the background.
 - **Pure Vector UI**: All companion graphics are drawn via hardware-accelerated Compose Canvas paths, eliminating large bitmap assets from memory.
 - **Ambient Mode Compatible**: Pure black OLED backgrounds (`#0A0E14`) maximize battery preservation.

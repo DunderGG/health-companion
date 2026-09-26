@@ -18,6 +18,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.wear.compose.material3.CircularProgressIndicator
 import com.healthcompanion.core.health.HealthPermissions
 import com.healthcompanion.core.ui.theme.HealthCompanionTheme
+import com.healthcompanion.wear.notifications.VitalAlertNotifier
+import com.healthcompanion.wear.notifications.VitalAlertWorker
 import com.healthcompanion.wear.presentation.permission.PermissionScreen
 import com.healthcompanion.wear.presentation.permission.PermissionState
 import com.healthcompanion.wear.presentation.permission.PermissionViewModel
@@ -86,6 +88,8 @@ class MainActivity : ComponentActivity() {
         lifecycle.addObserver(LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 permissionViewModel.checkPermissions()
+                // Restarts vital alerts if notifications were just enabled in Settings.
+                VitalAlertWorker.ensureScheduled(this)
             }
         })
 
@@ -105,6 +109,7 @@ class MainActivity : ComponentActivity() {
                     contract = ActivityResultContracts.RequestMultiplePermissions()
                 ) { grants ->
                     permissionViewModel.onPermissionResult(grants)
+                    VitalAlertWorker.requestCheck(this)
                     permissionViewModel.consumeBackgroundHeartRateRequest()?.let { permission ->
                         backgroundHeartRateLauncher.launch(permission)
                     }
@@ -118,7 +123,11 @@ class MainActivity : ComponentActivity() {
                     is PermissionState.Required -> {
                         PermissionScreen(
                             onRequestPermission = {
-                                permissionLauncher.launch(HealthPermissions.foregroundPermissions)
+                                // Notifications are optional and asked for in the same flow (DD-41).
+                                permissionLauncher.launch(
+                                    HealthPermissions.foregroundPermissions +
+                                        listOfNotNull(VitalAlertNotifier.runtimePermission)
+                                )
                             }
                         )
                     }

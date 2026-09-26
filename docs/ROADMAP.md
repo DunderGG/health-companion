@@ -32,7 +32,11 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
   - [x] `ModernPetCanvas` gait: step bob, alternating paws, forward lean, speed lines when running. A sleeping pet stays asleep.
   - [ ] Verify on a watch: step-detector availability and latency, and the battery cost while walking with the screen on (🟠 DD-37).
 - [ ] Battery profiling and verification on Wear OS emulator / physical test watch.
-- [ ] Local push notifications via WorkManager when hydration or hunger reaches critical thresholds.
+- [x] Local push notifications via WorkManager when hydration or hunger reaches critical thresholds.
+  - [x] Pure `VitalAlertPlanner`: predicted threshold crossing, one alert per episode, quiet hours during the pet's night (DD-41).
+  - [x] One-time `VitalAlertWorker` scheduled at the predicted crossing and re-checked after every pet write. No periodic work (DD-40).
+  - [x] `POST_NOTIFICATIONS` requested during onboarding. Alerts clear themselves once the vital recovers.
+  - [ ] Verify on a watch: alert timing under Doze, clearing after logging water, and the scheduled check surviving a reboot (🟠 DD-40).
 
 ---
 

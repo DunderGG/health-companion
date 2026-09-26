@@ -8,16 +8,20 @@ import androidx.wear.tiles.TileService
 import com.healthcompanion.core.data.db.CompanionDatabase
 import com.healthcompanion.core.data.repository.PassiveSyncRepositoryImpl
 import com.healthcompanion.core.data.repository.PetRepositoryImpl
+import com.healthcompanion.core.data.repository.VitalAlertStateRepositoryImpl
 import com.healthcompanion.core.domain.repository.NotifyingPetRepository
 import com.healthcompanion.core.domain.repository.PassiveSyncRepository
 import com.healthcompanion.core.domain.repository.PetRepository
 import com.healthcompanion.core.domain.time.Clock
+import com.healthcompanion.core.domain.usecase.CheckCriticalVitalsUseCase
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
 import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.health.HealthServicesManager
 import com.healthcompanion.core.health.SensorLiveStepSource
+import com.healthcompanion.wear.notifications.VitalAlertNotifier
+import com.healthcompanion.wear.notifications.VitalAlertWorker
 import com.healthcompanion.wear.tiles.PetStatusTileService
 
 /**
@@ -44,11 +48,14 @@ class AppContainer(context: Context) {
     val database: CompanionDatabase by lazy { CompanionDatabase.getInstance(appContext) }
 
     /**
-     * Every committed write also asks the system to refresh the pull-based Tile,
-     * so all writers (UI, passive sensors) keep it current without knowing about it.
+     * Every committed write also asks the system to refresh the pull-based Tile and re-checks
+     * critical vitals, so all writers (UI, passive sensors) keep both current without knowing about them.
      */
     val petRepository: PetRepository by lazy {
-        NotifyingPetRepository(PetRepositoryImpl(database, clock)) { requestSurfaceRefresh() }
+        NotifyingPetRepository(PetRepositoryImpl(database, clock)) {
+            requestSurfaceRefresh()
+            VitalAlertWorker.requestCheck(appContext)
+        }
     }
 
     val passiveSyncRepository: PassiveSyncRepository by lazy { PassiveSyncRepositoryImpl.getInstance(appContext) }
@@ -65,6 +72,12 @@ class AppContainer(context: Context) {
     val observePetActivityUseCase: ObservePetActivityUseCase by lazy {
         ObservePetActivityUseCase(SensorLiveStepSource(appContext), clock)
     }
+
+    val checkCriticalVitalsUseCase: CheckCriticalVitalsUseCase by lazy {
+        CheckCriticalVitalsUseCase(petRepository, VitalAlertStateRepositoryImpl.getInstance(appContext), clock)
+    }
+
+    val vitalAlertNotifier: VitalAlertNotifier by lazy { VitalAlertNotifier(appContext) }
 
     val healthServicesManager: HealthServicesManager by lazy { HealthServicesManager(appContext) }
 

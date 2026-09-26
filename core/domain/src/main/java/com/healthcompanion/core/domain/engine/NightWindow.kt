@@ -56,6 +56,12 @@ data class NightWindow(
         return result
     }
 
+    /** The first daytime instant at or after [epochMillis]: [epochMillis] itself by day, otherwise the night's end. */
+    fun nextDaytime(epochMillis: Long, zone: ZoneId): Long {
+        if (!isNight(epochMillis, zone)) return epochMillis
+        return segments(epochMillis, epochMillis + TWO_DAYS_MS, zone).first { !it.isNight }.startMillis
+    }
+
     /** First instant strictly after [epochMillis] at which the local hour becomes [startHour] or [endHour]. */
     private fun nextBoundaryAfter(epochMillis: Long, zone: ZoneId): Long {
         val now = Instant.ofEpochMilli(epochMillis).atZone(zone)
@@ -70,5 +76,7 @@ data class NightWindow(
     companion object {
         /** Default companion bedtime: 22:00–07:00 local time. */
         val DEFAULT = NightWindow()
+
+        private const val TWO_DAYS_MS = 48L * 60 * 60 * 1000
     }
 }
