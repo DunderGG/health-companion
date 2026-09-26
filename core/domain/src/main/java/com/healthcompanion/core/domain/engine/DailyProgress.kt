@@ -41,6 +41,24 @@ data class DailyProgress(
             if (nourishmentReached) add(PetArchetype.ZEN_SAGE)
         }
 
+    /**
+     * How close the goal counting towards [area] is to being reached, `0..1` (DD-53). Nourishment is the
+     * average of its water and meal parts, each capped at 1, so it is 1 only once both are reached; strength
+     * is 0 or 1.
+     *
+     * @param area [PetArchetype.CARDIO_RUNNER], [PetArchetype.IRON_BEAST] or [PetArchetype.ZEN_SAGE];
+     *   [PetArchetype.BALANCED] has no goal and gives 0.
+     */
+    fun fraction(area: PetArchetype): Float = when (area) {
+        PetArchetype.CARDIO_RUNNER -> share(steps, goals.steps)
+        PetArchetype.IRON_BEAST -> if (strengthReached) 1f else 0f
+        PetArchetype.ZEN_SAGE -> (share(waterMl, goals.waterMl) + share(healthyMeals, goals.healthyMeals)) / 2
+        PetArchetype.BALANCED -> 0f
+    }
+
+    /** [current] as a share of [target], capped at 1; the goals are never 0 ([DailyGoals]). */
+    private fun share(current: Int, target: Int): Float = (current.toFloat() / target).coerceIn(0f, 1f)
+
     companion object {
         /**
          * @param dayEvents The events of a single local day.

@@ -22,6 +22,7 @@ import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
 import com.healthcompanion.core.domain.usecase.ObserveDailyProgressUseCase
 import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
+import com.healthcompanion.core.domain.usecase.ObservePetDetailsUseCase
 import com.healthcompanion.core.domain.usecase.StartOverUseCase
 import com.healthcompanion.core.health.HealthServicesManager
 import com.healthcompanion.core.health.SensorLiveStepSource
@@ -98,6 +99,10 @@ class AppContainer(context: Context) {
     /** Today's reached focus goals against the user's own goals, for the goal haptic (DD-47, DD-48). */
     val observeDailyProgressUseCase: ObserveDailyProgressUseCase by lazy {
         ObserveDailyProgressUseCase(petRepository, settingsRepository, clock)
+    }
+
+    val observePetDetailsUseCase: ObservePetDetailsUseCase by lazy {
+        ObservePetDetailsUseCase(petRepository, settingsRepository, clock)
     }
 
     val checkCriticalVitalsUseCase: CheckCriticalVitalsUseCase by lazy {

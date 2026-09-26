@@ -46,6 +46,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype): crown step size on the setting steppers, layout on a small round screen, and the vibration switch.
 > - [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream): the "vital filled up" tick on a real motor, lighter than the goal pattern.
 > - [DD-51](#dd-51--step-progress-is-a-second-complication-pet-steps): both Pet Steps types on real watch faces, and updates after a batch or a goal change.
+> - [DD-53](#dd-53--the-archetype-moves-to-a-pet-details-screen-the-pets-name-and-stage-never-reach-the-ring): whether the smaller meal and water buttons and the "i" and ⚠ buttons are easy to hit on a real watch, and the curved name in ambient mode.
 
 ---
 
@@ -105,6 +106,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream) | A light "vital filled up" tick, not while asleep; haptics read a fresh pet stream | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
 | [DD-51](#dd-51--step-progress-is-a-second-complication-pet-steps) | Step progress is a second complication, "Pet Steps" | Surfaces | Accepted · 🟠 verify on device |
 | [DD-52](#dd-52--start-over-deletes-the-pet-and-its-history-keeps-settings-and-sensor-bookkeeping) | "Start over" deletes the pet and its history, keeps settings and sensor bookkeeping | Persistence / UI | Accepted · 🟣 your call |
+| [DD-53](#dd-53--the-archetype-moves-to-a-pet-details-screen-the-pets-name-and-stage-never-reach-the-ring) | The archetype moves to a pet details screen; the pet's name and stage never reach the ring | UI | Accepted · 🟠 verify on device |
 
 ---
 
@@ -858,3 +860,45 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!IMPORTANT]
 > **🟣 Your call: what starting over keeps.** Settings are kept, and today's activity before starting over isn't credited to the new pet. Should the new pet get a name the user picks?
+
+### DD-53 — The archetype moves to a pet details screen; the pet's name and stage never reach the ring
+- **Status**: Accepted (2026-09-26). Requested by the project owner, who chose to keep the pet at its full size, to move the archetype off the pet screen, and the new layout of the name, stage and buttons.
+- **Decision**:
+  - The pet screen shows only the pet's name, above the pet. The stage is shown on the details screen, with a proper name ("Hatchling" instead of the enum's "HATCHLING"); the stage names are string resources.
+  - The pet is 60 % of the screen width (`PET_SIZE_FRACTION`) instead of a fixed 110 dp: about 115 dp on a small screen and 136 dp on a large one. It sits at the centre of the screen, so it stays clear of the meal and water buttons.
+  - The name curves along the inside of the ring at the top (`CurvedLayout` and `curvedText`, anchored at 12 o'clock, 2 dp inside the arcs), like the system clock. It runs alongside the arcs instead of into them, so a long name gets much more room than a straight line. It uses Material's `arcMedium` style, made for curved text, and ends in "…" beyond 120° (60° either side of 12 o'clock). Tested with "Bartholomew the Magnificent": "Bartholomew the M…" on a large screen, "Bartholomew th…" on a small one, "Bartholome…" on a small one at the largest font size. In ambient mode it curves inside the thinner, further-inset ambient ring.
+  - The name can't be tapped: curved text has no tap target. The "i" button opens the details.
+  - When sensors are denied, a small red ⚠ button at 6 o'clock, in the 20° gap between the hydration and hunger arcs, opens the system settings. It replaces the "⚠ Enable sensors" text chip, whose place above the pet the curved name now uses, and which was too wide for the space below the pet. It and the "i" button are the same `EdgeButton`.
+  - The meal and water buttons are smaller (32 dp instead of 40 dp) and sit just inside the middle of the arc they fill: meal at 135° (hunger, lower left), water at 45° (hydration, lower right). Their position is computed from the screen width, so they follow the ring on every screen size. Their icons scale with them.
+  - A small "i" button at 9 o'clock, in the 20° gap between the hunger and energy arcs and opposite the page indicator, opens a new, scrolling **pet details** screen (`PetDetailsScreen`). The icon is 22 dp and its touch area 48 dp, reaching inwards. The details screen shows:
+    - The level, stage and XP towards the next stage.
+    - The archetype and its description, or "Not chosen yet" with how it will be chosen, before the Teen stage.
+    - For each daily focus goal (steps, workout, water & meals), the days it was reached in the last 7 days and since the pet was born.
+    - For a pet born today, "1 / 1 day" says little, so a **Today** section shows how close each goal is instead, as a percentage (`DailyProgress.fraction`), and "Since birth" is hidden until tomorrow. Workout is 0 % or 100 %. Water & meals is the average of its two parts, each capped at 100 %, so it only reaches 100 % once both are met.
+  - The goal days come from `GoalHistory`, which runs `DailyProgress` over each day, like the goals page (DD-49). `ObservePetDetailsUseCase` reads the habit history from the start of the pet's birth day, so a new pet (DD-52) starts with a clean record.
+- **Why**: "HATCHLING • Balanced Soul" was wider than the round screen at that height and ran across the arcs. The pet is the main attraction, so the text gives way rather than the pet shrinking. The archetype changes once in the pet's life, so it doesn't need to be on the main screen.
+- **Alternatives**:
+  - A smaller pet: rejected by the project owner.
+  - Stage and archetype on two lines: makes the too-tall column even taller.
+  - Name and stage together above the pet, with the buttons in a row below it: about 196 dp of content in about 160 dp of space on a small screen, which pushed the name against the top edge.
+  - A fixed 60 % of the screen width for the name: with the bigger pet the name sits higher, where the circle is narrower, and a long name ran across the arcs on a small screen.
+  - A straight name as wide as the circle allows at its height, shrinking to 12 sp before "…": it fit, but a long name got much less room than on a curve ("Bartholomew th…" on a large screen, "Barthol…" on a small one at the largest font size). The project owner asked for the curve.
+  - The sensor chip below the pet: too wide there, it covered both meal and water buttons.
+  - The stage below the pet: it fit, but only just, and the project owner preferred the room for a bigger pet since the details screen shows the stage.
+  - The buttons on the arcs themselves: they would cover the middle of the arc, where a vital's fill usually is.
+  - A pager page for the details: the details scroll, and on a pager page the crown would page instead of scroll (as for the settings, DD-48).
+  - Only the tap on the name: the project owner looked for the details in the pager and didn't find them, so a visible button was added.
+  - A "Pet details" button on the pager's last page, next to Settings: visible, but three pages away from the pet.
+  - Water & meals as the lower of its two parts: it would stay at 0 % until the first healthy meal, however much water was logged.
+  - Goal days against the fixed archetype thresholds: would match the archetype choice exactly, but disagree with the goals page whenever the user has changed a goal.
+- **Consequences**:
+  - Each day is measured against the user's *current* goals, since past goals aren't stored. After a goal change, past days are re-counted with the new goal.
+  - The goal days can differ from what decides the archetype, which uses fixed thresholds (DD-36, DD-48).
+  - The details screen reads the whole history since birth, and recounts it after each write while it's open. That is cheap for weeks of data, but grows with the pet's age.
+  - The meal and water buttons are below the recommended 48 dp touch size.
+  - Checked on the large round emulator (227 dp), and at 192 dp (the emulator resized) at the default and the largest font size (1.24). At 192 dp the gap between the pet's body and the meal button is only a few dp.
+  - At 192 dp and the largest font size, a long curved name brushes the tips of the pet's ears: the band between the ring and the ears is thinner than the text there. Short names and the default font size are clear.
+  - The sensor warning is now an icon without words. Its screen-reader label says what it is, and VERIFICATION.md describes it.
+
+> [!WARNING]
+> **🟠 Verify on device:** whether the 32 dp meal and water buttons, the "i" button and the ⚠ button are easy to hit on a real watch, and how the curved name looks in ambient mode on a real always-on display.

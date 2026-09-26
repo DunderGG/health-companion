@@ -24,7 +24,7 @@ sealed interface PermissionState {
 
     /**
      * User has denied permissions (possibly permanently).
-     * App enters degraded mode; PetScreen shows an "Enable sensors" chip linking to system Settings.
+     * App enters degraded mode; PetScreen shows a warning button linking to system Settings (DD-53).
      */
     data object Denied : PermissionState
 }

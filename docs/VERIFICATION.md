@@ -132,7 +132,7 @@ adb shell dumpsys battery reset
 ### V1 — Onboarding and permissions ([DD-22](DESIGN_DECISIONS.md#dd-22--only-activity-recognition-is-core-heart-rate-is-optional), [DD-23](DESIGN_DECISIONS.md#dd-23--heart-rate-is-registered-only-with-background-access), [DD-41](DESIGN_DECISIONS.md#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night))
 Run on **both** images, starting from a clean install each time.
 - [ ] One onboarding request shows the dialogs for activity recognition, heart rate and (API 33+) notifications. After heart rate is granted, a separate background heart-rate dialog follows.
-- [ ] Denying activity recognition gives degraded mode: the pet screen shows the **⚠ Enable sensors** chip, which opens the app's system settings.
+- [ ] Denying activity recognition gives degraded mode: the pet screen shows a red **⚠** button at 6 o'clock, which opens the app's system settings.
 - [ ] Granting only heart rate (plus background) registers only heart rate: `HealthServicesManager` logs `Registering passive listener for: [HEART_RATE_BPM]`.
 - [ ] Denying notifications still reaches the pet screen normally.
 

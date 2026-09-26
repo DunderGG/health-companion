@@ -146,7 +146,7 @@ fun MealActionToken(
     ) {
         MealBowlVector(
             color = SunsetOrange,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(size / 2)
         )
     }
 }
@@ -173,7 +173,7 @@ fun WaterActionToken(
     ) {
         WaterDropletVector(
             color = BrightAqua,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(size / 2)
         )
     }
 }

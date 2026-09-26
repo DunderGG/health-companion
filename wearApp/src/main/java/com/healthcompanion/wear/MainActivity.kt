@@ -27,6 +27,7 @@ import com.healthcompanion.wear.presentation.permission.PermissionScreen
 import com.healthcompanion.wear.presentation.permission.PermissionState
 import com.healthcompanion.wear.presentation.permission.PermissionViewModel
 import com.healthcompanion.wear.presentation.pet.PetPager
+import com.healthcompanion.wear.presentation.pet.PetDetailsViewModel
 import com.healthcompanion.wear.presentation.pet.PetViewModel
 import com.healthcompanion.wear.presentation.settings.SettingsViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,6 +69,17 @@ class MainActivity : ComponentActivity() {
                     settingsRepository = container.settingsRepository,
                     clock = container.clock
                 ) as T
+            }
+        }
+    }
+
+    /** Pet details screen: stage, archetype and goal record (DD-53). */
+    private val petDetailsViewModel: PetDetailsViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val container = (application as HealthCompanionApp).container
+                return PetDetailsViewModel(container.observePetDetailsUseCase) as T
             }
         }
     }
@@ -188,6 +200,7 @@ class MainActivity : ComponentActivity() {
                     is PermissionState.Granted -> {
                         CompanionNavHost(
                             petViewModel = petViewModel,
+                            petDetailsViewModel = petDetailsViewModel,
                             settingsViewModel = settingsViewModel,
                             ambientState = ambient,
                             showSensorChip = false
@@ -197,6 +210,7 @@ class MainActivity : ComponentActivity() {
                     is PermissionState.Denied -> {
                         CompanionNavHost(
                             petViewModel = petViewModel,
+                            petDetailsViewModel = petDetailsViewModel,
                             settingsViewModel = settingsViewModel,
                             ambientState = ambient,
                             showSensorChip = true,

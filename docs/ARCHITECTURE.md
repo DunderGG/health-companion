@@ -189,7 +189,7 @@ health-companion/
 │       ├── AppContainer.kt               # Composition root (manual DI)
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
 │       ├── presentation/                 # CompanionNavHost: pet pager and settings screens
-│       ├── presentation/pet/             # PetPager (pet, vitals, goals, settings pages), PetScreen, VitalsScreen, GoalsScreen, PetViewModel
+│       ├── presentation/pet/             # PetPager (pet, vitals, goals, settings pages), PetScreen, VitalsScreen, GoalsScreen, PetDetailsScreen, PetViewModel
 │       ├── presentation/settings/        # SettingsScreen, SettingStepperScreen, SettingField, SettingsViewModel
 │       ├── presentation/ambient/         # AmbientState, BurnInShift (always-on mode)
 │       ├── haptics/                      # PetHaptics, PetHapticPatterns (vital filled, petting, goal, evolution)
@@ -561,7 +561,7 @@ Canvas -> Canvas : eased gait: bob, paw lifts, lean, speed lines
 To keep the primary diagrams manageable and focused on the core runtime loop, the following sequence diagrams represent other operational scenarios that can be added as dedicated reference flows:
 
 1. **Runtime Permission Flow & Graceful Degradation**:
-   - `MainActivity` $\rightarrow$ `PermissionViewModel.checkPermissions()` $\rightarrow$ `PermissionScreen` onboarding $\rightarrow$ system permission dialog $\rightarrow$ user denial $\rightarrow$ `PermissionState.Denied` $\rightarrow$ degraded `PetScreen` displaying the `⚠ Enable sensors` chip $\rightarrow$ deep-linking to system Settings and recovery on `ON_RESUME`.
+   - `MainActivity` $\rightarrow$ `PermissionViewModel.checkPermissions()` $\rightarrow$ `PermissionScreen` onboarding $\rightarrow$ system permission dialog $\rightarrow$ user denial $\rightarrow$ `PermissionState.Denied` $\rightarrow$ degraded `PetScreen` displaying a ⚠ warning button at 6 o'clock $\rightarrow$ deep-linking to system Settings and recovery on `ON_RESUME`.
 2. **Boot Re-registration (`PassiveRegistrationWorker`)**:
    - `BOOT_COMPLETED` $ightarrow$ `BootCompletedReceiver` $ightarrow$ unique one-time `PassiveRegistrationWorker` $ightarrow$ `HealthServicesManager.ensureRegistered(force = true)` $ightarrow$ `Result.retry()` on failure.
 3. **Carousel Tile Request & Rendering (`PetStatusTileService`)**:
@@ -877,7 +877,7 @@ The app follows a **degraded mode** strategy rather than blocking the user behin
 
 1. **First launch**: A lightweight `PermissionScreen` explains why sensor access is needed and presents an "Allow" button. It requests `ACTIVITY_RECOGNITION` and the foreground heart-rate permission together. If heart rate was granted on API 33+, a second system dialog asks for background heart-rate access, once per session. These are the only times the app proactively interrupts the user.
 2. **Activity permission granted**: The app enters **full mode**. Steps and floors are registered. Heart rate is registered too if it is fully permitted, but it is optional and missing heart rate never shows the chip.
-3. **Activity permission denied**: The app enters **degraded mode**. `PetScreen` renders normally with all manual features working (water, meals, petting), but a subtle `⚠ Enable sensors` chip appears above the companion name. Tapping it opens the app's system settings. Heart rate can still be registered on its own if granted.
+3. **Activity permission denied**: The app enters **degraded mode**. `PetScreen` renders normally with all manual features working (water, meals, petting), but a small red ⚠ button appears at 6 o'clock, in the gap between the hydration and hunger arcs (DD-53). Tapping it opens the app's system settings. Heart rate can still be registered on its own if granted.
 4. **Permissions changed in Settings**: On `ON_RESUME`, `MainActivity` re-checks permissions and re-syncs the registration, which is a no-op if nothing changed.
 
 This ensures the app is **always usable** — the virtual pet can still be fed, hydrated, and petted without sensor data. Sensor permissions enhance the experience but are not a hard gate.

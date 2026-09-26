@@ -12,6 +12,8 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import com.healthcompanion.wear.presentation.ambient.AmbientState
+import com.healthcompanion.wear.presentation.pet.PetDetailsScreen
+import com.healthcompanion.wear.presentation.pet.PetDetailsViewModel
 import com.healthcompanion.wear.presentation.pet.PetPager
 import com.healthcompanion.wear.presentation.pet.PetScreen
 import com.healthcompanion.wear.presentation.pet.PetViewModel
@@ -21,17 +23,19 @@ import com.healthcompanion.wear.presentation.settings.SettingsScreen
 import com.healthcompanion.wear.presentation.settings.SettingsViewModel
 
 private const val ROUTE_PET = "pet"
+private const val ROUTE_PET_DETAILS = "pet_details"
 private const val ROUTE_SETTINGS = "settings"
 
 /**
- * The app's screens once permissions are settled: the [PetPager], and the settings screens it opens
- * (DD-48). Swiping right or pressing back returns to the previous screen.
+ * The app's screens once permissions are settled: the [PetPager], and the pet details (DD-53) and settings
+ * screens it opens (DD-48). Swiping right or pressing back returns to the previous screen.
  *
  * In ambient mode every screen shows the ambient pet instead (DD-44), so a settings screen left open
  * never stays bright on an always-on display. The back stack is kept, so the user returns to where they
  * were.
  *
  * @param petViewModel Drives the pet pager and the ambient pet.
+ * @param petDetailsViewModel Drives the pet details screen.
  * @param settingsViewModel Drives the settings screens.
  * @param ambientState Interactive, or ambient with its display details.
  * @param showSensorChip Passed to [PetPager].
@@ -40,6 +44,7 @@ private const val ROUTE_SETTINGS = "settings"
 @Composable
 fun CompanionNavHost(
     petViewModel: PetViewModel,
+    petDetailsViewModel: PetDetailsViewModel,
     settingsViewModel: SettingsViewModel,
     ambientState: AmbientState,
     showSensorChip: Boolean,
@@ -59,9 +64,16 @@ fun CompanionNavHost(
                     viewModel = petViewModel,
                     showSensorChip = showSensorChip,
                     onSensorChipClick = onSensorChipClick,
+                    onOpenDetails = { navController.navigate(ROUTE_PET_DETAILS) },
                     onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
                     ambientState = ambientState
                 )
+            }
+
+            composable(ROUTE_PET_DETAILS) {
+                AmbientAware(petViewModel, ambientState) {
+                    PetDetailsScreen(viewModel = petDetailsViewModel)
+                }
             }
 
             composable(ROUTE_SETTINGS) {

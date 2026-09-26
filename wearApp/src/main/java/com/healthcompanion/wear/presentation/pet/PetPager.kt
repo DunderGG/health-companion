@@ -46,6 +46,7 @@ private const val PAGE_COUNT = 4
  * @param viewModel Shared by both pages.
  * @param showSensorChip Passed to [PetScreen].
  * @param onSensorChipClick Passed to [PetScreen].
+ * @param onOpenDetails Opens the pet details screen, from the "i" button on [PetScreen] (DD-53).
  * @param onOpenSettings Opens the settings screen, from the last page.
  * @param ambientState Interactive, or ambient with its display details.
  */
@@ -55,6 +56,7 @@ fun PetPager(
     modifier: Modifier = Modifier,
     showSensorChip: Boolean = false,
     onSensorChipClick: () -> Unit = {},
+    onOpenDetails: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     ambientState: AmbientState = AmbientState.Interactive
 ) {
@@ -81,7 +83,8 @@ fun PetPager(
             PAGE_PET -> PetScreen(
                 viewModel = viewModel,
                 showSensorChip = showSensorChip,
-                onSensorChipClick = onSensorChipClick
+                onSensorChipClick = onSensorChipClick,
+                onOpenDetails = onOpenDetails
             )
             PAGE_VITALS -> VitalsScreen(viewModel = viewModel)
             PAGE_GOALS -> GoalsScreen(viewModel = viewModel)

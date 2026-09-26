@@ -23,18 +23,27 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 
 /**
- * A label and value above a thin bar: one row of the Vitals and Goals pages (DD-45, DD-49).
+ * A label and value above a thin bar: one row of the Vitals and Goals pages and the pet details screen
+ * (DD-45, DD-49, DD-53).
  *
  * @param label Name shown on the left.
  * @param value Value shown on the right, in [color].
  * @param fraction Filled share of the bar, `0..1`.
  * @param color Accent of the value and the bar.
  * @param description What a screen reader says for the whole row.
+ * @param modifier Compose layout modifier applied to the row.
  */
 @Composable
-fun ProgressRow(label: String, value: String, fraction: Float, color: Color, description: String) {
+fun ProgressRow(
+    label: String,
+    value: String,
+    fraction: Float,
+    color: Color,
+    description: String,
+    modifier: Modifier = Modifier
+) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clearAndSetSemantics { contentDescription = description }
     ) {

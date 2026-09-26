@@ -83,5 +83,44 @@
     <string name="settings_value_water_ml">%1$s ml</string>
     <string name="settings_decrease">Decrease</string>
     <string name="settings_increase">Increase</string>
+
+    <!-- Evolution stages, on the pet details screen (DD-53) -->
+    <string name="stage_egg">Egg</string>
+    <string name="stage_hatchling">Hatchling</string>
+    <string name="stage_child">Child</string>
+    <string name="stage_teen">Teen</string>
+    <string name="stage_adult">Adult</string>
+    <string name="stage_ancient_sage">Ancient Sage</string>
+
+    <!-- Pet details screen, opened by the "i" button on the pet screen (DD-53) -->
+    <!-- %1$d level, %2$s stage, e.g. "Level 1 · Hatchling" -->
+    <string name="details_level_stage">Level %1$d · %2$s</string>
+    <!-- Screen reader label of the "i" button at the left edge of the pet screen -->
+    <string name="details_open">Pet details</string>
+    <!-- Screen reader label of the warning button at the bottom of the pet screen, shown when sensors are denied -->
+    <string name="sensors_off">Sensors off. Open settings to enable them</string>
+    <string name="details_xp">XP</string>
+    <!-- %1$s XP so far, %2$s XP needed for the next stage -->
+    <string name="details_xp_progress">%1$s / %2$s</string>
+    <!-- %1$s XP so far, at the last stage -->
+    <string name="details_xp_max">%1$s · max</string>
+    <string name="details_archetype">Archetype</string>
+    <string name="details_archetype_pending">Not chosen yet</string>
+    <!-- Shown before the pet is a Teen, when the archetype is chosen -->
+    <string name="details_archetype_pending_description">Chosen when your pet becomes a Teen, from the goal you reached most often that week.</string>
+    <!-- Heading of today's goal progress, shown instead of the goal days for a pet born today -->
+    <string name="details_today">Today</string>
+    <!-- %1$d days, e.g. "Last 7 days"; a pet younger than a week shows fewer -->
+    <plurals name="details_last_days">
+        <item quantity="one">Last %1$d day</item>
+        <item quantity="other">Last %1$d days</item>
+    </plurals>
+    <string name="details_since_birth">Since birth</string>
+    <string name="details_goal_nourishment">Water &amp; meals</string>
+    <!-- %1$d days the goal was reached, %2$d days in total; the quantity is the total -->
+    <plurals name="details_goal_days">
+        <item quantity="one">%1$d / %2$d day</item>
+        <item quantity="other">%1$d / %2$d days</item>
+    </plurals>
 </resources>
 
