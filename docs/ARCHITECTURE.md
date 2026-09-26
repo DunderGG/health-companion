@@ -276,7 +276,7 @@ deactivate UI
   3. `PetDao.getPetFlow()` establishes an SQLite table observer via Room.
   4. `MoodCalculator.calculateMood()` evaluates prioritized rules against the decayed vitals to determine the companion's expression (e.g., Happy, Content, Thirsty, Hungry).
   5. `PetScreen` recomposes the hardware-accelerated `ModernPetCanvas` and `VitalsRing` in the active mood state.
-- ⚠ **Known gap (AR-4)**: Decay is only re-evaluated when Room emits. While the screen stays open with no writes, the displayed vitals are frozen. A subscription-scoped ticker (e.g. once per minute) needs to be combined into the stream.
+- **Live decay while open**: `GetPetStateUseCase` combines the Room stream with a 60-second ticker, so the displayed vitals keep decaying on an open screen even when nothing is written. The ticker only runs while the ViewModel collects (`WhileSubscribed(5000)`), so it costs nothing when the screen is gone.
 - ⚠ **Known gap (AR-3)**: `MoodCalculator` is always called with `isNightTime = false`, so `Mood.SLEEPING` is never produced.
 
 ---
@@ -479,7 +479,7 @@ deactivate GetUseCase
   - `DISTANCE_DAILY` and `CALORIES_DAILY` are **not** consumed. Distance comes from the same walking as steps, and daily calories include basal burn, so neither reflects extra activity.
   - All habits from one batch are applied with `PetRepository.recordHabits()` in a single transaction.
 - **Unified Single Source of Truth**: Because `PassiveDataService` writes directly to Room SQLite via `PetRepositoryImpl`, the active `PetScreen` automatically receives the updated vitals through its database observation stream.
-  - ⚠ **Known gap (AR-4)**: Only Flow-observing surfaces update automatically. Tiles are *pull-based*: `PetStatusTileService` renders a snapshot served from a 10-minute cache and must be refreshed explicitly via `TileService.getUpdater(context).requestUpdate(...)` after writes. Complications will likewise need `ComplicationDataSourceUpdateRequester`.
+  - **Pull-based surfaces**: Tiles cannot observe the `Flow`. `AppContainer` therefore wraps the repository in `NotifyingPetRepository`, which calls `TileService.getUpdater(context).requestUpdate(PetStatusTileService::class.java)` after every committed write, from the UI or the sensors. The tile also declares a 10-minute freshness interval so decay shows even without writes. Complications will hook into the same callback once a provider exists.
 
 ---
 
@@ -492,7 +492,7 @@ To keep the primary diagrams manageable and focused on the core runtime loop, th
 2. **Periodic Background Maintenance (`PetDecayWorker`)**:
    - Android WorkManager 2-hour periodic trigger $\rightarrow$ `PetDecayWorker.doWork()` background execution $\rightarrow$ `CompanionDatabase` singleton access $\rightarrow$ `PetDecayEngine.calculateDecay()` $\rightarrow$ SQLite update $\rightarrow$ `Result.success()` without acquiring wake locks.
 3. **Carousel Tile Request & Rendering (`PetStatusTileService`)**:
-   - User swipes to Tile on watch face $\rightarrow$ system invokes `TileService.onTileRequest()` $\rightarrow$ `runBlocking` query to `PetRepository` $\rightarrow$ ProtoLayout element tree assembly $\rightarrow$ 10-minute cache freshness declaration $\rightarrow$ `ListenableFuture<Tile>` delivery.
+   - User swipes to Tile on watch face $\rightarrow$ system invokes `TileService.onTileRequest()` $\rightarrow$ coroutine `future { }` query to `PetRepository` (no blocking) $\rightarrow$ ProtoLayout element tree assembly $\rightarrow$ 10-minute cache freshness declaration $\rightarrow$ `ListenableFuture<Tile>` delivery.
 4. **Milestone Evolution & Archetype Specialization**:
    - Cumulative XP crosses stage threshold (e.g. 750 XP for `TEEN`) $\rightarrow$ `EvolutionEngine.checkEvolution()` inspects dominant vitals (e.g. `fitness > 80f`) $\rightarrow$ locks in specialized persona (`CARDIO_RUNNER`) $\rightarrow$ triggers celebratory haptic pattern and visual evolution feedback.
 5. **Sensor Capability Negotiation & Hardware Fallback**:
@@ -507,7 +507,7 @@ To keep the primary diagrams manageable and focused on the core runtime loop, th
 On Wear OS smartwatches, network connectivity is intermittent—wearers leave their phones behind during workouts, Wi-Fi radios sleep to preserve the ~300–400 mAh battery, and cellular (LTE) hardware is either absent or power-prohibitive. Consequently, **Health Companion** employs an **offline-first local persistence architecture**:
 
 1. **Single Source of Truth**: The local SQLite database (`health_companion.db`) is the authoritative source for companion state, vitals, XP, and habit records. No surface or component maintains a diverging in-memory state.
-2. **Reactive Observation**: In-app UI screens (`PetScreen`) subscribe directly to the database via reactive Kotlin `Flow` streams. Any write to the database (whether initiated by a button tap or background sensor event) immediately and automatically updates them. System surfaces (Tiles, Complications) are pull-based and must be explicitly asked to refresh after a write (see AR-4).
+2. **Reactive Observation**: In-app UI screens (`PetScreen`) subscribe directly to the database via reactive Kotlin `Flow` streams. Any write to the database (whether initiated by a button tap or background sensor event) immediately and automatically updates them. System surfaces (Tiles, Complications) are pull-based and are asked to refresh after every committed write by the `NotifyingPetRepository` decorator.
 3. **Microscopic Disk Footprint**: Companion state is stored in a normalized, compact table (`pets`). A single primary record (`id = "companion_primary"`) occupies less than 4 KB of flash storage, ensuring sub-millisecond query latency and zero disk pressure on wearable NAND storage.
 
 ---
@@ -854,7 +854,7 @@ A review of the implementation against this document. The overall structure is s
 | AR-1 | ✅ Resolved | Cumulative daily sensor totals are applied as deltas |
 | AR-2 | ✅ Resolved | Pet updates are non-atomic read-modify-write (lost updates) |
 | AR-3 | 🟠 High | Some vitals cannot recover; sleep, night mood, and consistency-based archetypes are unimplemented |
-| AR-4 | 🟠 High | Tiles, complications, and the open screen do not update reactively |
+| AR-4 | ✅ Resolved | Tiles, complications, and the open screen do not update reactively |
 | AR-5 | 🟡 Medium | `PetDecayWorker` is redundant under decay-on-read |
 | AR-6 | ✅ Resolved | Permission degradation is all-or-nothing; API 36 permission model; implicit boot re-registration |
 | AR-7 | ✅ Resolved | Layering violation (`:core:health` → `:core:data`) and fragmented dependency wiring |
@@ -892,7 +892,8 @@ A review of the implementation against this document. The overall structure is s
   - Supply `isNightTime` from a clock abstraction.
   - Introduce a **habit event log table** (`habit_events`: type, amount, timestamp) so archetypes, streaks, and history can be derived from consistency. Requires AR-8 first.
 
-### AR-4 — Surfaces are not reactive
+### AR-4 — Surfaces are not reactive ✅ Resolved
+- **Resolution**: Every committed write requests a tile update via the `NotifyingPetRepository` decorator wired in `AppContainer`. `PetStatusTileService` builds tiles in `serviceScope.future { }` (kotlinx-coroutines-guava) instead of `runBlocking` plus the restricted `ResolvableFuture`, which also clears the 6 lint errors. `GetPetStateUseCase` re-evaluates decay every 60 s while collected. The complication provider is still *planned*; when it is added, it should hook into the same refresh callback. See DD-29 to DD-31.
 - **Where**: [`PetStatusTileService.kt`](../wearApp/src/main/java/com/healthcompanion/wear/tiles/PetStatusTileService.kt), `GetPetStateUseCase`.
 - **Problems**:
   - Tiles are pull-based. The tile renders a snapshot that stays cached for 10 minutes and is never asked to refresh after writes. `onTileRequest()` also blocks the main thread with `runBlocking`.

@@ -4,9 +4,11 @@
 package com.healthcompanion.wear
 
 import android.content.Context
+import androidx.wear.tiles.TileService
 import com.healthcompanion.core.data.db.CompanionDatabase
 import com.healthcompanion.core.data.repository.PassiveSyncRepositoryImpl
 import com.healthcompanion.core.data.repository.PetRepositoryImpl
+import com.healthcompanion.core.domain.repository.NotifyingPetRepository
 import com.healthcompanion.core.domain.repository.PassiveSyncRepository
 import com.healthcompanion.core.domain.repository.PetRepository
 import com.healthcompanion.core.domain.time.Clock
@@ -14,6 +16,7 @@ import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
 import com.healthcompanion.core.health.HealthServicesManager
+import com.healthcompanion.wear.tiles.PetStatusTileService
 
 /**
  * Composition root: the single dependency graph shared by the activity, view models,
@@ -38,7 +41,13 @@ class AppContainer(context: Context) {
 
     val database: CompanionDatabase by lazy { CompanionDatabase.getInstance(appContext) }
 
-    val petRepository: PetRepository by lazy { PetRepositoryImpl(database, clock) }
+    /**
+     * Every committed write also asks the system to refresh the pull-based Tile,
+     * so all writers (UI, passive sensors) keep it current without knowing about it.
+     */
+    val petRepository: PetRepository by lazy {
+        NotifyingPetRepository(PetRepositoryImpl(database, clock)) { requestSurfaceRefresh() }
+    }
 
     val passiveSyncRepository: PassiveSyncRepository by lazy { PassiveSyncRepositoryImpl.getInstance(appContext) }
 
@@ -51,4 +60,9 @@ class AppContainer(context: Context) {
     }
 
     val healthServicesManager: HealthServicesManager by lazy { HealthServicesManager(appContext) }
+
+    /** Requests a Tile re-render; the system throttles and coalesces frequent requests. */
+    private fun requestSurfaceRefresh() {
+        TileService.getUpdater(appContext).requestUpdate(PetStatusTileService::class.java)
+    }
 }

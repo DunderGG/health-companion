@@ -42,6 +42,9 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-26](#dd-26--manual-appcontainer-instead-of-a-di-framework) | Manual `AppContainer` instead of a DI framework | Architecture | Accepted (AR-7) |
 | [DD-27](#dd-27--library-services-get-dependencies-through-an-application-implemented-interface) | Library services get dependencies through an Application-implemented interface | Architecture | Accepted (AR-7) |
 | [DD-28](#dd-28--injected-clock-now-is-read-inside-the-transaction) | Injected `Clock`; "now" is read inside the transaction | Architecture | Accepted (AR-7) |
+| [DD-29](#dd-29--surfaces-are-refreshed-by-a-repository-decorator) | Surfaces are refreshed by a repository decorator | Surfaces | Accepted (AR-4) |
+| [DD-30](#dd-30--60-second-decay-ticker-only-while-collected) | 60-second decay ticker, only while collected | Game engine / UI | Accepted (AR-4) |
+| [DD-31](#dd-31--tile-futures-via-kotlinx-coroutines-guava-not-horologist) | Tile futures via kotlinx-coroutines-guava, not Horologist | Surfaces | Accepted (AR-4) |
 
 ---
 
@@ -287,3 +290,32 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
   - The `Pet` and `Vitals` model constructors keep their wall-clock defaults, for convenience in tests and previews. Production code passes explicit times.
 - **Why**: Tests become deterministic, and there is a single source of time. Reading the time before waiting for the transaction could produce a timestamp older than one a concurrent writer just stored, which would re-apply a few milliseconds of decay.
 - **Consequences**: Wall-clock changes (manual time or time-zone changes) still affect decay. That is inherent to decay-on-read (DD-02).
+
+---
+
+## Reactive surfaces (AR-4)
+
+### DD-29 — Surfaces are refreshed by a repository decorator
+- **Status**: Accepted (AR-4, 2026-09-26).
+- **Decision**: `NotifyingPetRepository` (in `:core:domain`) wraps the real repository and runs a callback after every *successful* mutation. `AppContainer` uses that callback to request a tile update. Reads never notify.
+- **Why**: Tiles are pull-based and cannot observe Room. The decorator gives every writer (UI, passive sensors) the refresh without any of them knowing about tiles, and it keeps `:core:data` free of Wear surface APIs.
+- **Alternatives**:
+  - Call `requestUpdate` at each write site. That is easy to forget.
+  - Have an app-scoped collector observe the `Flow`. The process is often not alive, so it would miss writes.
+  - Refresh from a periodic worker. That lags and wakes the CPU for no reason.
+- **Consequences**:
+  - A writer that bypasses the container (e.g. `PetDecayWorker`, removed in AR-5) doesn't refresh the tile.
+  - The system throttles frequent `requestUpdate` calls, so a burst of sensor batches is coalesced.
+
+### DD-30 — 60-second decay ticker, only while collected
+- **Status**: Accepted (AR-4). Tunable.
+- **Decision**: `GetPetStateUseCase` combines the Room stream with a ticker (default 60 s) and re-evaluates decay on every tick. The ticker only runs while the stream is collected (`WhileSubscribed(5000)` in `PetViewModel`).
+- **Why**: The fastest vital drops 3 points per hour, i.e. 0.05 per minute. A 1-minute cadence is visually smooth enough and costs one recomposition per minute, and only while the screen is visible.
+- **Alternatives**: Tick every second (wasteful). Compute decay in the UI layer (duplicates domain logic).
+- **Consequences**: In ambient mode the screen may stay subscribed and recompose once per minute, which matches the ambient update cadence.
+
+### DD-31 — Tile futures via kotlinx-coroutines-guava, not Horologist
+- **Status**: Accepted (AR-4).
+- **Decision**: `PetStatusTileService` returns `serviceScope.future { ... }` (`kotlinx.coroutines.guava.future`) from `onTileRequest` and `onTileResourcesRequest`. The scope is cancelled in `onDestroy`.
+- **Why**: It removes `runBlocking` (which blocked the binder thread) and the restricted `ResolvableFuture` API (6 lint errors). The library is already in the version catalog, and no new dependency family is needed.
+- **Alternatives**: Horologist `SuspendingTileService`. It is cleaner if more tiles or Horologist layouts are adopted later, but it adds a dependency today.

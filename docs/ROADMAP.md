@@ -60,10 +60,11 @@ Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-r
    - [x] Remove the `:core:health` → `:core:data` dependency (`PassiveDataDependencies` provider interface).
    - [x] Single shared dependency graph (manual `AppContainer`) for the activity, view models, service and tile. `PetDecayWorker` is left as-is for AR-5.
    - [x] Inject a `Clock` into the repository, use cases and `PetViewModel`. Engines take explicit timestamps.
-6. [ ] **AR-4 — Reactive surfaces** 🟠
-   - [ ] Request a tile update after every committed write.
-   - [ ] Replace `runBlocking` in `PetStatusTileService` with a suspending tile service.
-   - [ ] Add a subscription-scoped ticker to `GetPetStateUseCase` so decay advances on an open screen.
+6. [x] **AR-4 — Reactive surfaces** 🟠
+   - [x] Request a tile update after every committed write (`NotifyingPetRepository`, wired in `AppContainer`).
+   - [x] Replace `runBlocking` in `PetStatusTileService` with `serviceScope.future { }` (also fixes the `ResolvableFuture` lint errors).
+   - [x] Add a subscription-scoped 60 s ticker to `GetPetStateUseCase` so decay advances on an open screen.
+   - [ ] Complication provider: still planned (Phase 3). It should hook into the same refresh callback.
 7. [ ] **AR-5 — Repurpose or remove `PetDecayWorker`** 🟡
    - [ ] Decide: repurpose for tile/complication refresh, day rollover, and critical-vital notifications, or delete it.
    - [ ] Remove the explicit `WAKE_LOCK` permission if it is no longer needed.
