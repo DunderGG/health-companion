@@ -148,7 +148,7 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 ---
 
 ## Phase 3: Wear OS Native Surfaces & Micro-Interactions
-- [ ] Interactive Wear OS Carousel Tile with direct 1-tap "+250ml Water" action button via ProtoLayout.
+- [x] Interactive Wear OS Carousel Tile with direct 1-tap "+250ml Water" action button via ProtoLayout. Each tap logs once, tapping the vitals opens the app (DD-42).
 - [ ] Watch Face Complication Provider (`PetMoodComplicationService`): Show pet mood icon or step-progress ring directly on standard watch dials. Refresh it from the same `NotifyingPetRepository` callback that updates the tile (`AppContainer.requestSurfaceRefresh`).
 - [ ] Ambient Mode support: Low-power grayscale rendering for always-on displays.
 - [ ] Rotary Crown Integration: Use watch crown for smooth zooming, inspecting vitals breakdown, and interactive petting.

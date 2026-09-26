@@ -34,6 +34,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-25](#dd-25--boot-re-registration-via-a-non-exported-receiver-and-workmanager): whether the boot receiver fires and passive data resumes after a reboot.
 > - [DD-37](#dd-37--live-steps-come-from-the-platform-step-detector-only-while-the-screen-is-visible): whether the watch has a step detector, how quickly it reports, and the battery cost of live reactions.
 > - [DD-40](#dd-40--alerts-are-scheduled-at-the-predicted-crossing-not-polled): alert timing under Doze, clearing after logging, and surviving a reboot.
+> - [DD-42](#dd-42--the-tile-logs-water-in-place-through-a-loadaction-deduplicated-by-a-per-render-click-id): one tap on the tile logs water exactly once and re-renders promptly.
 
 ---
 
@@ -82,6 +83,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-39](#dd-39--walkrun-from-burst-cadence-with-hysteresis-a-sleeping-pet-does-not-react) | Walk/run from burst cadence with hysteresis; a sleeping pet does not react | Game design / UI | Accepted · 🟣 your call |
 | [DD-40](#dd-40--alerts-are-scheduled-at-the-predicted-crossing-not-polled) | Alerts are scheduled at the predicted crossing, not polled | Background / battery | Accepted · 🟠 verify on device |
 | [DD-41](#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night) | One alert per critical episode, at the mood threshold, never at night | Game design / notifications | Accepted · 🟣 your call |
+| [DD-42](#dd-42--the-tile-logs-water-in-place-through-a-loadaction-deduplicated-by-a-per-render-click-id) | The tile logs water in place through a `LoadAction`, deduplicated by a per-render click id | Surfaces | Accepted · 🟠 verify on device |
 
 ---
 
@@ -550,3 +552,26 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - A reminder if a vital stays critical for hours (e.g. once more after 4 h), or strictly once per episode?
 > - Quiet hours tied to the pet's night (22:00–07:00), or separate/configurable?
 > - Add a "+250 ml" action button on the thirst notification, so it can be answered without opening the app?
+
+---
+
+## Interactive tile (Phase 3)
+
+### DD-42 — The tile logs water in place through a `LoadAction`, deduplicated by a per-render click id
+- **Status**: Accepted (2026-09-26).
+- **Decision**:
+  - The tile's "+250ml Water" chip uses a `LoadAction`. A tap makes the system call `onTileRequest` again with the chip's id as `lastClickableId`. That request logs `HabitType.Hydration(250)` through `LogHabitUseCase`, the same path as the in-app token, and then renders the new hydration value.
+  - `onTileRequest` now has a side effect, so each tap must log **at most once**. Every render stamps the chip with a fresh id (`log_water:<render time>`), and `TileClickLedger` stores the last handled id in a small `tile_clicks` `SharedPreferences` file. A request that repeats a handled id is ignored: a freshness refresh, the update the write itself requests (DD-29), or a second tap before the tile re-renders. The claim is committed before the water is logged, so a failed write loses one tap instead of logging twice.
+  - The only feedback is the re-render: the tile now shows a hydration line next to overall health. Tapping the vitals opens the app (`LaunchAction`).
+  - The layout moved from a hand-built `Column` to protolayout-material's `PrimaryLayout` and `CompactChip` (already a dependency), with a water-drop icon (`ic_tile_water_drop`, resources version `2`).
+- **Why**: Logging a drink is a 3–5 second interaction. A `LoadAction` keeps it on the tile, with no app launch. Whether the renderer keeps reporting a stale `lastClickableId` on later requests is not clearly documented, and the per-render id makes the answer irrelevant.
+- **Alternatives**:
+  - `LaunchAction` to a trampoline activity that logs and finishes: opens a window and is slower.
+  - A fixed click id plus a time window (ignore repeats within N seconds): a stale id arriving after the window, e.g. on the 10-minute refresh, would log again.
+  - A DataStore file behind a `:core:domain` interface, like the other small stores: more wiring for one string that only the tile uses.
+- **Consequences**:
+  - A tap only takes effect once the renderer calls back, so there is no haptic or instant visual confirmation. Tapping twice quickly logs once, and a second drink needs the tile to re-render first.
+  - The write triggers the usual tile update request, so a tap causes two renders in quick succession. The system coalesces them, and the second is a pure read.
+
+> [!WARNING]
+> **🟠 Verify on device:** one tap logs exactly 250 ml (check the hydration line and the in-app ring), the tile re-renders within a second or two, repeated refreshes don't log again, and tapping the vitals opens the app.

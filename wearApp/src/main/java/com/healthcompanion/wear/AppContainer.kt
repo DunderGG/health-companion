@@ -23,6 +23,7 @@ import com.healthcompanion.core.health.SensorLiveStepSource
 import com.healthcompanion.wear.notifications.VitalAlertNotifier
 import com.healthcompanion.wear.notifications.VitalAlertWorker
 import com.healthcompanion.wear.tiles.PetStatusTileService
+import com.healthcompanion.wear.tiles.TileClickLedger
 
 /**
  * Composition root: the single dependency graph shared by the activity, view models,
@@ -80,6 +81,9 @@ class AppContainer(context: Context) {
     val vitalAlertNotifier: VitalAlertNotifier by lazy { VitalAlertNotifier(appContext) }
 
     val healthServicesManager: HealthServicesManager by lazy { HealthServicesManager(appContext) }
+
+    /** Makes each tap on the tile's water button log exactly once (DD-42). */
+    val tileClickLedger: TileClickLedger by lazy { TileClickLedger.create(appContext) }
 
     /** Requests a Tile re-render; the system throttles and coalesces frequent requests. */
     private fun requestSurfaceRefresh() {

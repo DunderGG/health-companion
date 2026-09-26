@@ -143,8 +143,11 @@ Use synthetic walking (§1.1) and follow `PassiveDataService` in logcat.
 - [ ] Heart-rate awards happen at most once per 30 minutes, even with frequent heart-rate samples.
 - [ ] After a clean install, the first reading credits today's steps so far (DD-16).
 
-### V3 — Surfaces ([DD-29](DESIGN_DECISIONS.md#dd-29--surfaces-are-refreshed-by-a-repository-decorator), [DD-30](DESIGN_DECISIONS.md#dd-30--60-second-decay-ticker-only-while-collected))
+### V3 — Surfaces ([DD-29](DESIGN_DECISIONS.md#dd-29--surfaces-are-refreshed-by-a-repository-decorator), [DD-30](DESIGN_DECISIONS.md#dd-30--60-second-decay-ticker-only-while-collected), [DD-42](DESIGN_DECISIONS.md#dd-42--the-tile-logs-water-in-place-through-a-loadaction-deduplicated-by-a-per-render-click-id))
 - [ ] Add the **Pet Status** tile. Logging water in the app updates the tile within a few seconds.
+- [ ] Tapping **+250ml Water** on the tile raises its hydration line (and the in-app ring) by one drink, and the tile re-renders within a second or two (DD-42).
+- [ ] Tapping twice quickly logs one drink. Leaving the tile and coming back, or waiting for a refresh, doesn't log again.
+- [ ] Tapping the health/hydration text opens the app.
 - [ ] A synthetic sensor batch also updates the tile.
 - [ ] With the pet screen left open, the vitals ring visibly decays about once a minute.
 

@@ -12,7 +12,7 @@ A health-mirroring virtual pet companion for Wear OS smartwatches, inspired by t
 - **Wear OS Health Services**: Passively monitors daily step counts and workout goals via `PassiveMonitoringClient`.
 - **Modern Vector-Native Companion**: Hardware-accelerated dynamic vector rendering with breathing bounce, blinking eyes, blushing cheeks, and mood expressions.
 - **Circular Wear OS UI**: Circular multi-vital progress ring (`VitalsRing`) and micro-interaction buttons optimized for round smartwatches.
-- **Wear OS Carousel Tile**: Swipe from your watch face to instantly glance at your companion's status.
+- **Wear OS Carousel Tile**: Swipe from your watch face to instantly glance at your companion's status, and log a glass of water with one tap.
 
 ---
 

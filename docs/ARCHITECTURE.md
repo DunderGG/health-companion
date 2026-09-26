@@ -31,7 +31,7 @@ package "Game Engine" as PetEngine {
 
 package "Wear OS User Surfaces" as WearSurfaces {
     [Main Wear Compose App\n(Interactions, Petting, Stats)] as MainApp
-    [Wear OS Quick Tile\n(1-Swipe Status;\nWater Log planned)] as Tile
+    [Wear OS Quick Tile\n(1-Swipe Status;\n1-Tap Water Log)] as Tile
     [Watch Face Complication\n(Pet Mood Icon / Meter)\n(planned)] as Complication
 }
 
@@ -181,7 +181,7 @@ health-companion/
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
 │       ├── presentation/pet/             # PetScreen, PetViewModel, PetUiState
 │       ├── notifications/                # VitalAlertWorker, VitalAlertNotifier
-│       └── tiles/PetStatusTileService.kt # Wear OS Carousel Tile
+│       └── tiles/                        # PetStatusTileService (Carousel Tile), TileClickLedger
 │
 ├── core/
 │   ├── model/                            # Pure domain models (Pet, Vitals, Mood, Habits)
@@ -552,6 +552,7 @@ To keep the primary diagrams manageable and focused on the core runtime loop, th
    - `BOOT_COMPLETED` $ightarrow$ `BootCompletedReceiver` $ightarrow$ unique one-time `PassiveRegistrationWorker` $ightarrow$ `HealthServicesManager.ensureRegistered(force = true)` $ightarrow$ `Result.retry()` on failure.
 3. **Carousel Tile Request & Rendering (`PetStatusTileService`)**:
    - User swipes to Tile on watch face $\rightarrow$ system invokes `TileService.onTileRequest()` $\rightarrow$ coroutine `future { }` query to `PetRepository` (no blocking) $\rightarrow$ ProtoLayout element tree assembly $\rightarrow$ 10-minute cache freshness declaration $\rightarrow$ `ListenableFuture<Tile>` delivery.
+   - User taps **+250ml Water** $\rightarrow$ `LoadAction` $\rightarrow$ `onTileRequest()` with `lastClickableId = log_water:<render time>` $\rightarrow$ `TileClickLedger.claimWaterClick()` (an already-handled id is ignored) $\rightarrow$ `LogHabitUseCase` $\rightarrow$ re-render with the new hydration value (DD-42).
 4. **Milestone Evolution & Archetype Specialization**:
    - Cumulative XP crosses stage threshold (e.g. 750 XP for `TEEN`) $\rightarrow$ `EvolutionEngine.checkEvolution()` inspects dominant vitals (e.g. `fitness > 80f`) $\rightarrow$ locks in specialized persona (`CARDIO_RUNNER`) $\rightarrow$ triggers celebratory haptic pattern and visual evolution feedback.
 5. **Sensor Capability Negotiation & Hardware Fallback**:
