@@ -20,13 +20,14 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-16](#dd-16--first-reading-credits-todays-activity-so-far): credit today's steps on first install?
 > - [DD-20](#dd-20--bad-rows-are-repaired-on-load-not-rejected): log silent data repairs?
 > - [DD-23](#dd-23--heart-rate-is-registered-only-with-background-access): is heart rate worth two permission dialogs?
-> - [DD-33](#dd-33--energy-recovers-during-a-fixed-local-night-window): fixed 22:00–07:00 bedtime, and full hunger and thirst decay at night?
+> - [DD-33](#dd-33--energy-recovers-during-a-fixed-local-night-window): full hunger and thirst decay at night, and real sleep data?
 > - [DD-34](#dd-34--the-pet-always-sleeps-at-night): pet always asleep at night, hiding thirst and hunger warnings?
 > - [DD-36](#dd-36--archetype-from-7-day-consistency-locked-in-once-at-teen): archetype thresholds (6,000 steps; workout or heart rate ≥ 100; 1,500 ml + 2 meals; 4 of 7 days)?
 > - [DD-39](#dd-39--walkrun-from-burst-cadence-with-hysteresis-a-sleeping-pet-does-not-react): live walk/run thresholds, and should moving wake a sleeping pet?
 > - [DD-41](#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night): alert threshold, reminders for long episodes, quiet hours, and a quick "+250 ml" action?
 > - [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress): overall health or step progress as the complication ring, and the short mood labels?
 > - [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only): how the purr, goal and evolution patterns feel on a real watch?
+> - [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype): goal ranges and increments, bedtime hours, and a configurable strength goal?
 
 > [!WARNING]
 > **🟠 Needs verification on an emulator or watch** (step-by-step instructions: [VERIFICATION.md](VERIFICATION.md))
@@ -40,6 +41,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress): all three complication types render and tint correctly, and the ring updates after a write.
 > - [DD-44](#dd-44--the-pet-screen-stays-on-in-ambient-mode-as-a-static-outline-and-releases-the-step-sensor): ambient look and once-a-minute updates on a real always-on display, and sensor release.
 > - [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only): the three patterns on a real motor, the waveform fallback, and a live goal crossing.
+> - [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype): crown step size on the setting steppers, layout on a small round screen, and the vibration switch.
 
 ---
 
@@ -94,6 +96,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-45](#dd-45--the-crown-pages-between-the-pet-and-a-vitals-breakdown-petting-stays-a-tap) | The crown pages between the pet and a vitals breakdown; petting stays a tap | UI / input | Accepted |
 | [DD-46](#dd-46--percentages-are-rounded-not-truncated-on-every-surface) | Percentages are rounded, not truncated, on every surface | UI | Accepted |
 | [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only) | Three vibration patterns; goals are the daily focus goals; foreground only | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
+| [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype) | A settings screen for daily goals, bedtime and haptics; goals don't change the archetype | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
 
 ---
 
@@ -414,7 +417,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 ## Game-loop completeness (AR-3)
 
 ### DD-33 — Energy recovers during a fixed local night window
-- **Status**: Accepted (AR-3, 2026-09-26).
+- **Status**: Accepted (AR-3, 2026-09-26). The bedtime became user-configurable in DD-48 (18:00–03:00 to 04:00–12:00); 22:00–07:00 is the default.
 - **Decision**: Inside `NightWindow.DEFAULT` (22:00–07:00 in `Clock.zone()`), energy **recovers** at +8 %/h instead of decaying at −2 %/h. `calculateDecay` splits the elapsed time into day/night segments and clamps after each one. Other vitals keep decaying at night.
 - **Why**: Energy previously had no way to recover, so every pet ended up permanently `TIRED`. A deterministic, sensor-free rule:
   - works for everyone, including people who don't wear the watch at night or whose watch doesn't detect sleep;
@@ -428,7 +431,6 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!IMPORTANT]
 > **🟣 Your call: night rules.**
-> - Should bedtime be user-configurable, instead of a fixed 22:00–07:00 in the device's time zone?
 > - Should hydration and hunger decay more slowly at night? They currently lose −27 and −22.5 over 9 h, while the user can't log anything.
 > - Should real sleep data be layered on top later, e.g. bonus XP or happiness for detected sleep?
 >
@@ -684,7 +686,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 ## Haptics (Phase 3)
 
 ### DD-47 — Three vibration patterns; goals are the daily focus goals; foreground only
-- **Status**: Accepted (2026-09-26). The project owner chose the goal definition, and asked for a settings screen with user-set goals and a minor "vital filled up" pattern as roadmap items (Phase 3a).
+- **Status**: Accepted (2026-09-26). The project owner chose the goal definition, and asked for a settings screen with user-set goals and a minor "vital filled up" pattern as roadmap items (Phase 3a). The step, water and meal targets became user-configurable in DD-48; the defaults are the values below.
 - **Decision**:
   - **Patterns** (`PetHapticPatterns`), each composed from API 30 primitives, with a waveform fallback for motors that can't play them:
     - **Petting**: a soft 4-tick purr, about 0.3 s. It replaces the generic long-press on the pet, and on API 33+ it is played as touch feedback, so the system's touch-vibration setting applies.
@@ -709,3 +711,48 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!WARNING]
 > **🟠 Verify on device:** the three patterns are distinguishable on the wrist, the waveform fallback works on a motor without primitives, and the goal pattern plays when a live sensor batch crosses 6,000 steps with the app open.
+
+---
+
+## Settings (Phase 3a)
+
+### DD-48 — A settings screen for daily goals, bedtime and haptics; goals don't change the archetype
+- **Status**: Accepted (2026-09-26). The project owner chose that user-set goals affect only the daily goal, not the archetype, and chose the three settings and the stepper editing.
+- **Decision**:
+  - **Settings** (`UserSettings`, in `:core:domain`):
+    - **Daily goals** (`DailyGoals`): steps 1,000–20,000 in steps of 500; water 500–4,000 ml in steps of 250 ml (one tile tap); healthy meals 1–5. The defaults are the archetype thresholds (6,000 / 1,500 ml / 2). The strength goal (a workout or heart rate ≥ 100) stays fixed. It is a threshold, not a personal target.
+    - **Bedtime**: the pet's `NightWindow`, in whole hours. It can start at 18:00–03:00 and end at 04:00–12:00. The two lists don't overlap, so the night is never empty and needs no validation.
+    - **Vibration**: one switch for the purr, goal and evolution patterns (DD-47).
+  - **Goals vs archetype**: `ObserveDailyFocusUseCase` measures today's habits against the user's goals (`ArchetypeSelector.focusAreasReached(events, goals)`). `ArchetypeSelector.select` keeps the fixed DD-36 thresholds.
+  - **Bedtime everywhere**: every place that used `NightWindow.DEFAULT` now uses the user's bedtime: decay and mood on read (`GetPetStateUseCase`, so also the tile and complication), decay on write (`PetRepositoryImpl`), and the alerts' quiet hours (`CheckCriticalVitalsUseCase`).
+  - **Storage**: `SettingsRepository` in the domain, implemented on its own DataStore file (`user_settings`). Missing keys read as the defaults. A stored value the app doesn't offer falls back to its default: per goal, and for bedtime as a pair. `NotifyingSettingsRepository` refreshes the tile and complication and re-checks vitals after each change, like `NotifyingPetRepository` (DD-29).
+  - **UI**:
+    - A third pager page below the vitals holds a single **Settings** button.
+    - The button opens a `SwipeDismissableNavHost` stack: the settings list (`ScalingLazyColumn`, crown scrolls), and one stepper screen per number (Material 3 `Stepper` with a `LevelIndicator`).
+    - The crown also steps the value: 60 scroll pixels per step, clockwise increases. The stepper has no crown support of its own.
+    - Each change is saved at once, with no confirm step. Swiping right goes back.
+    - In ambient mode every screen shows the ambient pet (DD-44), and the user returns to the same screen afterwards.
+    - The navigation host's swipe-to-dismiss scrim is set to black, so screens stay pure black as before, rather than the theme's `background` (#0A0E14).
+- **Why**:
+  - People differ: 6,000 steps is a lot for some users and trivial for others, and a fixed 22:00–07:00 night doesn't fit everyone.
+  - Keeping the archetype on fixed thresholds means lowering a goal can't make an archetype easy to earn.
+  - Stepping through a short list of fixed values keeps every value valid and needs no keyboard.
+- **Alternatives**:
+  - One set of numbers for goals and archetype (as in DD-47): simpler to explain, but a 1,000-step goal would make Swift Strider trivial. Rejected by the owner.
+  - Settings as a pager page: the crown would page instead of scrolling the list.
+  - A settings button on the vitals page: there is no room on a round screen.
+  - Preset pickers (e.g. 4k / 6k / 8k / 10k steps): fewer taps, less flexible.
+  - A time picker with minutes for bedtime: more precision than decay needs, and wrapping around midnight would need validation.
+  - Settings in a phone app: there is none yet (Phase 5).
+- **Consequences**:
+  - Decay is computed from the last write with the *current* bedtime. Changing the bedtime therefore reinterprets the time since the last write once, which can shift energy by a few percent.
+  - Lowering a goal below today's progress doesn't vibrate. The settings screens replace the pager, so the haptics aren't collected there, and returning to the pet takes a fresh baseline (DD-47).
+  - The pet pager leaves composition while settings are open, so the step sensor is released there too. It is composed again only for the swipe-back animation.
+  - Each stepper tap writes DataStore, requests a tile and complication refresh, and schedules a vitals check. The system coalesces these.
+  - The vibration switch doesn't cover the alert notifications (the system's channel settings do), nor the system's own touch and crown ticks on buttons and the pager.
+
+> [!IMPORTANT]
+> **🟣 Your call: settings ranges.** Goal ranges and increments (steps 1,000–20,000 by 500; water 500–4,000 ml by 250; meals 1–5). Bedtime in whole hours, starting 18:00–03:00 and ending 04:00–12:00, which rules out night-shift schedules. Should the strength goal become configurable too, e.g. a minimum heart rate?
+
+> [!WARNING]
+> **🟠 Verify on device:** one crown detent should move the stepper by about one value (on the emulator, one scroll event of 2 moved it by four). Check that the list and steppers fit a small round screen, and that switching vibration off silences the purr.

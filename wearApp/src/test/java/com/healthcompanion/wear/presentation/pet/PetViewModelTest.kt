@@ -3,6 +3,7 @@
 
 package com.healthcompanion.wear.presentation.pet
 
+import com.healthcompanion.core.domain.repository.InMemorySettingsRepository
 import com.healthcompanion.core.domain.repository.PetRepository
 import com.healthcompanion.core.domain.sensor.LiveStepSource
 import com.healthcompanion.core.domain.time.Clock
@@ -76,11 +77,14 @@ class PetViewModelTest {
         override suspend fun recordHabits(habits: List<HabitType>): Pet = pet.value
     }
 
+    private val settings = InMemorySettingsRepository()
+
     private fun viewModel() = PetViewModel(
-        getPetStateUseCase = GetPetStateUseCase(repository, clock, refreshIntervalMillis = 24 * hour),
+        getPetStateUseCase = GetPetStateUseCase(repository, settings, clock, refreshIntervalMillis = 24 * hour),
         logHabitUseCase = LogHabitUseCase(repository),
         observePetActivityUseCase = ObservePetActivityUseCase(stepSource, clock),
-        observeDailyFocusUseCase = ObserveDailyFocusUseCase(repository, clock),
+        observeDailyFocusUseCase = ObserveDailyFocusUseCase(repository, settings, clock),
+        settingsRepository = settings,
         clock = clock
     )
 
@@ -173,5 +177,20 @@ class PetViewModelTest {
         runCurrent()
 
         assertEquals(listOf(PetHapticEvent.GOAL_REACHED), haptics)
+    }
+
+    @Test
+    fun `no pattern plays while the user has switched haptics off`() = runTest(dispatcher) {
+        settings.updateSettings { it.copy(hapticsEnabled = false) }
+        val viewModel = viewModel()
+        val haptics = collectHaptics(viewModel)
+        now = start + PetViewModel.PET_COOLDOWN_MS
+
+        viewModel.petCompanion()
+        repository.pet.value = repository.pet.value.copy(stage = EvolutionStage.CHILD)
+        repository.history.value += HabitEvent(HabitType.Steps(7_000), start)
+        runCurrent()
+
+        assertEquals(emptyList<PetHapticEvent>(), haptics)
     }
 }

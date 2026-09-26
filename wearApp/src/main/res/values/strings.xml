@@ -40,5 +40,21 @@
     <string name="vital_alert_thirsty_text">Log some water to perk them up.</string>
     <string name="vital_alert_hungry_title">%1$s is hungry</string>
     <string name="vital_alert_hungry_text">Log a meal before they get grumpy.</string>
+
+    <!-- Settings (third page of the pet pager, DD-48) -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_daily_goals">Daily goals</string>
+    <string name="settings_goal_steps">Steps</string>
+    <string name="settings_goal_water">Water</string>
+    <string name="settings_goal_healthy_meals">Healthy meals</string>
+    <string name="settings_bedtime">Bedtime</string>
+    <string name="settings_bedtime_start">Sleeps at</string>
+    <string name="settings_bedtime_end">Wakes at</string>
+    <string name="settings_haptics">Vibration</string>
+    <string name="settings_haptics_description">Purr, goals and evolution</string>
+    <!-- %1$s formatted amount of water -->
+    <string name="settings_value_water_ml">%1$s ml</string>
+    <string name="settings_decrease">Decrease</string>
+    <string name="settings_increase">Increase</string>
 </resources>
 

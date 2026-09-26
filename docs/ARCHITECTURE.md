@@ -20,7 +20,7 @@ package "Real-World Health Activities" as RealWorld {
     [Active Workouts\n(ExerciseClient)\n(planned)] as Workouts
     [Hydration Log\n(+250ml quick-tap)] as Water
     [Nutrition Log\n(Healthy Meal / Snack)] as Food
-    [Night Rest\n(22:00–07:00 NightWindow;\nsleep sensing planned)] as Sleep
+    [Night Rest\n(bedtime NightWindow, 22:00–07:00 default;\nsleep sensing planned)] as Sleep
 }
 
 package "Game Engine" as PetEngine {
@@ -66,7 +66,7 @@ Vitals --> Complication : Updates Watch Dial
 | **Watch Face Integration** | AndroidX WatchFace Complications (`SuspendingComplicationDataSourceService`) | `PetMoodComplicationService`: mood face and overall-health ring on any watch face that accepts complications (DD-43). |
 | **Architecture Pattern** | Clean Architecture + MVI (UDF) | Unidirectional Data Flow with immutable `StateFlow<PetUiState>`. |
 | **Persistence** | Jetpack Room SQLite Database | Offline-first local storage for pet vitals, health logs, and history. |
-| **Preferences** | Jetpack DataStore Preferences | Small key-value bookkeeping: consumed sensor totals (`passive_sync`) and alerted vitals (`vital_alerts`). User settings and daily goals are planned. |
+| **Preferences** | Jetpack DataStore Preferences | Small key-value bookkeeping: consumed sensor totals (`passive_sync`) and alerted vitals (`vital_alerts`). User settings: daily goals, bedtime and the vibration switch (`user_settings`, DD-48). |
 | **Background Processing**| Jetpack WorkManager (`work-runtime-ktx`) | One-time jobs only: re-registration of passive monitoring after boot (`PassiveRegistrationWorker`) and critical-vital checks scheduled at the predicted threshold crossing (`VitalAlertWorker`, DD-40). No periodic work: decay is computed on read (AR-5). |
 
 ---
@@ -121,6 +121,7 @@ coreDomain --> coreModel : Evaluates Game Rules
 1. **[`:wearApp`](../wearApp)**:
    - Standalone Wear OS application entry point (`com.google.android.wearable.standalone = true`).
    - UI orchestration, Wear Navigation, ViewModel bindings.
+   - Settings (DD-48): a third pager page opens `CompanionNavHost`'s settings list and one stepper screen per number (daily goals, bedtime), plus the vibration switch.
    - Composition root: `AppContainer` builds the single dependency graph (clock, database, repositories, use cases, `HealthServicesManager`). `HealthCompanionApp` owns it and implements `PassiveDataDependencies` for `:core:health`.
    - Wear OS surfaces: `PetStatusTileService` (Carousel Tile) and `PetMoodComplicationService` (Watch Face Complication).
    - Critical-vital notifications: `VitalAlertWorker` (scheduling) and `VitalAlertNotifier` (channel, posting, clearing).
@@ -139,18 +140,20 @@ coreDomain --> coreModel : Evaluates Game Rules
    - `MoodCalculator`: Evaluates mood states dynamically based on vitals.
    - `EvolutionEngine`: Experience thresholds and archetype branching.
    - `DailyTotalTracker`: Converts cumulative daily sensor totals into apply-once deltas.
-   - `NightWindow`: The pet's local-time night (22:00–07:00): energy recovery and the `SLEEPING` mood.
-   - `ArchetypeSelector`: Picks the archetype from 7-day habit consistency when the pet reaches `TEEN`.
+   - `NightWindow`: The pet's local-time night (the user's bedtime, 22:00–07:00 by default): energy recovery, the `SLEEPING` mood and the alerts' quiet hours.
+   - `ArchetypeSelector`: Picks the archetype from 7-day habit consistency when the pet reaches `TEEN`. Its per-day rules, with the user's own targets, are also the daily focus goals.
+   - `UserSettings` / `DailyGoals`: What the user can set on the watch, with the selectable ranges (DD-48).
    - `VitalAlertPlanner`: Predicts when hydration/hunger cross their critical threshold and which alerts to post or clear.
    - `StepCadence`: Turns live step timestamps into `IDLE` / `WALKING` / `RUNNING` (burst cadence with hysteresis).
-   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`, `ObservePetActivityUseCase`, `CheckCriticalVitalsUseCase`.
-   - Repository interfaces: `PetRepository`, `PassiveSyncRepository`, `VitalAlertStateRepository`. Sensor interface: `LiveStepSource`.
+   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`, `ObservePetActivityUseCase`, `ObserveDailyFocusUseCase`, `CheckCriticalVitalsUseCase`.
+   - Repository interfaces: `PetRepository`, `PassiveSyncRepository`, `VitalAlertStateRepository`, `SettingsRepository` (with the `NotifyingSettingsRepository` decorator and an in-memory implementation for tests). Sensor interface: `LiveStepSource`.
 
 4. **[`:core:data`](../core/data)**:
    - Offline-first persistence via Jetpack Room (`CompanionDatabase`, `PetDao`, `PetEntity`).
    - `PetRepositoryImpl`: Coordinates between SQLite database and domain engine.
    - `PassiveSyncRepositoryImpl`: DataStore-backed bookkeeping of consumed sensor totals and heart-rate award timing.
    - `VitalAlertStateRepositoryImpl`: DataStore-backed set of vitals already alerted in their current critical episode.
+   - `SettingsRepositoryImpl`: DataStore-backed user settings; values the app doesn't offer fall back to their defaults.
 
 5. **[`:core:health`](../core/health)**:
    - Wraps Wear OS **Health Services API** (`androidx.health:health-services-client`).
@@ -183,7 +186,9 @@ health-companion/
 │       ├── HealthCompanionApp.kt         # Application: owns AppContainer, WorkManager scheduling
 │       ├── AppContainer.kt               # Composition root (manual DI)
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
-│       ├── presentation/pet/             # PetPager (pet + vitals pages), PetScreen, VitalsScreen, PetViewModel
+│       ├── presentation/                 # CompanionNavHost: pet pager and settings screens
+│       ├── presentation/pet/             # PetPager (pet, vitals, settings pages), PetScreen, VitalsScreen, PetViewModel
+│       ├── presentation/settings/        # SettingsScreen, SettingStepperScreen, SettingField, SettingsViewModel
 │       ├── presentation/ambient/         # AmbientState, BurnInShift (always-on mode)
 │       ├── haptics/                      # PetHaptics, PetHapticPatterns (petting, goal, evolution)
 │       ├── complications/                # PetMoodComplicationService, MoodPresentation
@@ -296,7 +301,7 @@ deactivate UI
   4. `MoodCalculator.calculateMood()` evaluates prioritized rules against the decayed vitals to determine the companion's expression (e.g., Happy, Content, Thirsty, Hungry).
   5. `PetScreen` recomposes the hardware-accelerated `ModernPetCanvas` and `VitalsRing` in the active mood state.
 - **Live decay while open**: `GetPetStateUseCase` combines the Room stream with a 60-second ticker, so the displayed vitals keep decaying on an open screen even when nothing is written. The ticker only runs while the ViewModel collects (`WhileSubscribed(5000)`), so it costs nothing when the screen is gone.
-- **Night mood**: `GetPetStateUseCase` (and the tile) pass `NightWindow.DEFAULT.isNight(now, zone)` to `MoodCalculator`, and the pet is shown `SLEEPING` throughout its night.
+- **Night mood**: `GetPetStateUseCase` (and the tile) pass the user's bedtime (`UserSettings.bedtime.isNight(now, zone)`) to `MoodCalculator`, and the pet is shown `SLEEPING` throughout its night. A new bedtime re-evaluates at once (DD-48).
 
 ---
 
@@ -820,7 +825,7 @@ $$\text{decay} = \frac{\text{currentTime} - \text{lastUpdatedTimestamp}}{3600000
 | **Fitness / Vitality** | 0–100 | $1.5\% / \text{hr}$ | Step and floor deltas, and rate-limited heart rate via `PassiveMonitoringClient`; active workouts *(planned)* | High fitness triggers athletic evolutions and energetic animations |
 | **Hydration** | 0–100 | $3.0\% / \text{hr}$ | $+250\text{ml}$ quick tap on watch / Tile | Thirsty pet appears droopy; sends gentle haptic reminder |
 | **Hunger / Nutrition**| 0–100 | $2.5\% / \text{hr}$ | Healthy Meal ($+30\%$) / Snack ($+20\%$) | Starving pet refuses to play; well-fed pet smiles and dances |
-| **Energy** | 0–100 | $2.0\% / \text{hr}$ | Recovers at +8 %/hr during the pet's night (22:00–07:00 local, `NightWindow`), computed per day/night segment. Real sleep sensing is planned | Sleepy pet yawns and sleeps when watch is in ambient mode |
+| **Energy** | 0–100 | $2.0\% / \text{hr}$ | Recovers at +8 %/hr during the pet's night (the user's bedtime, 22:00–07:00 local by default, `NightWindow`), computed per day/night segment. Real sleep sensing is planned | Sleepy pet yawns and sleeps when watch is in ambient mode |
 | **Happiness**| 0–100 | $2.0\% / \text{hr}$ | Weighted vitals + direct petting/rotary play | Drops if any vital < 20; unlocks tricks, dialogue bubbles, XP |
 
 ### Evolution & Archetypes

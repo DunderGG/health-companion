@@ -116,6 +116,7 @@ object PetDecayEngine {
      * @param habit The health event being recorded ([HabitType]).
      * @param currentTimeMillis Current epoch timestamp in milliseconds (from an injected [com.healthcompanion.core.domain.time.Clock]).
      * @param zone Time zone used to locate the night window during decay.
+     * @param nightWindow The pet's nightly rest period, for the decay before the habit.
      * @return A [Pair] containing the updated [Vitals] (first) and the experience points awarded (second),
      *         analogous to `std::pair<Vitals, int>` in C++.
      */
@@ -123,9 +124,10 @@ object PetDecayEngine {
         vitals: Vitals,
         habit: HabitType,
         currentTimeMillis: Long,
-        zone: ZoneId
+        zone: ZoneId,
+        nightWindow: NightWindow = NightWindow.DEFAULT
     ): Pair<Vitals, Int> {
-        val decayed = calculateDecay(vitals, currentTimeMillis, zone)
+        val decayed = calculateDecay(vitals, currentTimeMillis, zone, nightWindow)
         var xpEarned = 10
 
         val updated = when (habit) {

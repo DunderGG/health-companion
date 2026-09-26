@@ -8,11 +8,15 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.healthcompanion.core.data.db.CompanionDatabase
 import com.healthcompanion.core.data.db.entity.HabitEventEntity
+import com.healthcompanion.core.domain.engine.NightWindow
+import com.healthcompanion.core.domain.repository.InMemorySettingsRepository
+import com.healthcompanion.core.domain.settings.UserSettings
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.EvolutionStage
 import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.PetArchetype
+import com.healthcompanion.core.model.Vitals
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -44,7 +48,7 @@ class PetRepositoryImplTest {
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, CompanionDatabase::class.java).build()
-        repository = PetRepositoryImpl(db, Clock.SYSTEM)
+        repository = PetRepositoryImpl(db, Clock.SYSTEM, InMemorySettingsRepository())
     }
 
     @After
@@ -62,7 +66,7 @@ class PetRepositoryImplTest {
     @Test
     fun `the habit history flow includes newly recorded habits from the given time on`() = runBlocking {
         val now = Instant.parse("2026-01-10T18:00:00Z").toEpochMilli()
-        val clockedRepository = PetRepositoryImpl(db, utcClock { now })
+        val clockedRepository = PetRepositoryImpl(db, utcClock { now }, InMemorySettingsRepository())
         db.habitEventDao().insertAll(listOf(HabitEventEntity.fromDomain(HabitType.Steps(500), now - day)))
 
         clockedRepository.recordHabit(HabitType.Hydration(250))
@@ -76,7 +80,7 @@ class PetRepositoryImplTest {
     @Test
     fun `reaching teen locks in the archetype from recent habit history`() = runBlocking {
         val now = Instant.parse("2026-01-10T18:00:00Z").toEpochMilli()
-        val clockedRepository = PetRepositoryImpl(db, utcClock { now })
+        val clockedRepository = PetRepositoryImpl(db, utcClock { now }, InMemorySettingsRepository())
 
         // Five consistent 7,000-step days in the past week.
         db.habitEventDao().insertAll(
@@ -94,7 +98,7 @@ class PetRepositoryImplTest {
     @Test
     fun `recorded habits are stored in the history and old history is pruned`() = runBlocking {
         val now = Instant.parse("2026-03-01T12:00:00Z").toEpochMilli()
-        val clockedRepository = PetRepositoryImpl(db, utcClock { now })
+        val clockedRepository = PetRepositoryImpl(db, utcClock { now }, InMemorySettingsRepository())
         db.habitEventDao().insertAll(listOf(HabitEventEntity.fromDomain(HabitType.Steps(500), now - 31 * day)))
 
         clockedRepository.recordHabits(listOf(HabitType.Hydration(250), HabitType.Meal(isHealthy = true)))
@@ -104,6 +108,21 @@ class PetRepositoryImplTest {
             listOf(HabitEvent(HabitType.Hydration(250), now), HabitEvent(HabitType.Meal(isHealthy = true), now)),
             history
         )
+    }
+
+    @Test
+    fun `decay on write sleeps through the user's bedtime`() = runBlocking {
+        val evening = Instant.parse("2026-03-01T18:00:00Z").toEpochMilli()
+        var now = evening
+        val settings = InMemorySettingsRepository(UserSettings(bedtime = NightWindow(startHour = 18, endHour = 6)))
+        val clockedRepository = PetRepositoryImpl(db, utcClock { now }, settings)
+        clockedRepository.updatePet { it.copy(vitals = Vitals(energy = 50f, lastUpdatedTimestamp = evening)) }
+
+        now = evening + 2 * 60 * 60 * 1000L
+        val pet = clockedRepository.recordHabit(HabitType.Hydration(250))
+
+        // Two hours asleep recover energy (+8/h); with the default 22:00 bedtime it would have drained to 46.
+        assertEquals(66f, pet.vitals.energy, 0.01f)
     }
 
     @Test
@@ -148,7 +167,7 @@ class PetRepositoryImplTest {
     @Test
     fun `seeded pet and habit timestamps come from the injected clock`() = runBlocking {
         var nowMillis = 5_000_000L
-        val clockedRepository = PetRepositoryImpl(db, Clock { nowMillis })
+        val clockedRepository = PetRepositoryImpl(db, Clock { nowMillis }, InMemorySettingsRepository())
 
         val seeded = clockedRepository.getPet()
         assertEquals(5_000_000L, seeded.bornTimestamp)

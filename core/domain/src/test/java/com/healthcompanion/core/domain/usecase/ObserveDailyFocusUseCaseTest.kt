@@ -3,7 +3,9 @@
 
 package com.healthcompanion.core.domain.usecase
 
+import com.healthcompanion.core.domain.repository.InMemorySettingsRepository
 import com.healthcompanion.core.domain.repository.PetRepository
+import com.healthcompanion.core.domain.settings.DailyGoals
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
@@ -32,6 +34,8 @@ class ObserveDailyFocusUseCaseTest {
         override fun zone(): ZoneId = ZoneOffset.UTC
     }
 
+    private val settings = InMemorySettingsRepository()
+
     private val history = MutableStateFlow<List<HabitEvent>>(emptyList())
 
     private val repository = object : PetRepository {
@@ -53,14 +57,14 @@ class ObserveDailyFocusUseCaseTest {
 
     @Test
     fun `reading starts at the beginning of today`() = runTest {
-        ObserveDailyFocusUseCase(repository, clock).execute()
+        ObserveDailyFocusUseCase(repository, settings, clock).execute()
         assertEquals(Instant.parse("2026-01-10T00:00:00Z").toEpochMilli(), repository.requestedFrom)
     }
 
     @Test
     fun `a goal appears once today's habits cross its threshold, and only changes are emitted`() = runTest {
         val emissions = mutableListOf<Set<PetArchetype>>()
-        backgroundScope.launch { ObserveDailyFocusUseCase(repository, clock).execute().collect { emissions += it } }
+        backgroundScope.launch { ObserveDailyFocusUseCase(repository, settings, clock).execute().collect { emissions += it } }
         runCurrent()
 
         log(HabitType.Steps(3_000))
@@ -77,7 +81,7 @@ class ObserveDailyFocusUseCaseTest {
     fun `a stream left open past midnight starts the new day empty`() = runTest {
         log(HabitType.Steps(7_000))
         val emissions = mutableListOf<Set<PetArchetype>>()
-        backgroundScope.launch { ObserveDailyFocusUseCase(repository, clock).execute().collect { emissions += it } }
+        backgroundScope.launch { ObserveDailyFocusUseCase(repository, settings, clock).execute().collect { emissions += it } }
         runCurrent()
 
         now = morning + 20 * hour // 04:00 the next day
@@ -85,5 +89,19 @@ class ObserveDailyFocusUseCaseTest {
         runCurrent()
 
         assertEquals(listOf(setOf(PetArchetype.CARDIO_RUNNER), emptySet()), emissions)
+    }
+
+    @Test
+    fun `goals are measured against the user's targets, and a changed target applies at once`() = runTest {
+        settings.updateSettings { it.copy(dailyGoals = DailyGoals(steps = 8_000)) }
+        log(HabitType.Steps(7_000))
+        val emissions = mutableListOf<Set<PetArchetype>>()
+        backgroundScope.launch { ObserveDailyFocusUseCase(repository, settings, clock).execute().collect { emissions += it } }
+        runCurrent()
+
+        settings.updateSettings { it.copy(dailyGoals = DailyGoals(steps = 5_000)) }
+        runCurrent()
+
+        assertEquals(listOf(emptySet(), setOf(PetArchetype.CARDIO_RUNNER)), emissions)
     }
 }

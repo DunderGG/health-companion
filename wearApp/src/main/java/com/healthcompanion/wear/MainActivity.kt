@@ -21,12 +21,14 @@ import com.healthcompanion.core.health.HealthPermissions
 import com.healthcompanion.core.ui.theme.HealthCompanionTheme
 import com.healthcompanion.wear.notifications.VitalAlertNotifier
 import com.healthcompanion.wear.notifications.VitalAlertWorker
+import com.healthcompanion.wear.presentation.CompanionNavHost
 import com.healthcompanion.wear.presentation.ambient.AmbientState
 import com.healthcompanion.wear.presentation.permission.PermissionScreen
 import com.healthcompanion.wear.presentation.permission.PermissionState
 import com.healthcompanion.wear.presentation.permission.PermissionViewModel
 import com.healthcompanion.wear.presentation.pet.PetPager
 import com.healthcompanion.wear.presentation.pet.PetViewModel
+import com.healthcompanion.wear.presentation.settings.SettingsViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
@@ -42,7 +44,8 @@ import kotlinx.coroutines.flow.update
  *   struct that inherits an abstract class and instantiating it inline.
  * - **Type Casting (`as T`)**: Unchecked downcasting equivalent to `static_cast<T*>` in C++.
  * - **Reactive Activity Flow**: Observes [PermissionViewModel.permissionState] and routes between
- *   permission onboarding ([PermissionScreen]) and the pet UI ([PetPager]: pet and vitals pages).
+ *   permission onboarding ([PermissionScreen]) and the app's screens ([CompanionNavHost]: the [PetPager]
+ *   with its pet, vitals and settings pages, and the settings screens).
  * - **Ambient (always-on) mode**: [AmbientLifecycleObserver] keeps the activity on screen when the watch
  *   dims, instead of returning to the watch face. Its callbacks feed [ambientState] (rendering) and
  *   [PetViewModel] (sensor release, once-a-minute refresh). See DD-44.
@@ -62,8 +65,20 @@ class MainActivity : ComponentActivity() {
                     logHabitUseCase = container.logHabitUseCase,
                     observePetActivityUseCase = container.observePetActivityUseCase,
                     observeDailyFocusUseCase = container.observeDailyFocusUseCase,
+                    settingsRepository = container.settingsRepository,
                     clock = container.clock
                 ) as T
+            }
+        }
+    }
+
+    /** Settings screens: daily goals, bedtime and haptics (DD-48). */
+    private val settingsViewModel: SettingsViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val container = (application as HealthCompanionApp).container
+                return SettingsViewModel(container.settingsRepository) as T
             }
         }
     }
@@ -171,16 +186,18 @@ class MainActivity : ComponentActivity() {
                     }
 
                     is PermissionState.Granted -> {
-                        PetPager(
-                            viewModel = petViewModel,
+                        CompanionNavHost(
+                            petViewModel = petViewModel,
+                            settingsViewModel = settingsViewModel,
                             ambientState = ambient,
                             showSensorChip = false
                         )
                     }
 
                     is PermissionState.Denied -> {
-                        PetPager(
-                            viewModel = petViewModel,
+                        CompanionNavHost(
+                            petViewModel = petViewModel,
+                            settingsViewModel = settingsViewModel,
                             ambientState = ambient,
                             showSensorChip = true,
                             onSensorChipClick = {

@@ -11,6 +11,7 @@ import com.healthcompanion.core.domain.engine.ArchetypeSelector
 import com.healthcompanion.core.domain.engine.EvolutionEngine
 import com.healthcompanion.core.domain.engine.PetDecayEngine
 import com.healthcompanion.core.domain.repository.PetRepository
+import com.healthcompanion.core.domain.repository.SettingsRepository
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
@@ -39,10 +40,12 @@ import kotlinx.coroutines.flow.onEach
  *
  * @property database Room database providing the DAO and transaction scope.
  * @property clock Source of "now" for decay, habit timestamps and the default pet's birth time.
+ * @property settingsRepository Source of the user's bedtime, so decay on write matches decay on read (DD-48).
  */
 class PetRepositoryImpl(
     private val database: CompanionDatabase,
-    private val clock: Clock
+    private val clock: Clock,
+    private val settingsRepository: SettingsRepository
 ) : PetRepository {
 
     private val petDao = database.petDao()
@@ -112,6 +115,8 @@ class PetRepositoryImpl(
      * @return The updated and evolved [Pet] instance.
      */
     override suspend fun recordHabits(habits: List<HabitType>): Pet {
+        // Read outside the transaction: the settings live in DataStore, not in this database.
+        val nightWindow = settingsRepository.getSettings().bedtime
         return database.withTransaction {
             // Read "now" inside the transaction so it is never older than a concurrently stored timestamp.
             val now = clock.nowMillis()
@@ -123,7 +128,8 @@ class PetRepositoryImpl(
                     vitals = currentPet.vitals,
                     habit = habit,
                     currentTimeMillis = now,
-                    zone = zone
+                    zone = zone,
+                    nightWindow = nightWindow
                 )
                 EvolutionEngine.checkEvolution(
                     pet = currentPet.copy(vitals = updatedVitals),

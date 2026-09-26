@@ -4,6 +4,7 @@
 package com.healthcompanion.core.domain.usecase
 
 import com.healthcompanion.core.domain.engine.CriticalVital
+import com.healthcompanion.core.domain.repository.InMemorySettingsRepository
 import com.healthcompanion.core.domain.repository.PetRepository
 import com.healthcompanion.core.domain.repository.VitalAlertStateRepository
 import com.healthcompanion.core.domain.time.Clock
@@ -31,7 +32,7 @@ class CheckCriticalVitalsUseCaseTest {
         // Stored hydration 30 two hours ago → 24 now (3/h): critical.
         val pet = Pet(name = "Mochi", vitals = Vitals(hydration = 30f, lastUpdatedTimestamp = noon - 2 * hour))
         val state = FakeAlertState()
-        val useCase = CheckCriticalVitalsUseCase(FakePetRepository(pet), state, utcClock(noon))
+        val useCase = CheckCriticalVitalsUseCase(FakePetRepository(pet), state, InMemorySettingsRepository(), utcClock(noon))
 
         val check = useCase.execute()
 
@@ -44,7 +45,7 @@ class CheckCriticalVitalsUseCaseTest {
     fun `a second check in the same episode alerts nothing`() = runTest {
         val pet = Pet(vitals = Vitals(hunger = 10f, lastUpdatedTimestamp = noon))
         val state = FakeAlertState()
-        val useCase = CheckCriticalVitalsUseCase(FakePetRepository(pet), state, utcClock(noon))
+        val useCase = CheckCriticalVitalsUseCase(FakePetRepository(pet), state, InMemorySettingsRepository(), utcClock(noon))
 
         useCase.execute()
         val second = useCase.execute()

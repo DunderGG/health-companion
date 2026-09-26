@@ -5,6 +5,7 @@ package com.healthcompanion.wear.presentation.pet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.healthcompanion.core.domain.repository.SettingsRepository
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
@@ -52,6 +53,7 @@ import kotlinx.coroutines.launch
  * @param logHabitUseCase Domain use case dispatching health habits and interactions.
  * @param observePetActivityUseCase Live walking/running reaction to the user's steps.
  * @param observeDailyFocusUseCase Today's reached focus goals, for the goal haptic (DD-47).
+ * @param settingsRepository Whether haptics are switched on (DD-48).
  * @param clock Source of "now" for the petting cooldown.
  */
 class PetViewModel(
@@ -59,6 +61,7 @@ class PetViewModel(
     private val logHabitUseCase: LogHabitUseCase,
     private val observePetActivityUseCase: ObservePetActivityUseCase,
     private val observeDailyFocusUseCase: ObserveDailyFocusUseCase,
+    private val settingsRepository: SettingsRepository,
     private val clock: Clock
 ) : ViewModel() {
 
@@ -111,7 +114,7 @@ class PetViewModel(
      *
      * Cold, and meant to be collected only while the pet UI is shown: each collection takes the current
      * stage and goals as its baseline, so opening the app never replays something that happened while it
-     * was closed.
+     * was closed. Nothing is emitted while the user has switched haptics off.
      */
     val hapticEvents: Flow<PetHapticEvent> = merge(
         pettingAccepted,
@@ -126,7 +129,7 @@ class PetViewModel(
             .changes()
             .filter { (before, after) -> (after - before).isNotEmpty() }
             .map { PetHapticEvent.GOAL_REACHED }
-    )
+    ).filter { settingsRepository.getSettings().hapticsEnabled }
 
     /**
      * Called when the activity enters or leaves ambient (always-on) mode.

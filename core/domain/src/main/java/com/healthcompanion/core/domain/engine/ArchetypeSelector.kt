@@ -3,6 +3,7 @@
 
 package com.healthcompanion.core.domain.engine
 
+import com.healthcompanion.core.domain.settings.DailyGoals
 import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.PetArchetype
@@ -48,9 +49,9 @@ object ArchetypeSelector {
             .values
 
         val scores = mapOf(
-            PetArchetype.CARDIO_RUNNER to days.count { it.isCardioDay() },
+            PetArchetype.CARDIO_RUNNER to days.count { it.isCardioDay(CARDIO_STEPS_PER_DAY) },
             PetArchetype.IRON_BEAST to days.count { it.isStrengthDay() },
-            PetArchetype.ZEN_SAGE to days.count { it.isZenDay() }
+            PetArchetype.ZEN_SAGE to days.count { it.isZenDay(ZEN_HYDRATION_ML_PER_DAY, ZEN_HEALTHY_MEALS_PER_DAY) }
         )
 
         val best = scores.maxBy { it.value }
@@ -60,29 +61,32 @@ object ArchetypeSelector {
 
     /**
      * The focus areas one day's events qualify for: the daily focus goals (DD-47). Uses the same rules
-     * as [select], so a goal reached today is exactly a day that counts towards that archetype.
+     * as [select], but with the user's own step, water and meal targets (DD-48). With [DailyGoals.DEFAULT],
+     * a goal reached today is exactly a day that counts towards that archetype.
      *
      * @param dayEvents The events of a single local day.
+     * @param goals The targets to measure against.
      * @return A subset of [PetArchetype.CARDIO_RUNNER], [PetArchetype.IRON_BEAST] and [PetArchetype.ZEN_SAGE].
      */
-    fun focusAreasReached(dayEvents: List<HabitEvent>): Set<PetArchetype> = buildSet {
-        if (dayEvents.isCardioDay()) add(PetArchetype.CARDIO_RUNNER)
-        if (dayEvents.isStrengthDay()) add(PetArchetype.IRON_BEAST)
-        if (dayEvents.isZenDay()) add(PetArchetype.ZEN_SAGE)
-    }
+    fun focusAreasReached(dayEvents: List<HabitEvent>, goals: DailyGoals = DailyGoals.DEFAULT): Set<PetArchetype> =
+        buildSet {
+            if (dayEvents.isCardioDay(goals.steps)) add(PetArchetype.CARDIO_RUNNER)
+            if (dayEvents.isStrengthDay()) add(PetArchetype.IRON_BEAST)
+            if (dayEvents.isZenDay(goals.waterMl, goals.healthyMeals)) add(PetArchetype.ZEN_SAGE)
+        }
 
-    private fun List<HabitEvent>.isCardioDay(): Boolean =
-        sumOf { (it.habit as? HabitType.Steps)?.stepCount ?: 0 } >= CARDIO_STEPS_PER_DAY
+    private fun List<HabitEvent>.isCardioDay(minSteps: Int): Boolean =
+        sumOf { (it.habit as? HabitType.Steps)?.stepCount ?: 0 } >= minSteps
 
     private fun List<HabitEvent>.isStrengthDay(): Boolean = any { event ->
         val habit = event.habit
         habit is HabitType.Workout || (habit is HabitType.HeartRate && habit.bpm >= ACTIVE_HEART_RATE_BPM)
     }
 
-    private fun List<HabitEvent>.isZenDay(): Boolean {
+    private fun List<HabitEvent>.isZenDay(minWaterMl: Int, minHealthyMeals: Int): Boolean {
         val water = sumOf { (it.habit as? HabitType.Hydration)?.milliliters ?: 0 }
         val healthyMeals = count { (it.habit as? HabitType.Meal)?.isHealthy == true }
-        return water >= ZEN_HYDRATION_ML_PER_DAY && healthyMeals >= ZEN_HEALTHY_MEALS_PER_DAY
+        return water >= minWaterMl && healthyMeals >= minHealthyMeals
     }
 
     private fun localDay(epochMillis: Long, zone: ZoneId): LocalDate =

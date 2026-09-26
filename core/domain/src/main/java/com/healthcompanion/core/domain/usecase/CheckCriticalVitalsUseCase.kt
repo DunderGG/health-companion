@@ -7,6 +7,7 @@ import com.healthcompanion.core.domain.engine.PetDecayEngine
 import com.healthcompanion.core.domain.engine.VitalAlertPlan
 import com.healthcompanion.core.domain.engine.VitalAlertPlanner
 import com.healthcompanion.core.domain.repository.PetRepository
+import com.healthcompanion.core.domain.repository.SettingsRepository
 import com.healthcompanion.core.domain.repository.VitalAlertStateRepository
 import com.healthcompanion.core.domain.time.Clock
 
@@ -33,11 +34,13 @@ data class CriticalVitalsCheck(
  *
  * @property petRepository Source of the stored pet.
  * @property alertStateRepository Persisted notified set.
+ * @property settingsRepository Source of the user's bedtime, which is also the alerts' quiet hours (DD-48).
  * @property clock Source of "now" and the local time zone.
  */
 class CheckCriticalVitalsUseCase(
     private val petRepository: PetRepository,
     private val alertStateRepository: VitalAlertStateRepository,
+    private val settingsRepository: SettingsRepository,
     private val clock: Clock
 ) {
 
@@ -45,9 +48,10 @@ class CheckCriticalVitalsUseCase(
         val pet = petRepository.getPet()
         val now = clock.nowMillis()
         val zone = clock.zone()
-        val vitals = PetDecayEngine.calculateDecay(pet.vitals, now, zone)
+        val nightWindow = settingsRepository.getSettings().bedtime
+        val vitals = PetDecayEngine.calculateDecay(pet.vitals, now, zone, nightWindow)
 
-        val plan = VitalAlertPlanner.plan(vitals, now, zone, alertStateRepository.notifiedVitals())
+        val plan = VitalAlertPlanner.plan(vitals, now, zone, alertStateRepository.notifiedVitals(), nightWindow)
         alertStateRepository.setNotifiedVitals(plan.notified)
         return CriticalVitalsCheck(pet.name, plan)
     }

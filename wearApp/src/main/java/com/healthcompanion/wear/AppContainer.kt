@@ -8,10 +8,13 @@ import androidx.wear.tiles.TileService
 import com.healthcompanion.core.data.db.CompanionDatabase
 import com.healthcompanion.core.data.repository.PassiveSyncRepositoryImpl
 import com.healthcompanion.core.data.repository.PetRepositoryImpl
+import com.healthcompanion.core.data.repository.SettingsRepositoryImpl
 import com.healthcompanion.core.data.repository.VitalAlertStateRepositoryImpl
 import com.healthcompanion.core.domain.repository.NotifyingPetRepository
+import com.healthcompanion.core.domain.repository.NotifyingSettingsRepository
 import com.healthcompanion.core.domain.repository.PassiveSyncRepository
 import com.healthcompanion.core.domain.repository.PetRepository
+import com.healthcompanion.core.domain.repository.SettingsRepository
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.domain.usecase.CheckCriticalVitalsUseCase
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
@@ -55,7 +58,18 @@ class AppContainer(context: Context) {
      * critical vitals, so all writers (UI, passive sensors) keep them current without knowing about them.
      */
     val petRepository: PetRepository by lazy {
-        NotifyingPetRepository(PetRepositoryImpl(database, clock)) {
+        NotifyingPetRepository(PetRepositoryImpl(database, clock, settingsRepository)) {
+            requestSurfaceRefresh()
+            VitalAlertWorker.requestCheck(appContext)
+        }
+    }
+
+    /**
+     * The user's goals, bedtime and haptics switch (DD-48). A new bedtime changes the mood on the tile and
+     * complication and the alerts' quiet hours, so every change refreshes them and re-checks vitals.
+     */
+    val settingsRepository: SettingsRepository by lazy {
+        NotifyingSettingsRepository(SettingsRepositoryImpl.getInstance(appContext)) {
             requestSurfaceRefresh()
             VitalAlertWorker.requestCheck(appContext)
         }
@@ -63,7 +77,7 @@ class AppContainer(context: Context) {
 
     val passiveSyncRepository: PassiveSyncRepository by lazy { PassiveSyncRepositoryImpl.getInstance(appContext) }
 
-    val getPetStateUseCase: GetPetStateUseCase by lazy { GetPetStateUseCase(petRepository, clock) }
+    val getPetStateUseCase: GetPetStateUseCase by lazy { GetPetStateUseCase(petRepository, settingsRepository, clock) }
 
     val logHabitUseCase: LogHabitUseCase by lazy { LogHabitUseCase(petRepository) }
 
@@ -76,11 +90,18 @@ class AppContainer(context: Context) {
         ObservePetActivityUseCase(SensorLiveStepSource(appContext), clock)
     }
 
-    /** Today's reached focus goals, for the goal haptic (DD-47). */
-    val observeDailyFocusUseCase: ObserveDailyFocusUseCase by lazy { ObserveDailyFocusUseCase(petRepository, clock) }
+    /** Today's reached focus goals against the user's own goals, for the goal haptic (DD-47, DD-48). */
+    val observeDailyFocusUseCase: ObserveDailyFocusUseCase by lazy {
+        ObserveDailyFocusUseCase(petRepository, settingsRepository, clock)
+    }
 
     val checkCriticalVitalsUseCase: CheckCriticalVitalsUseCase by lazy {
-        CheckCriticalVitalsUseCase(petRepository, VitalAlertStateRepositoryImpl.getInstance(appContext), clock)
+        CheckCriticalVitalsUseCase(
+            petRepository,
+            VitalAlertStateRepositoryImpl.getInstance(appContext),
+            settingsRepository,
+            clock
+        )
     }
 
     val vitalAlertNotifier: VitalAlertNotifier by lazy { VitalAlertNotifier(appContext) }

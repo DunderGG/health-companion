@@ -3,10 +3,14 @@
 
 package com.healthcompanion.core.domain.usecase
 
+import com.healthcompanion.core.domain.engine.NightWindow
+import com.healthcompanion.core.domain.repository.InMemorySettingsRepository
 import com.healthcompanion.core.domain.repository.PetRepository
+import com.healthcompanion.core.domain.settings.UserSettings
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
+import com.healthcompanion.core.model.Mood
 import com.healthcompanion.core.model.Pet
 import com.healthcompanion.core.model.Vitals
 import kotlinx.coroutines.flow.Flow
@@ -32,7 +36,7 @@ class GetPetStateUseCaseTest {
     fun `open screen keeps decaying on each tick without any database write`() = runTest {
         val repository = FakePetRepository(Pet(vitals = Vitals(hydration = 50f, lastUpdatedTimestamp = start)))
         val clock = utcClock { start + testScheduler.currentTime }
-        val useCase = GetPetStateUseCase(repository, clock, refreshIntervalMillis = hour)
+        val useCase = GetPetStateUseCase(repository, InMemorySettingsRepository(), clock, refreshIntervalMillis = hour)
 
         val emissions = mutableListOf<PetWithMood>()
         backgroundScope.launch { useCase.execute().collect { emissions += it } }
@@ -50,7 +54,7 @@ class GetPetStateUseCaseTest {
     @Test
     fun `stored pet changes are emitted immediately`() = runTest {
         val repository = FakePetRepository(Pet(vitals = Vitals(hydration = 50f, lastUpdatedTimestamp = start)))
-        val useCase = GetPetStateUseCase(repository, utcClock { start }, refreshIntervalMillis = hour)
+        val useCase = GetPetStateUseCase(repository, InMemorySettingsRepository(), utcClock { start }, refreshIntervalMillis = hour)
 
         val emissions = mutableListOf<PetWithMood>()
         backgroundScope.launch { useCase.execute().collect { emissions += it } }
@@ -67,7 +71,8 @@ class GetPetStateUseCaseTest {
     fun `pet is shown sleeping during its night window`() = runTest {
         val lateEvening = java.time.Instant.parse("2026-01-10T23:00:00Z").toEpochMilli()
         val repository = FakePetRepository(Pet(vitals = Vitals(energy = 90f, lastUpdatedTimestamp = lateEvening)))
-        val useCase = GetPetStateUseCase(repository, utcClock { lateEvening }, refreshIntervalMillis = hour)
+        val useCase =
+            GetPetStateUseCase(repository, InMemorySettingsRepository(), utcClock { lateEvening }, refreshIntervalMillis = hour)
 
         val emissions = mutableListOf<PetWithMood>()
         backgroundScope.launch { useCase.execute().collect { emissions += it } }
@@ -80,7 +85,7 @@ class GetPetStateUseCaseTest {
     fun `a refresh signal re-evaluates decay between ticks`() = runTest {
         var now = start
         val repository = FakePetRepository(Pet(vitals = Vitals(hydration = 50f, lastUpdatedTimestamp = start)))
-        val useCase = GetPetStateUseCase(repository, utcClock { now }, refreshIntervalMillis = 24 * hour)
+        val useCase = GetPetStateUseCase(repository, InMemorySettingsRepository(), utcClock { now }, refreshIntervalMillis = 24 * hour)
         val refresh = MutableSharedFlow<Unit>()
 
         val emissions = mutableListOf<PetWithMood>()
@@ -99,10 +104,28 @@ class GetPetStateUseCaseTest {
     @Test
     fun `current snapshot applies decay up to now`() = runTest {
         val repository = FakePetRepository(Pet(vitals = Vitals(hydration = 50f, lastUpdatedTimestamp = start)))
-        val useCase = GetPetStateUseCase(repository, utcClock { start + 2 * hour })
+        val useCase = GetPetStateUseCase(repository, InMemorySettingsRepository(), utcClock { start + 2 * hour })
 
         // 2 hours of decay at 3.0/hr.
         assertEquals(44f, useCase.current().pet.vitals.hydration, 0.01f)
+    }
+
+    @Test
+    fun `the user's bedtime decides when the pet sleeps, and a new bedtime applies at once`() = runTest {
+        val evening = java.time.Instant.parse("2026-01-10T20:30:00Z").toEpochMilli()
+        val repository = FakePetRepository(Pet(vitals = Vitals(energy = 90f, lastUpdatedTimestamp = evening)))
+        val settings = InMemorySettingsRepository(UserSettings(bedtime = NightWindow(startHour = 20, endHour = 6)))
+        val useCase = GetPetStateUseCase(repository, settings, utcClock { evening }, refreshIntervalMillis = hour)
+
+        val emissions = mutableListOf<PetWithMood>()
+        backgroundScope.launch { useCase.execute().collect { emissions += it } }
+        runCurrent()
+        assertEquals(Mood.SLEEPING, emissions.last().mood)
+        assertEquals(Mood.SLEEPING, useCase.current().mood)
+
+        settings.updateSettings { it.copy(bedtime = NightWindow.DEFAULT) }
+        runCurrent()
+        assertTrue(emissions.last().mood != Mood.SLEEPING)
     }
 
     /** Deterministic clock in UTC; `start` (1970-01-12 13:46 UTC) is daytime, outside the night window. */

@@ -3,6 +3,7 @@
 
 package com.healthcompanion.core.domain.engine
 
+import com.healthcompanion.core.domain.settings.DailyGoals
 import com.healthcompanion.core.model.EvolutionStage
 import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
@@ -107,5 +108,20 @@ class ArchetypeSelectorTest {
         ).map { HabitEvent(it, now) }
 
         assertEquals(emptySet<PetArchetype>(), ArchetypeSelector.focusAreasReached(day))
+    }
+
+    @Test
+    fun `focus goals use the user's own targets, but the archetype keeps the fixed thresholds`() {
+        val goals = DailyGoals(steps = 3_000, waterMl = 750, healthyMeals = 1)
+        val day = listOf(HabitType.Steps(3_000), HabitType.Hydration(750), HabitType.Meal(isHealthy = true))
+
+        assertEquals(
+            setOf(PetArchetype.CARDIO_RUNNER, PetArchetype.ZEN_SAGE),
+            ArchetypeSelector.focusAreasReached(day.map { HabitEvent(it, now) }, goals)
+        )
+        assertEquals(emptySet<PetArchetype>(), ArchetypeSelector.focusAreasReached(day.map { HabitEvent(it, now) }))
+
+        // A week of reaching the lowered step goal is not a cardio week.
+        assertEquals(PetArchetype.BALANCED, ArchetypeSelector.select(daily(7, HabitType.Steps(3_000)), now, utc))
     }
 }

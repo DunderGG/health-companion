@@ -10,7 +10,7 @@ Manual checks that unit tests can't cover: behaviour on a Wear OS emulator or a 
 **Contents**
 - [0. Setup](#0-setup)
 - [1. Tools](#1-tools)
-- [2. Functional checks](#2-functional-checks) (V1–V11)
+- [2. Functional checks](#2-functional-checks) (V1–V12)
 - [3. Battery profiling](#3-battery-profiling) (B1–B6)
 - [Results log](#results-log)
 
@@ -199,7 +199,7 @@ Enable **Settings → Display → Always-on screen**, open the pet screen, then 
 
 ### V10 — Rotary crown ([DD-45](DESIGN_DECISIONS.md#dd-45--the-crown-pages-between-the-pet-and-a-vitals-breakdown-petting-stays-a-tap))
 On the emulator, use the rotary control in the extended controls (**⋯**), or `adb shell input rotaryencoder scroll --axis SCROLL,-1` (repeat a few times; positive values scroll back up).
-- [ ] Turning the crown one way snaps from the pet to the Vitals page, and the other way snaps back. The page indicator follows. On a watch, each snap gives a haptic tick.
+- [ ] Turning the crown one way snaps from the pet to the Vitals page and then the Settings page, and the other way snaps back. The page indicator follows. On a watch, each snap gives a haptic tick.
 - [ ] Swiping up and down does the same.
 - [ ] The Vitals page shows all five vitals, fully inside the round display on the smallest supported screen, with values matching the tile.
 - [ ] Tapping the pet and the meal/water buttons still works on the pet page.
@@ -211,6 +211,17 @@ On the emulator, use the rotary control in the extended controls (**⋯**), or `
 - [ ] An evolution while the app is open plays the fanfare (`SLOW_RISE`, `QUICK_FALL`, three `CLICK`s), and a goal reached by the same write doesn't cut it off.
 - [ ] With the app closed, reaching a goal through a sensor batch doesn't vibrate.
 - [ ] On the wrist, the three patterns are easy to tell apart, and the purr feels soft.
+
+### V12 — Settings ([DD-48](DESIGN_DECISIONS.md#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype))
+Open the third pager page and tap **Settings**. On the emulator, turn the crown with `adb shell input rotaryencoder scroll --axis SCROLL,-1` (V10).
+- [ ] The list shows Steps 6,000, Water 1,500 ml, Healthy meals 2, Sleeps at 22:00, Wakes at 07:00 and Vibration on, in the watch's 12- or 24-hour format. The crown scrolls it, and everything fits on the smallest supported round screen.
+- [ ] Tapping a number opens its stepper. + and − change it by one step, the crown does too (clockwise increases), and one crown detent on a watch moves about one step. The value is saved at once, and swiping right returns to the list showing it.
+- [ ] Sleeps at steps from 23:00 to 00:00 and stops at 18:00 and 03:00. Wakes at stops at 04:00 and 12:00.
+- [ ] Setting a bedtime that has already started makes the pet sleep, on the pet page and on the tile and complication, and the night ends at the chosen wake-up hour.
+- [ ] Lowering the step goal below today's steps doesn't vibrate, and it doesn't change the archetype chosen at `TEEN` (DD-36).
+- [ ] With Vibration off, petting, a goal and an evolution play nothing (`dumpsys vibrator_manager`).
+- [ ] Entering ambient mode on a settings screen shows the ambient pet. Waking returns to the same settings screen.
+- [ ] Settings survive force-stopping the app and a reboot.
 
 ---
 
@@ -265,6 +276,7 @@ Force Doze (§1.5) with an alert check pending.
 
 | Date | Check | Device / image | Result | Notes |
 | :--- | :--- | :--- | :--- | :--- |
+| 2026-09-26 | V12 (partial) | Wear_OS_Large_Round, API 37 | Pass | List, steppers, crown stepping (clockwise increases; one `SCROLL,-2` event moved four steps), bedtime wrapping 23:00 → 00:00, and saving all worked. Setting bedtime to 18:00 at 18:24 put the pet to sleep at once. Ambient mode on the settings list showed the ambient pet and returned to the list. Screens stay pure black. Not checked: tile and complication, reboot, vibration switch against `dumpsys`. |
 | 2026-09-26 | V11 (partial), V10 haptics | Wear_OS_Large_Round, API 37 | Pass | Petting played the composed purr (4 × `TICK`, `usage: TOUCH`) per `dumpsys vibrator_manager`. Crown paging produced rotary `CLICK` feedback. The goal pattern could not be triggered: synthetic walking had already reached every goal that day, so no pattern was correct. |
 | 2026-09-26 | DD-46 | Wear_OS_Large_Round, API 37 | Pass | After logging water, hydration shows 100% (was 99%). "100%" fits the Vitals rows. |
 | 2026-09-26 | V10 (partial) | Wear_OS_Large_Round, API 37 | Pass | Crown (`rotaryencoder scroll --axis SCROLL,±1`) and swipe both snap between the pet and Vitals pages. The Vitals page fits the large round screen. Tapping water on the pet page still logs (hydration capped at 100, shown as 99% because values are truncated). Haptics and small screens not checked. |
