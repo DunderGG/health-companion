@@ -9,6 +9,7 @@ import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
 import com.healthcompanion.core.model.Vitals
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
@@ -71,6 +72,26 @@ class GetPetStateUseCaseTest {
         runCurrent()
 
         assertEquals(com.healthcompanion.core.model.Mood.SLEEPING, emissions.single().mood)
+    }
+
+    @Test
+    fun `a refresh signal re-evaluates decay between ticks`() = runTest {
+        var now = start
+        val repository = FakePetRepository(Pet(vitals = Vitals(hydration = 50f, lastUpdatedTimestamp = start)))
+        val useCase = GetPetStateUseCase(repository, utcClock { now }, refreshIntervalMillis = 24 * hour)
+        val refresh = MutableSharedFlow<Unit>()
+
+        val emissions = mutableListOf<PetWithMood>()
+        backgroundScope.launch { useCase.execute(refresh).collect { emissions += it } }
+        runCurrent()
+
+        // Wall time jumps while the ticker's delay doesn't advance, as when the CPU sleeps in ambient mode.
+        now = start + hour
+        refresh.emit(Unit)
+        runCurrent()
+
+        assertEquals(2, emissions.size)
+        assertEquals(47f, emissions.last().pet.vitals.hydration, 0.01f)
     }
 
     @Test

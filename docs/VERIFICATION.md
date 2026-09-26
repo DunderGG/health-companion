@@ -10,7 +10,7 @@ Manual checks that unit tests can't cover: behaviour on a Wear OS emulator or a 
 **Contents**
 - [0. Setup](#0-setup)
 - [1. Tools](#1-tools)
-- [2. Functional checks](#2-functional-checks) (V1–V8)
+- [2. Functional checks](#2-functional-checks) (V1–V9)
 - [3. Battery profiling](#3-battery-profiling) (B1–B6)
 - [Results log](#results-log)
 
@@ -189,6 +189,14 @@ Push hydration below 25 as described in [Pushing vitals into a given state](#pus
 - [ ] With notifications denied, `VitalAlertWorker` logs `Notifications not permitted; skipping vital check.` Granting them in Settings and reopening the app triggers the check.
 - [ ] **Doze timing**: put hydration about 1 hour above 25 (e.g. at 28), check the scheduled delay in the Background Task Inspector, force Doze (§1.5), and note how late the alert actually arrives.
 
+### V9 — Ambient mode ([DD-44](DESIGN_DECISIONS.md#dd-44--the-pet-screen-stays-on-in-ambient-mode-as-a-static-outline-and-releases-the-step-sensor))
+Enable **Settings → Display → Always-on screen**, open the pet screen, then let it time out or cover it with a palm. `adb shell input keyevent KEYCODE_SLEEP` also dims to ambient while always-on is enabled.
+- [ ] The pet screen stays visible in the ambient look: the time at the top, the name, a grey outline pet in its current mood, and a thin grey ring. No buttons, no colour, no animation.
+- [ ] A tap (or wrist raise) returns to the normal, animated screen.
+- [ ] The time advances every minute while ambient. After a few minutes the ring reflects decay, and at 22:00 the pet shows as asleep (outline with Zzz).
+- [ ] On a physical OLED watch (burn-in protection), the content moves by a few dp each minute.
+- [ ] Walking while ambient doesn't animate the pet, and `dumpsys sensorservice` shows no step listener for the app (§1.3).
+
 ---
 
 ## 3. Battery profiling
@@ -215,9 +223,14 @@ Capture a System Trace (§1.6) and `gfxinfo` while the pet screen is visible.
 - [ ] The decay ticker fires about once a minute, not more often.
 
 ### B4 — Screen off after use (emulator)
-Open the pet screen, then turn the screen off.
+Open the pet screen, then turn the screen off. Run this with always-on **disabled**; with it enabled, the screen enters ambient mode instead (B4a).
 - [ ] Within about 10 seconds, rendering stops (no new frames in the trace) and sensor connections are released.
 - [ ] The 60-second decay ticker stops too: no more once-a-minute bursts of app work in the trace.
+
+### B4a — Ambient mode (emulator) ([DD-44](DESIGN_DECISIONS.md#dd-44--the-pet-screen-stays-on-in-ambient-mode-as-a-static-outline-and-releases-the-step-sensor))
+With always-on enabled, open the pet screen and let it dim. Capture a System Trace (§1.6) for 5 minutes.
+- [ ] Between the once-a-minute updates there are no new frames: the ambient pet doesn't animate.
+- [ ] The app has no active sensor connections while ambient (§1.3).
 
 ### B5 — Doze (emulator)
 Force Doze (§1.5) with an alert check pending.

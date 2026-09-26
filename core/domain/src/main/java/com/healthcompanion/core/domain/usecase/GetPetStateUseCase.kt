@@ -13,7 +13,9 @@ import com.healthcompanion.core.model.Pet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.merge
 
 /**
  * Composite domain state pairing a [Pet] instance with its dynamically calculated [Mood].
@@ -53,12 +55,15 @@ class GetPetStateUseCase(
      *
      * ### Kotlin Flow Mechanics:
      * - `repository.getPetFlow()`: Upstream cold stream, re-emitting on every database write.
-     * - `combine(..., ticker)`: Re-runs the transformation when either the pet or the ticker emits.
+     * - `combine(..., merge(ticker, refresh))`: Re-runs the transformation when the pet, the ticker or
+     *   [refresh] emits.
      *
-     * @return Cold [Flow] emitting [PetWithMood] on every pet change and every refresh tick.
+     * @param refresh Extra re-evaluation signals, e.g. the once-a-minute ambient update: in ambient mode
+     *   the CPU may sleep through the ticker's `delay`, while the ambient callback is guaranteed (DD-44).
+     * @return Cold [Flow] emitting [PetWithMood] on every pet change, refresh tick and [refresh] signal.
      */
-    fun execute(): Flow<PetWithMood> {
-        return combine(repository.getPetFlow(), ticker()) { pet, _ -> withMood(pet) }
+    fun execute(refresh: Flow<Unit> = emptyFlow()): Flow<PetWithMood> {
+        return combine(repository.getPetFlow(), merge(ticker(), refresh)) { pet, _ -> withMood(pet) }
     }
 
     /**

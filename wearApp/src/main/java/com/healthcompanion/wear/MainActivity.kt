@@ -15,16 +15,20 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.wear.ambient.AmbientLifecycleObserver
 import androidx.wear.compose.material3.CircularProgressIndicator
 import com.healthcompanion.core.health.HealthPermissions
 import com.healthcompanion.core.ui.theme.HealthCompanionTheme
 import com.healthcompanion.wear.notifications.VitalAlertNotifier
 import com.healthcompanion.wear.notifications.VitalAlertWorker
+import com.healthcompanion.wear.presentation.ambient.AmbientState
 import com.healthcompanion.wear.presentation.permission.PermissionScreen
 import com.healthcompanion.wear.presentation.permission.PermissionState
 import com.healthcompanion.wear.presentation.permission.PermissionViewModel
 import com.healthcompanion.wear.presentation.pet.PetScreen
 import com.healthcompanion.wear.presentation.pet.PetViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Main activity and single-screen host for the Wear OS companion application.
@@ -39,6 +43,9 @@ import com.healthcompanion.wear.presentation.pet.PetViewModel
  * - **Type Casting (`as T`)**: Unchecked downcasting equivalent to `static_cast<T*>` in C++.
  * - **Reactive Activity Flow**: Observes [PermissionViewModel.permissionState] and routes between
  *   permission onboarding ([PermissionScreen]) and the interactive pet UI ([PetScreen]).
+ * - **Ambient (always-on) mode**: [AmbientLifecycleObserver] keeps the activity on screen when the watch
+ *   dims, instead of returning to the watch face. Its callbacks feed [ambientState] (rendering) and
+ *   [PetViewModel] (sensor release, once-a-minute refresh). See DD-44.
  */
 class MainActivity : ComponentActivity() {
 
@@ -76,6 +83,34 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Interactive or ambient; read by [PetScreen] to switch to its low-power look. */
+    private val ambientState = MutableStateFlow<AmbientState>(AmbientState.Interactive)
+
+    private val ambientObserver = AmbientLifecycleObserver(
+        this,
+        object : AmbientLifecycleObserver.AmbientLifecycleCallback {
+            override fun onEnterAmbient(ambientDetails: AmbientLifecycleObserver.AmbientDetails) {
+                ambientState.value = AmbientState.Ambient(
+                    burnInProtectionRequired = ambientDetails.burnInProtectionRequired,
+                    lowBitAmbient = ambientDetails.deviceHasLowBitAmbient
+                )
+                petViewModel.setAmbient(true)
+            }
+
+            override fun onUpdateAmbient() {
+                ambientState.update { state ->
+                    if (state is AmbientState.Ambient) state.copy(updateCount = state.updateCount + 1) else state
+                }
+                petViewModel.onAmbientUpdate()
+            }
+
+            override fun onExitAmbient() {
+                ambientState.value = AmbientState.Interactive
+                petViewModel.setAmbient(false)
+            }
+        }
+    )
+
     /**
      * Initializes activity lifecycle, binds permission observers, and sets up Compose UI content tree.
      *
@@ -83,6 +118,7 @@ class MainActivity : ComponentActivity() {
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        lifecycle.addObserver(ambientObserver)
 
         // Re-check permissions when returning from system Settings
         lifecycle.addObserver(LifecycleEventObserver { _, event ->
@@ -96,6 +132,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             HealthCompanionTheme {
                 val permState by permissionViewModel.permissionState.collectAsState()
+                val ambient by ambientState.collectAsState()
 
                 // Optional second step: background heart-rate access must be requested separately,
                 // after the foreground heart-rate permission has been granted.
@@ -135,6 +172,7 @@ class MainActivity : ComponentActivity() {
                     is PermissionState.Granted -> {
                         PetScreen(
                             viewModel = petViewModel,
+                            ambientState = ambient,
                             showSensorChip = false
                         )
                     }
@@ -142,6 +180,7 @@ class MainActivity : ComponentActivity() {
                     is PermissionState.Denied -> {
                         PetScreen(
                             viewModel = petViewModel,
+                            ambientState = ambient,
                             showSensorChip = true,
                             onSensorChipClick = {
                                 // Open app-specific system Settings so user can

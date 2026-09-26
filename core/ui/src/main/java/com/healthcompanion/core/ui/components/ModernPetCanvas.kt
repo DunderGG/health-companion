@@ -32,8 +32,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -41,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.healthcompanion.core.model.Mood
 import com.healthcompanion.core.model.PetActivity
+import com.healthcompanion.core.ui.theme.DisplayMode
 import com.healthcompanion.core.ui.theme.ElectricPurple
 import com.healthcompanion.core.ui.theme.HealthyGreen
 import com.healthcompanion.core.ui.theme.NeonCyan
@@ -67,6 +70,7 @@ import com.healthcompanion.core.ui.theme.SunsetOrange
  * @param activity Live gait mirroring the user's steps: a bobbing trot when walking, a forward-leaning
  *                 sprint with speed lines when running. Transitions are eased, never snapped.
  * @param canvasSize Dimensions of the square drawing canvas in [Dp] (default: 140.dp).
+ * @param displayMode In ambient mode the pet is drawn as a static outline instead ([AmbientPetCanvas], DD-44).
  */
 @Composable
 fun ModernPetCanvas(
@@ -74,8 +78,15 @@ fun ModernPetCanvas(
     modifier: Modifier = Modifier,
     isPetting: Boolean = false,
     activity: PetActivity = PetActivity.IDLE,
-    canvasSize: Dp = 140.dp
+    canvasSize: Dp = 140.dp,
+    displayMode: DisplayMode = DisplayMode.INTERACTIVE
 ) {
+    if (displayMode.isAmbient) {
+        // No infinite transitions are created in ambient, so nothing redraws between the once-a-minute updates.
+        AmbientPetCanvas(mood = mood, color = displayMode.ambientColor, modifier = modifier, canvasSize = canvasSize)
+        return
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "pet_character_animations")
 
     // Gentle breathing vertical bounce
@@ -359,13 +370,68 @@ fun ModernPetCanvas(
 }
 
 /**
+ * Ambient (always-on) pet: the same silhouette and mood expression, but static, and drawn as thin
+ * outlines in a single colour on black. No gradients, cheeks, aura or particles, except the Zzz of a
+ * sleeping pet, which is what tells the user it's asleep at a glance.
+ *
+ * @param mood Mood driving the ears, eyes and mouth.
+ * @param color Outline colour ([DisplayMode.ambientColor]).
+ */
+@Composable
+private fun AmbientPetCanvas(
+    mood: Mood,
+    color: Color,
+    modifier: Modifier,
+    canvasSize: Dp
+) {
+    Box(
+        modifier = modifier.size(canvasSize),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val bodyRadius = size.minDimension * 0.33f
+            val brush = SolidColor(color)
+            val outline = Stroke(width = 1.5.dp.toPx())
+
+            drawTail(center = center, bodyRadius = bodyRadius, tailAngle = 4f, bodyBrush = brush, style = outline)
+            drawEars(mood = mood, center = center, bodyRadius = bodyRadius, earWiggle = 0f, bodyBrush = brush, style = outline)
+
+            // Black disc hides the parts of the tail and ear outlines that sit behind the body
+            drawCircle(color = Color.Black, radius = bodyRadius, center = center)
+            drawCircle(color = color, radius = bodyRadius, center = center, style = outline)
+
+            drawPaws(center = center, bodyRadius = bodyRadius, bodyBrush = brush, style = outline)
+            drawEyes(
+                mood = mood,
+                center = center,
+                eyeSpacing = bodyRadius * 0.38f,
+                eyeYOffset = -bodyRadius * 0.12f,
+                blinkFactor = if (mood == Mood.SLEEPING) 0f else 1f,
+                color = color
+            )
+            drawMouth(mood = mood, center = center, color = color)
+
+            if (mood == Mood.SLEEPING) {
+                drawZSymbol(
+                    topLeft = Offset(center.x + (bodyRadius * 0.72f), center.y - (bodyRadius * 0.60f)),
+                    size = 9f,
+                    color = color
+                )
+            }
+        }
+    }
+}
+
+/**
  * Animated cute creature tail with a fluffy curved silhouette.
  */
 private fun DrawScope.drawTail(
     center: Offset,
     bodyRadius: Float,
     tailAngle: Float,
-    bodyBrush: Brush
+    bodyBrush: Brush,
+    style: DrawStyle = Fill
 ) {
     val pivot = Offset(center.x + (bodyRadius * 0.65f), center.y + (bodyRadius * 0.45f))
 
@@ -388,12 +454,14 @@ private fun DrawScope.drawTail(
             close()
         }
 
-        drawPath(path = tailPath, brush = bodyBrush)
-        drawPath(
-            path = tailPath,
-            color = Color.White.copy(alpha = 0.20f),
-            style = Stroke(width = 1.5.dp.toPx())
-        )
+        drawPath(path = tailPath, brush = bodyBrush, style = style)
+        if (style == Fill) {
+            drawPath(
+                path = tailPath,
+                color = Color.White.copy(alpha = 0.20f),
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+        }
     }
 }
 
@@ -405,7 +473,8 @@ private fun DrawScope.drawEars(
     center: Offset,
     bodyRadius: Float,
     earWiggle: Float,
-    bodyBrush: Brush
+    bodyBrush: Brush,
+    style: DrawStyle = Fill
 ) {
     val (baseEarAngle, earDroop) = when (mood) {
         Mood.SLEEPING -> Pair(32f, 5f)
@@ -439,7 +508,8 @@ private fun DrawScope.drawEars(
             )
             close()
         }
-        drawPath(path = earPath, brush = bodyBrush)
+        drawPath(path = earPath, brush = bodyBrush, style = style)
+        if (style != Fill) return@withTransform
 
         // Inner soft pink ear patch
         val innerEarPath = Path().apply {
@@ -478,7 +548,8 @@ private fun DrawScope.drawEars(
             )
             close()
         }
-        drawPath(path = earPath, brush = bodyBrush)
+        drawPath(path = earPath, brush = bodyBrush, style = style)
+        if (style != Fill) return@withTransform
 
         // Inner soft pink ear patch
         val innerEarPath = Path().apply {
@@ -507,7 +578,8 @@ private fun DrawScope.drawPaws(
     bodyRadius: Float,
     bodyBrush: Brush,
     leftLift: Float = 0f,
-    rightLift: Float = 0f
+    rightLift: Float = 0f,
+    style: DrawStyle = Fill
 ) {
     val pawY = center.y + (bodyRadius * 0.74f)
     val pawSpacing = bodyRadius * 0.36f
@@ -520,15 +592,18 @@ private fun DrawScope.drawPaws(
         brush = bodyBrush,
         topLeft = leftPawTopLeft,
         size = Size(pawWidth, pawHeight),
-        cornerRadius = CornerRadius(pawHeight / 2f, pawHeight / 2f)
-    )
-    drawRoundRect(
-        color = Color.White.copy(alpha = 0.20f),
-        topLeft = leftPawTopLeft,
-        size = Size(pawWidth, pawHeight),
         cornerRadius = CornerRadius(pawHeight / 2f, pawHeight / 2f),
-        style = Stroke(width = 1.2.dp.toPx())
+        style = style
     )
+    if (style == Fill) {
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.20f),
+            topLeft = leftPawTopLeft,
+            size = Size(pawWidth, pawHeight),
+            cornerRadius = CornerRadius(pawHeight / 2f, pawHeight / 2f),
+            style = Stroke(width = 1.2.dp.toPx())
+        )
+    }
 
     // Right paw
     val rightPawTopLeft = Offset(center.x + pawSpacing - (pawWidth / 2f), pawY - rightLift)
@@ -536,15 +611,18 @@ private fun DrawScope.drawPaws(
         brush = bodyBrush,
         topLeft = rightPawTopLeft,
         size = Size(pawWidth, pawHeight),
-        cornerRadius = CornerRadius(pawHeight / 2f, pawHeight / 2f)
-    )
-    drawRoundRect(
-        color = Color.White.copy(alpha = 0.20f),
-        topLeft = rightPawTopLeft,
-        size = Size(pawWidth, pawHeight),
         cornerRadius = CornerRadius(pawHeight / 2f, pawHeight / 2f),
-        style = Stroke(width = 1.2.dp.toPx())
+        style = style
     )
+    if (style == Fill) {
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.20f),
+            topLeft = rightPawTopLeft,
+            size = Size(pawWidth, pawHeight),
+            cornerRadius = CornerRadius(pawHeight / 2f, pawHeight / 2f),
+            style = Stroke(width = 1.2.dp.toPx())
+        )
+    }
 }
 
 /**
@@ -580,7 +658,8 @@ private fun DrawScope.drawEyes(
     center: Offset,
     eyeSpacing: Float,
     eyeYOffset: Float,
-    blinkFactor: Float
+    blinkFactor: Float,
+    color: Color = Color.White
 ) {
     val leftEyeCenter = Offset(center.x - eyeSpacing, center.y + eyeYOffset)
     val rightEyeCenter = Offset(center.x + eyeSpacing, center.y + eyeYOffset)
@@ -590,7 +669,7 @@ private fun DrawScope.drawEyes(
             // Sleeping closed curved arcs with tiny eyelashes
             val arcSize = Size(18f, 10f)
             drawArc(
-                color = Color.White,
+                color = color,
                 startAngle = 0f,
                 sweepAngle = 180f,
                 useCenter = false,
@@ -599,7 +678,7 @@ private fun DrawScope.drawEyes(
                 style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
             )
             drawArc(
-                color = Color.White,
+                color = color,
                 startAngle = 0f,
                 sweepAngle = 180f,
                 useCenter = false,
@@ -612,7 +691,7 @@ private fun DrawScope.drawEyes(
             // Joyful upward crescents (inverted arcs)
             val arcSize = Size(18f, 11f)
             drawArc(
-                color = Color.White,
+                color = color,
                 startAngle = 180f,
                 sweepAngle = 180f,
                 useCenter = false,
@@ -621,7 +700,7 @@ private fun DrawScope.drawEyes(
                 style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
             )
             drawArc(
-                color = Color.White,
+                color = color,
                 startAngle = 180f,
                 sweepAngle = 180f,
                 useCenter = false,
@@ -637,13 +716,13 @@ private fun DrawScope.drawEyes(
 
             // White eye base
             drawRoundRect(
-                color = Color.White,
+                color = color,
                 topLeft = Offset(leftEyeCenter.x - (eyeWidth / 2f), leftEyeCenter.y - (eyeHeight / 2f)),
                 size = Size(eyeWidth, eyeHeight),
                 cornerRadius = CornerRadius(eyeWidth / 2f, eyeWidth / 2f)
             )
             drawRoundRect(
-                color = Color.White,
+                color = color,
                 topLeft = Offset(rightEyeCenter.x - (eyeWidth / 2f), rightEyeCenter.y - (eyeHeight / 2f)),
                 size = Size(eyeWidth, eyeHeight),
                 cornerRadius = CornerRadius(eyeWidth / 2f, eyeWidth / 2f)
@@ -665,24 +744,24 @@ private fun DrawScope.drawEyes(
 
                 // Major catchlight highlight (top-left)
                 drawCircle(
-                    color = Color.White,
+                    color = color,
                     radius = 1.8f,
                     center = Offset(leftEyeCenter.x - 1.5f, leftEyeCenter.y - 0.8f)
                 )
                 drawCircle(
-                    color = Color.White,
+                    color = color,
                     radius = 1.8f,
                     center = Offset(rightEyeCenter.x - 1.5f, rightEyeCenter.y - 0.8f)
                 )
 
                 // Minor secondary catchlight (bottom-right)
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.80f),
+                    color = color.copy(alpha = 0.80f),
                     radius = 1.0f,
                     center = Offset(leftEyeCenter.x + 1.8f, leftEyeCenter.y + 2.2f)
                 )
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.80f),
+                    color = color.copy(alpha = 0.80f),
                     radius = 1.0f,
                     center = Offset(rightEyeCenter.x + 1.8f, rightEyeCenter.y + 2.2f)
                 )
@@ -694,14 +773,14 @@ private fun DrawScope.drawEyes(
 /**
  * Expressive mouth shapes matching mood states.
  */
-private fun DrawScope.drawMouth(mood: Mood, center: Offset) {
+private fun DrawScope.drawMouth(mood: Mood, center: Offset, color: Color = Color.White) {
     val mouthCenter = Offset(center.x, center.y + 12f)
 
     when (mood) {
         Mood.HAPPY, Mood.ECSTATIC, Mood.CONTENT -> {
             // Gentle upward smile arc
             drawArc(
-                color = Color.White,
+                color = color,
                 startAngle = 0f,
                 sweepAngle = 180f,
                 useCenter = false,
@@ -713,7 +792,7 @@ private fun DrawScope.drawMouth(mood: Mood, center: Offset) {
         Mood.HUNGRY, Mood.THIRSTY -> {
             // Small open "O" mouth
             drawCircle(
-                color = Color.White,
+                color = color,
                 radius = 4.5f,
                 center = mouthCenter,
                 style = Stroke(width = 2.dp.toPx())
@@ -722,7 +801,7 @@ private fun DrawScope.drawMouth(mood: Mood, center: Offset) {
         Mood.GRUMPY, Mood.TIRED -> {
             // Inverted subtle frown arc
             drawArc(
-                color = Color.White,
+                color = color,
                 startAngle = 180f,
                 sweepAngle = 180f,
                 useCenter = false,
@@ -734,7 +813,7 @@ private fun DrawScope.drawMouth(mood: Mood, center: Offset) {
         Mood.SLEEPING -> {
             // Peaceful small resting line
             drawLine(
-                color = Color.White.copy(alpha = 0.8f),
+                color = color.copy(alpha = 0.8f),
                 start = Offset(mouthCenter.x - 4f, mouthCenter.y),
                 end = Offset(mouthCenter.x + 4f, mouthCenter.y),
                 strokeWidth = 2.dp.toPx(),

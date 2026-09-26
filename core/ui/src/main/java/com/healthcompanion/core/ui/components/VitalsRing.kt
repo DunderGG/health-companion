@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.healthcompanion.core.model.Vitals
 import com.healthcompanion.core.ui.theme.BrightAqua
+import com.healthcompanion.core.ui.theme.DisplayMode
 import com.healthcompanion.core.ui.theme.ElectricPurple
 import com.healthcompanion.core.ui.theme.HealthyGreen
 import com.healthcompanion.core.ui.theme.SunsetOrange
@@ -42,6 +43,8 @@ import com.healthcompanion.core.ui.theme.SunsetOrange
  * @param vitals Current companion vitals ([Vitals]).
  * @param modifier Compose layout modifier applied to the outer container.
  * @param strokeWidth Thickness of the gauge arcs in density-independent pixels ([Dp], default 5.dp).
+ * @param displayMode In ambient mode the arcs become thin outlines without background tracks, and are inset
+ *                    so the time can be shown along the bezel (DD-44).
  * @param content Nested composable slot rendered in the center of the ring (e.g. companion sprite and actions).
  */
 @Composable
@@ -49,6 +52,7 @@ fun VitalsRing(
     vitals: Vitals,
     modifier: Modifier = Modifier,
     strokeWidth: Dp = 5.dp,
+    displayMode: DisplayMode = DisplayMode.INTERACTIVE,
     content: @Composable () -> Unit = {}
 ) {
     Box(
@@ -58,9 +62,10 @@ fun VitalsRing(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp)
+                .padding(if (displayMode.isAmbient) AMBIENT_INSET else 8.dp)
         ) {
-            val strokePx = strokeWidth.toPx()
+            val strokePx = if (displayMode.isAmbient) AMBIENT_STROKE.toPx() else strokeWidth.toPx()
+            val ambientColor = displayMode.ambientColor.takeIf { displayMode.isAmbient }
             val arcSize = Size(size.width - strokePx, size.height - strokePx)
             val topLeft = Offset(strokePx / 2f, strokePx / 2f)
 
@@ -69,7 +74,8 @@ fun VitalsRing(
                 startAngle = 280f,
                 sweepTotal = 70f,
                 progress = vitals.fitness / 100f,
-                color = HealthyGreen,
+                color = ambientColor ?: HealthyGreen,
+                showTrack = ambientColor == null,
                 topLeft = topLeft,
                 size = arcSize,
                 strokePx = strokePx
@@ -80,7 +86,8 @@ fun VitalsRing(
                 startAngle = 10f,
                 sweepTotal = 70f,
                 progress = vitals.hydration / 100f,
-                color = BrightAqua,
+                color = ambientColor ?: BrightAqua,
+                showTrack = ambientColor == null,
                 topLeft = topLeft,
                 size = arcSize,
                 strokePx = strokePx
@@ -91,7 +98,8 @@ fun VitalsRing(
                 startAngle = 100f,
                 sweepTotal = 70f,
                 progress = vitals.hunger / 100f,
-                color = SunsetOrange,
+                color = ambientColor ?: SunsetOrange,
+                showTrack = ambientColor == null,
                 topLeft = topLeft,
                 size = arcSize,
                 strokePx = strokePx
@@ -102,7 +110,8 @@ fun VitalsRing(
                 startAngle = 190f,
                 sweepTotal = 70f,
                 progress = vitals.energy / 100f,
-                color = ElectricPurple,
+                color = ambientColor ?: ElectricPurple,
+                showTrack = ambientColor == null,
                 topLeft = topLeft,
                 size = arcSize,
                 strokePx = strokePx
@@ -129,6 +138,7 @@ fun VitalsRing(
  * @param topLeft Top-left coordinate offset of the bounding ellipse.
  * @param size Dimensions of the bounding ellipse.
  * @param strokePx Stroke width in physical screen pixels.
+ * @param showTrack Whether to draw the dim background track.
  */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawVitalArc(
     startAngle: Float,
@@ -137,18 +147,21 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawVitalArc(
     color: Color,
     topLeft: Offset,
     size: Size,
-    strokePx: Float
+    strokePx: Float,
+    showTrack: Boolean
 ) {
-    // Background track
-    drawArc(
-        color = color.copy(alpha = 0.2f),
-        startAngle = startAngle,
-        sweepAngle = sweepTotal,
-        useCenter = false,
-        topLeft = topLeft,
-        size = size,
-        style = Stroke(width = strokePx, cap = StrokeCap.Round)
-    )
+    // Background track (skipped in ambient mode, where every lit pixel costs power)
+    if (showTrack) {
+        drawArc(
+            color = color.copy(alpha = 0.2f),
+            startAngle = startAngle,
+            sweepAngle = sweepTotal,
+            useCenter = false,
+            topLeft = topLeft,
+            size = size,
+            style = Stroke(width = strokePx, cap = StrokeCap.Round)
+        )
+    }
 
     // Filled progress arc
     drawArc(
@@ -162,3 +175,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawVitalArc(
     )
 }
 
+/** Inset of the ambient ring, leaving room for the time text along the top edge. */
+private val AMBIENT_INSET = 22.dp
+
+/** Thin ambient outline: few lit pixels, less burn-in. */
+private val AMBIENT_STROKE = 2.dp

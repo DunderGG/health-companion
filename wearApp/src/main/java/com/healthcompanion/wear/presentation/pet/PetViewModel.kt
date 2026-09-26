@@ -12,11 +12,15 @@ import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Mood
 import com.healthcompanion.core.model.PetActivity
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -50,9 +54,21 @@ class PetViewModel(
     private val _isPetting = MutableStateFlow(false)
     private var lastPetTimestamp: Long = 0L
 
+    private val isAmbient = MutableStateFlow(false)
+    private val ambientUpdates = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     companion object {
         /** Minimum cooldown interval (10 seconds) required between touch petting interactions. */
         const val PET_COOLDOWN_MS = 10_000L
+    }
+
+    /**
+     * Live gait, or [PetActivity.IDLE] without touching the step sensor while in ambient mode:
+     * `flatMapLatest` cancels the sensor flow (and unregisters the listener) on entering ambient (DD-44).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val activity = isAmbient.flatMapLatest { ambient ->
+        if (ambient) flowOf(PetActivity.IDLE) else observePetActivityUseCase.execute()
     }
 
     /**
@@ -60,9 +76,9 @@ class PetViewModel(
      * Emits [PetUiState.Loading] until the database yields the first pet snapshot.
      */
     val uiState: StateFlow<PetUiState> = combine(
-        getPetStateUseCase.execute(),
+        getPetStateUseCase.execute(refresh = ambientUpdates),
         _isPetting,
-        observePetActivityUseCase.execute()
+        activity
     ) { petWithMood, isPetting, activity ->
         PetUiState.Success(
             pet = petWithMood.pet,
@@ -76,6 +92,20 @@ class PetViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = PetUiState.Loading
     )
+
+    /**
+     * Called when the activity enters or leaves ambient (always-on) mode.
+     *
+     * @param ambient `true` on entering ambient mode.
+     */
+    fun setAmbient(ambient: Boolean) {
+        isAmbient.value = ambient
+    }
+
+    /** Called on the once-a-minute ambient update, so decay and mood are re-evaluated. */
+    fun onAmbientUpdate() {
+        ambientUpdates.tryEmit(Unit)
+    }
 
     /**
      * Logs hydration intake in response to user tapping the water quick-action token.

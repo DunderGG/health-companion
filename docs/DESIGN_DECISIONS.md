@@ -37,6 +37,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-40](#dd-40--alerts-are-scheduled-at-the-predicted-crossing-not-polled): alert timing under Doze, clearing after logging, and surviving a reboot.
 > - [DD-42](#dd-42--the-tile-logs-water-in-place-through-a-loadaction-deduplicated-by-a-per-render-click-id): one tap on the tile logs water exactly once and re-renders promptly.
 > - [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress): all three complication types render and tint correctly, and the ring updates after a write.
+> - [DD-44](#dd-44--the-pet-screen-stays-on-in-ambient-mode-as-a-static-outline-and-releases-the-step-sensor): ambient look and once-a-minute updates on a real always-on display, and sensor release.
 
 ---
 
@@ -87,6 +88,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-41](#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night) | One alert per critical episode, at the mood threshold, never at night | Game design / notifications | Accepted · 🟣 your call |
 | [DD-42](#dd-42--the-tile-logs-water-in-place-through-a-loadaction-deduplicated-by-a-per-render-click-id) | The tile logs water in place through a `LoadAction`, deduplicated by a per-render click id | Surfaces | Accepted · 🟠 verify on device |
 | [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress) | The complication shows mood and overall health, not step progress | Surfaces | Accepted · 🟠 verify on device · 🟣 your call |
+| [DD-44](#dd-44--the-pet-screen-stays-on-in-ambient-mode-as-a-static-outline-and-releases-the-step-sensor) | The pet screen stays on in ambient mode as a static outline, and releases the step sensor | Surfaces / battery | Accepted · 🟠 verify on device |
 
 ---
 
@@ -609,3 +611,34 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!WARNING]
 > **🟠 Verify on device:** all three types render on a watch face (with icons tinted, and in ambient mode), logging water updates the ring within a few seconds, and tapping it opens the app.
+
+---
+
+## Ambient mode (Phase 3)
+
+### DD-44 — The pet screen stays on in ambient mode as a static outline, and releases the step sensor
+- **Status**: Accepted (2026-09-26).
+- **Decision**:
+  - `MainActivity` registers `AmbientLifecycleObserver` (`androidx.wear:wear` 1.4.0, a new dependency). When the watch dims and always-on is enabled, the app stays on screen instead of returning to the watch face.
+  - **Look**: in ambient mode the pet screen shows the time (`TimeText`), the pet's name, and a static outline pet in its current mood (ears, eyes, mouth, and the Zzz when asleep). The vitals ring becomes thin outline arcs without background tracks, inset so the time fits along the top. Everything is grey (`AmbientGray`) on black, or pure white on low-bit displays, where grey could be quantized to black. Buttons, the sensor chip, the stage line, gradients, cheeks and particles are hidden.
+  - **No animation**: the ambient pet creates no infinite transitions, so nothing redraws between updates.
+  - **Burn-in**: when `burnInProtectionRequired`, the whole screen moves by up to 4 dp per axis on each once-a-minute update, walking a fixed 8-step loop around the centre (`BurnInShift`).
+  - **Sensors and refresh**: `PetViewModel.setAmbient(true)` swaps the live step flow for a constant `IDLE` (`flatMapLatest`), which unregisters the step listener. `onUpdateAmbient` feeds `GetPetStateUseCase.execute(refresh = …)`, so decay and mood are re-evaluated every minute even if the CPU slept through the ticker's `delay`.
+  - The onboarding and loading screens are not adapted. They are shown only briefly, on first launch.
+- **Why**: Always-on is the Wear OS way to keep a glanceable app visible. The guidelines ask for mostly black pixels, no animation, and a burn-in shift. Releasing the step sensor keeps DD-37's rule (live steps only while the user can interact) in spirit, since live reactions aren't drawn in ambient anyway.
+- **Alternatives**:
+  - Do nothing, and let the system show the watch face when the screen dims: the simplest and cheapest option, but the pet disappears the moment the wrist drops.
+  - Horologist's ambient helpers: another dependency family for what one observer does.
+  - A separate ambient screen: duplicates the layout. Adding `displayMode` to the existing components keeps one layout.
+  - A per-mood bitmap for ambient: needs 8 more assets. The outline reuses the procedural pet's own shapes.
+- **Consequences**:
+  - Low-bit displays still get anti-aliased edges, which the display quantizes. Compose's draw calls don't expose turning anti-aliasing off.
+  - Ambient support depends on the system's `WAKE_LOCK` handling. The permission is present in the merged manifest (added by WorkManager) but not declared by the app itself since DD-32.
+  - Entering ambient hides the buttons, so the pet moves slightly upwards in the layout.
+
+> [!WARNING]
+> **🟠 Verify on device:**
+> - With always-on enabled, dimming the screen keeps the pet screen in the ambient look, and a tap returns to the interactive one.
+> - The activity stays resumed, so the once-a-minute updates are actually drawn: the time and ring advance, and the shift moves on burn-in devices.
+> - The step sensor is released while ambient.
+> - Ambient still engages if WorkManager's `WAKE_LOCK` ever disappears from the merged manifest.

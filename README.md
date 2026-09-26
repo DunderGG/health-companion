@@ -14,6 +14,7 @@ A health-mirroring virtual pet companion for Wear OS smartwatches, inspired by t
 - **Circular Wear OS UI**: Circular multi-vital progress ring (`VitalsRing`) and micro-interaction buttons optimized for round smartwatches.
 - **Wear OS Carousel Tile**: Swipe from your watch face to instantly glance at your companion's status, and log a glass of water with one tap.
 - **Watch Face Complication**: Keep your companion's mood and overall health on your watch face.
+- **Always-On**: The pet screen stays visible in a low-power ambient look when your wrist drops.
 
 ---
 

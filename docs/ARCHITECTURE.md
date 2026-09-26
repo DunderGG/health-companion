@@ -57,7 +57,8 @@ Vitals --> Complication : Updates Watch Dial
 | :--- | :--- | :--- |
 | **Target Platform** | Wear OS 3.0+ (API 30–36) | Standalone wearable app (`com.google.android.wearable.standalone = true`). |
 | **UI Framework** | Jetpack Compose for Wear OS (`compose-material3`, `compose-foundation`) | Hardware-accelerated, declarative UI optimized for circular displays. |
-| **Wear Utilities** | Horologist (`horologist-compose-layout`) | Rotary crown input, ambient mode scaffolds, and volume/haptics. |
+| **Ambient (Always-On)** | `androidx.wear:wear` (`AmbientLifecycleObserver`) | Keeps the pet screen visible when the watch dims, as a static grey outline with the time, a burn-in shift, and once-a-minute updates (DD-44). |
+| **Wear Utilities** | Horologist (`horologist-compose-layout`) | Rotary crown input and volume/haptics. |
 | **Health & Sensors** | Health Services for Wear OS (`androidx.health:health-services-client`) | Capability-aware passive monitoring via `PassiveMonitoringClient`: steps, floors, and heart rate. |
 | **Glance Surfaces** | AndroidX Wear Tiles & ProtoLayout | Instant-access carousel card with 1-tap micro-interactions. |
 | **Watch Face Integration** | AndroidX WatchFace Complications (`SuspendingComplicationDataSourceService`) | `PetMoodComplicationService`: mood face and overall-health ring on any watch face that accepts complications (DD-43). |
@@ -180,6 +181,7 @@ health-companion/
 │       ├── AppContainer.kt               # Composition root (manual DI)
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
 │       ├── presentation/pet/             # PetScreen, PetViewModel, PetUiState
+│       ├── presentation/ambient/         # AmbientState, BurnInShift (always-on mode)
 │       ├── complications/                # PetMoodComplicationService, MoodPresentation
 │       ├── notifications/                # VitalAlertWorker, VitalAlertNotifier
 │       └── tiles/                        # PetStatusTileService (Carousel Tile), TileClickLedger
@@ -915,5 +917,5 @@ BOOT_COMPLETED → BootCompletedReceiver → PassiveRegistrationWorker → ensur
 - **Predicted, not polled, alerts**: Critical-vital notifications wake the watch once per predicted threshold crossing (plus a short check after each pet write), never on a timer (DD-40).
 - **Foreground-only live sensors**: The step detector used for live reactions (§4.4) is registered only while the pet screen is visible. It is never held in the background.
 - **Pure Vector UI**: All companion graphics are drawn via hardware-accelerated Compose Canvas paths, eliminating large bitmap assets from memory.
-- **Ambient Mode Compatible**: Pure black OLED backgrounds (`#0A0E14`) maximize battery preservation.
+- **Ambient Mode**: Pure black OLED backgrounds (`#0A0E14`) keep most pixels off. In always-on mode the pet screen drops to static grey outlines redrawn once a minute, shifts slightly against burn-in, and releases the step sensor (DD-44).
 - **Micro-Interactions**: Wear OS users interact in 3-to-5-second bursts. The Carousel Tile and 1-tap quick action buttons allow logging without deep navigation.

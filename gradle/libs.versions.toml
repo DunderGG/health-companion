@@ -43,6 +43,9 @@ androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycle" }
 
+# Wear OS ambient (always-on) support
+androidx-wear = { module = "androidx.wear:wear", version = "1.4.0" }
+
 # Wear Compose
 androidx-wear-compose-material3 = { module = "androidx.wear.compose:compose-material3", version = "1.0.0-alpha32" }
 androidx-wear-compose-foundation = { module = "androidx.wear.compose:compose-foundation", version.ref = "wearCompose" }

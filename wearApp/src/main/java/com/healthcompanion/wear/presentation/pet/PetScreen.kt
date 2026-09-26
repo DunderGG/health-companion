@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -34,10 +35,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.TimeText
 import com.healthcompanion.core.ui.components.MealActionToken
 import com.healthcompanion.core.ui.components.ModernPetCanvas
 import com.healthcompanion.core.ui.components.VitalsRing
 import com.healthcompanion.core.ui.components.WaterActionToken
+import com.healthcompanion.wear.presentation.ambient.AmbientState
+import com.healthcompanion.wear.presentation.ambient.BurnInShift
 
 /**
  * Primary interactive Wear OS screen displaying the virtual companion character,
@@ -57,20 +61,29 @@ import com.healthcompanion.core.ui.components.WaterActionToken
  * @param modifier Compose layout modifier applied to the root container.
  * @param showSensorChip When `true`, renders an alert chip warning that health sensors are disabled.
  * @param onSensorChipClick Callback triggered when the sensor chip is tapped (opens system Settings).
+ * @param ambientState In ambient (always-on) mode the screen shows only the time, the name, a static outline
+ *                     pet and a thin ring, shifted each minute on burn-in-prone displays (DD-44).
  */
 @Composable
 fun PetScreen(
     viewModel: PetViewModel,
     modifier: Modifier = Modifier,
     showSensorChip: Boolean = false,
-    onSensorChipClick: () -> Unit = {}
+    onSensorChipClick: () -> Unit = {},
+    ambientState: AmbientState = AmbientState.Interactive
 ) {
     // Lifecycle-aware: collection (and with it the live step sensor and the decay ticker)
-    // stops when the activity is no longer visible, e.g. when the screen turns off.
+    // stops when the activity is no longer visible, e.g. when the screen turns off. In ambient mode the
+    // activity stays visible; the view model releases the step sensor itself (DD-44).
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val displayMode = ambientState.displayMode
+    val isAmbient = displayMode.isAmbient
+    val (shiftX, shiftY) = BurnInShift.offsetDp(ambientState)
 
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .offset(shiftX.dp, shiftY.dp),
         contentAlignment = Alignment.Center
     ) {
         when (val state = uiState) {
@@ -82,7 +95,7 @@ fun PetScreen(
                 val mood = state.mood
 
                 // Vitals Ring wrapping the circular watch screen
-                VitalsRing(vitals = pet.vitals) {
+                VitalsRing(vitals = pet.vitals, displayMode = displayMode) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -91,7 +104,7 @@ fun PetScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         // Degraded-mode sensor chip (shown when permissions are denied)
-                        if (showSensorChip) {
+                        if (showSensorChip && !isAmbient) {
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
@@ -116,14 +129,16 @@ fun PetScreen(
                             text = pet.name,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = if (isAmbient) displayMode.ambientColor else Color.White
                         )
 
-                        Text(
-                            text = "${pet.stage.name} • ${pet.archetype.title}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (!isAmbient) {
+                            Text(
+                                text = "${pet.stage.name} • ${pet.archetype.title}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(4.dp))
 
@@ -147,29 +162,37 @@ fun PetScreen(
                                 mood = mood,
                                 isPetting = state.isPettingFeedbackActive,
                                 activity = state.activity,
-                                canvasSize = 110.dp
+                                canvasSize = 110.dp,
+                                displayMode = displayMode
                             )
                         }
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // Micro Quick Action Buttons (Meal & Water)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            MealActionToken(
-                                onClick = { viewModel.logMeal(isHealthy = true) }
-                            )
+                        // Micro Quick Action Buttons (Meal & Water); hidden in ambient, where the screen isn't interactive
+                        if (!isAmbient) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                MealActionToken(
+                                    onClick = { viewModel.logMeal(isHealthy = true) }
+                                )
 
-                            WaterActionToken(
-                                onClick = { viewModel.logWater(250) }
-                            )
+                                WaterActionToken(
+                                    onClick = { viewModel.logWater(250) }
+                                )
+                            }
                         }
                     }
                 }
             }
+        }
+
+        // The watch face (and its clock) is hidden while the app is always-on, so show the time instead.
+        if (isAmbient) {
+            TimeText()
         }
     }
 }
