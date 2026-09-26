@@ -192,7 +192,8 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Decision**: Room schema JSON is exported to `core/data/schemas/` and committed. CI fails if the build changes anything in that folder. `CompanionDatabaseMigrationTest` (Robolectric + `MigrationTestHelper`) covers migrations and data survival.
 - **Why**: KSP re-exports the *current* version's JSON on every build, so a test alone would compare the entities with a file regenerated from those same entities. It cannot notice "entity changed without a version bump". Comparing against git can.
 - **Alternatives**: The Room Gradle plugin (`androidx.room`, `schemaDirectory`). Not adopted, to avoid another plugin, and its host-test asset wiring was unverified. A KSP argument plus the AGP `hostTests` assets API works.
-- **Consequences**: A local build may show a modified schema JSON in `git status`, which is the intended signal. Schema files are unit-test assets only and are not shipped in the APK (verified).
+- **Consequences**: A local build may show a modified schema JSON in `git status`, which is the intended signal. Schema files are unit-test assets only and are not shipped in the APK (verified). The CI check was verified by temporarily adding a column: it flagged `1.json`.
+- **Gotcha**: After *reverting* an entity change locally, Gradle can restore the KSP task from cache without re-exporting, which leaves a stale schema JSON behind. Run `./gradlew :core:data:kspDebugKotlin --rerun` to regenerate it. CI runs from a clean checkout and is not affected.
 - **Code**: `core/data/build.gradle.kts`, `.github/workflows/ci.yml`.
 
 ### DD-20 — Bad rows are repaired on load, not rejected
