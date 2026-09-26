@@ -54,15 +54,15 @@ Open the root `health-companion/` folder in Android Studio. Gradle will sync the
 
 ```
 health-companion/
-├── wearApp/          # Wear OS application module (entry point)
+├── wearApp/          # Wear OS application module (entry point, AppContainer, tile)
 ├── core/model/       # Pure domain models (no Android dependencies)
-├── core/domain/      # Game engine, use cases, repository interfaces
-├── core/data/        # Room database, repository implementations, WorkManager
-├── core/health/      # Wear OS Health Services integration
+├── core/domain/      # Game engine, use cases, repository interfaces, Clock
+├── core/data/        # Room database + schemas, DataStore sensor sync, repository implementations
+├── core/health/      # Wear OS Health Services integration, permissions, boot re-registration (WorkManager)
 └── core/ui/          # Compose UI components and theme
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design and module dependency graph.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design and module dependency graph. The reasons behind non-trivial choices are logged in [docs/DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md), and past reviews live in [docs/reviews/](docs/reviews/README.md).
 
 ---
 
@@ -84,7 +84,7 @@ Output: `wearApp/build/outputs/apk/debug/wearApp-debug.apk`
 
 ## Running Tests
 
-The domain layer has a unit test suite covering decay math and mood evaluation:
+All tests run on the JVM, with no emulator needed:
 
 ```bash
 # macOS / Linux
@@ -93,6 +93,20 @@ The domain layer has a unit test suite covering decay math and mood evaluation:
 # Windows
 .\gradlew.bat test
 ```
+
+- **`:core:domain`**: game engine (decay, night rest, mood, archetypes, daily-total deltas) and use cases, with fake repositories and clocks.
+- **`:core:data`**: Room and DataStore integration tests under Robolectric (concurrent writes, migrations, bad-row repair).
+- **`:core:health`**: sensor/permission planning rules.
+
+### Changing the Database Schema
+
+Room schemas are exported to `core/data/schemas/` and committed. CI fails if a build changes them, because an entity changed without a version bump would put users' pets at risk. To change an entity:
+
+1. Bump `CompanionDatabase.VERSION` and build. Room exports the new `<version>.json`.
+2. Add a migration (an `@AutoMigration` on `@Database`, or a `Migration` in `ALL_MIGRATIONS`).
+3. Add a case to `CompanionDatabaseMigrationTest`, and commit the new schema JSON with the change.
+
+See the checklist in [docs/ARCHITECTURE.md §5.3](docs/ARCHITECTURE.md#4-schema-versioning--migrations).
 
 ### Simulating Sensor Data on the Emulator
 
@@ -117,6 +131,7 @@ adb shell am broadcast -a "androidx.health.services.client.action.SIMULATE_DATA"
    ```bash
    ./gradlew test
    ```
+   If you made a non-trivial design choice (a real alternative, a trade-off, a game-balance value, or an unverified assumption), add an entry to [docs/DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md).
 
 4. **Open a pull request** against `main` with a clear description of what changed and why.
 

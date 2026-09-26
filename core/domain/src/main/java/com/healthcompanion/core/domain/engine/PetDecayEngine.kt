@@ -5,6 +5,8 @@ package com.healthcompanion.core.domain.engine
 
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Vitals
+import com.healthcompanion.core.model.toVitalRange
+import java.time.ZoneId
 import kotlin.math.max
 import kotlin.math.min
 
@@ -18,7 +20,9 @@ import kotlin.math.min
  *   namespace with free functions).
  * - **Immutable Value Types**: Functions here are **pure functions**; they do not mutate their arguments
  *   in place (unlike passing `Vitals*` or `Vitals&`). Instead, they return a new copy via `.copy(...)`
- *   with clamped values (analogous to `std::clamp` in C++17 via Kotlin's `.coerceIn(...)` and `.coerceAtMost(...)`).
+ *   with clamped values (analogous to `std::clamp` in C++17 via Kotlin's `.coerceIn(...)` and [toVitalRange]).
+ *   Every result is clamped on *both* bounds, so a negative or oversized habit amount can never produce
+ *   a [Vitals] instance that violates its range invariant.
  */
 object PetDecayEngine {
 
@@ -37,23 +41,37 @@ object PetDecayEngine {
     /** Base hourly loss of happiness stat (percent per hour). */
     const val HAPPINESS_DECAY_PER_HOUR = 2.0f
 
+    /** Hourly energy *recovery* while the pet sleeps inside its [NightWindow] (percent per hour). */
+    const val NIGHT_ENERGY_RECOVERY_PER_HOUR = 8.0f
+
     /**
      * Calculates updated vitals by applying linear time decay for the elapsed time since last update.
      *
      * ### Algorithm & Battery Design:
      * Smartwatch processors consume substantial battery if woken frequently. Instead of running a continuous
      * timer loop (1-second tick), this function uses delta time: `Δt = currentTimeMillis - lastUpdatedTimestamp`.
-     * Decay is only computed on demand when the screen turns on, when a habit is logged, or during periodic
-     * 2-hour WorkManager maintenance windows.
+     * Decay is only computed on demand: when the screen is visible, when a habit is logged, or when a tile renders.
+     *
+     * Energy is the exception to linear decay: inside the [nightWindow] the pet sleeps and energy *recovers*
+     * at [NIGHT_ENERGY_RECOVERY_PER_HOUR]. Because the rate changes sign, energy is integrated per day/night
+     * segment with clamping after each one (draining to 0 during the day and then recovering at night
+     * must not be computed as one net sum).
      *
      * In addition, a neglect penalty of 1.5x is applied to happiness if hydration or hunger drop below 20%.
      *
      * @param vitals The base companion vitals before applying time decay.
-     * @param currentTimeMillis The current epoch timestamp in milliseconds (defaults to `System.currentTimeMillis()`).
+     * @param currentTimeMillis The current epoch timestamp in milliseconds (from an injected [com.healthcompanion.core.domain.time.Clock]).
+     * @param zone Time zone used to locate the night window.
+     * @param nightWindow The pet's nightly rest period.
      * @return A new [Vitals] instance with degraded stats clamped to `[0.0, 100.0]` and updated timestamp.
      *         Returns the unchanged [vitals] if [currentTimeMillis] <= [vitals.lastUpdatedTimestamp].
      */
-    fun calculateDecay(vitals: Vitals, currentTimeMillis: Long = System.currentTimeMillis()): Vitals {
+    fun calculateDecay(
+        vitals: Vitals,
+        currentTimeMillis: Long,
+        zone: ZoneId,
+        nightWindow: NightWindow = NightWindow.DEFAULT
+    ): Vitals {
         if (currentTimeMillis <= vitals.lastUpdatedTimestamp) {
             return vitals
         }
@@ -63,7 +81,12 @@ object PetDecayEngine {
 
         val newHydration = (vitals.hydration - (elapsedHours * HYDRATION_DECAY_PER_HOUR)).coerceIn(0f, 100f)
         val newHunger = (vitals.hunger - (elapsedHours * HUNGER_DECAY_PER_HOUR)).coerceIn(0f, 100f)
-        val newEnergy = (vitals.energy - (elapsedHours * ENERGY_DECAY_PER_HOUR)).coerceIn(0f, 100f)
+        val newEnergy = nightWindow.segments(vitals.lastUpdatedTimestamp, currentTimeMillis, zone)
+            .fold(vitals.energy) { energy, segment ->
+                val hours = segment.durationMillis / (1000f * 60f * 60f)
+                val rate = if (segment.isNight) NIGHT_ENERGY_RECOVERY_PER_HOUR else -ENERGY_DECAY_PER_HOUR
+                (energy + hours * rate).coerceIn(0f, 100f)
+            }
         val newFitness = (vitals.fitness - (elapsedHours * FITNESS_DECAY_PER_HOUR)).coerceIn(0f, 100f)
 
         // Happiness also takes a penalty if core biological vitals are critically low (< 20)
@@ -91,16 +114,18 @@ object PetDecayEngine {
      *
      * @param vitals Current base vitals before applying habit.
      * @param habit The health event being recorded ([HabitType]).
-     * @param currentTimeMillis Current epoch timestamp in milliseconds (defaults to `System.currentTimeMillis()`).
+     * @param currentTimeMillis Current epoch timestamp in milliseconds (from an injected [com.healthcompanion.core.domain.time.Clock]).
+     * @param zone Time zone used to locate the night window during decay.
      * @return A [Pair] containing the updated [Vitals] (first) and the experience points awarded (second),
      *         analogous to `std::pair<Vitals, int>` in C++.
      */
     fun applyHabit(
         vitals: Vitals,
         habit: HabitType,
-        currentTimeMillis: Long = System.currentTimeMillis()
+        currentTimeMillis: Long,
+        zone: ZoneId
     ): Pair<Vitals, Int> {
-        val decayed = calculateDecay(vitals, currentTimeMillis)
+        val decayed = calculateDecay(vitals, currentTimeMillis, zone)
         var xpEarned = 10
 
         val updated = when (habit) {
@@ -108,22 +133,22 @@ object PetDecayEngine {
                 val boost = (habit.milliliters / 250f) * 20f
                 xpEarned = 15
                 decayed.copy(
-                    hydration = (decayed.hydration + boost).coerceAtMost(100f),
-                    happiness = (decayed.happiness + 5f).coerceAtMost(100f)
+                    hydration = (decayed.hydration + boost).toVitalRange(),
+                    happiness = (decayed.happiness + 5f).toVitalRange()
                 )
             }
             is HabitType.Meal -> {
                 if (habit.isHealthy) {
                     xpEarned = 25
                     decayed.copy(
-                        hunger = (decayed.hunger + 30f).coerceAtMost(100f),
-                        happiness = (decayed.happiness + 10f).coerceAtMost(100f)
+                        hunger = (decayed.hunger + 30f).toVitalRange(),
+                        happiness = (decayed.happiness + 10f).toVitalRange()
                     )
                 } else {
                     xpEarned = 5
                     decayed.copy(
-                        hunger = (decayed.hunger + 20f).coerceAtMost(100f),
-                        energy = (decayed.energy - 5f).coerceAtLeast(0f)
+                        hunger = (decayed.hunger + 20f).toVitalRange(),
+                        energy = (decayed.energy - 5f).toVitalRange()
                     )
                 }
             }
@@ -131,31 +156,31 @@ object PetDecayEngine {
                 val fitnessBoost = (habit.stepCount / 1000f) * 10f
                 xpEarned = min(50, (habit.stepCount / 200))
                 decayed.copy(
-                    fitness = (decayed.fitness + fitnessBoost).coerceAtMost(100f),
-                    happiness = (decayed.happiness + (fitnessBoost * 0.5f)).coerceAtMost(100f)
+                    fitness = (decayed.fitness + fitnessBoost).toVitalRange(),
+                    happiness = (decayed.happiness + (fitnessBoost * 0.5f)).toVitalRange()
                 )
             }
             is HabitType.Workout -> {
                 val calorieBonus = if (habit.calories > 0) (habit.calories / 100f) * 5f else 0f
                 xpEarned = habit.durationMinutes * 2 + (habit.calories / 50)
                 decayed.copy(
-                    fitness = (decayed.fitness + 25f + calorieBonus).coerceAtMost(100f),
-                    energy = (decayed.energy - 10f).coerceAtLeast(0f),
-                    happiness = (decayed.happiness + 15f).coerceAtMost(100f)
+                    fitness = (decayed.fitness + 25f + calorieBonus).toVitalRange(),
+                    energy = (decayed.energy - 10f).toVitalRange(),
+                    happiness = (decayed.happiness + 15f).toVitalRange()
                 )
             }
             is HabitType.Sleep -> {
                 val energyBoost = (habit.durationMinutes / 480f) * 100f * habit.qualityScore
                 xpEarned = 30
                 decayed.copy(
-                    energy = (decayed.energy + energyBoost).coerceAtMost(100f),
-                    happiness = (decayed.happiness + 10f).coerceAtMost(100f)
+                    energy = (decayed.energy + energyBoost).toVitalRange(),
+                    happiness = (decayed.happiness + 10f).toVitalRange()
                 )
             }
             is HabitType.PettingInteraction -> {
                 xpEarned = 5
                 decayed.copy(
-                    happiness = (decayed.happiness + (5f * habit.intensity)).coerceAtMost(100f)
+                    happiness = (decayed.happiness + (5f * habit.intensity)).toVitalRange()
                 )
             }
             is HabitType.HeartRate -> {
@@ -170,7 +195,7 @@ object PetDecayEngine {
                 }
                 xpEarned = 5
                 decayed.copy(
-                    fitness = (decayed.fitness + fitnessBoost).coerceAtMost(100f)
+                    fitness = (decayed.fitness + fitnessBoost).toVitalRange()
                 )
             }
         }

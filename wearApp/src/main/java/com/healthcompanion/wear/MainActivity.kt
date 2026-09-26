@@ -47,10 +47,11 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val app = HealthCompanionApp.instance
+                val container = (application as HealthCompanionApp).container
                 return PetViewModel(
-                    getPetStateUseCase = app.getPetStateUseCase,
-                    logHabitUseCase = app.logHabitUseCase
+                    getPetStateUseCase = container.getPetStateUseCase,
+                    logHabitUseCase = container.logHabitUseCase,
+                    clock = container.clock
                 ) as T
             }
         }
@@ -63,10 +64,10 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val app = HealthCompanionApp.instance
+                val app = application as HealthCompanionApp
                 return PermissionViewModel(
                     application = app,
-                    healthServicesManager = app.healthServicesManager
+                    healthServicesManager = app.container.healthServicesManager
                 ) as T
             }
         }
@@ -91,10 +92,21 @@ class MainActivity : ComponentActivity() {
             HealthCompanionTheme {
                 val permState by permissionViewModel.permissionState.collectAsState()
 
+                // Optional second step: background heart-rate access must be requested separately,
+                // after the foreground heart-rate permission has been granted.
+                val backgroundHeartRateLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) {
+                    permissionViewModel.onBackgroundHeartRateResult()
+                }
+
                 val permissionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestMultiplePermissions()
                 ) { grants ->
                     permissionViewModel.onPermissionResult(grants)
+                    permissionViewModel.consumeBackgroundHeartRateRequest()?.let { permission ->
+                        backgroundHeartRateLauncher.launch(permission)
+                    }
                 }
 
                 when (permState) {
@@ -105,7 +117,7 @@ class MainActivity : ComponentActivity() {
                     is PermissionState.Required -> {
                         PermissionScreen(
                             onRequestPermission = {
-                                permissionLauncher.launch(HealthPermissions.REQUIRED_PERMISSIONS)
+                                permissionLauncher.launch(HealthPermissions.foregroundPermissions)
                             }
                         )
                     }

@@ -4,24 +4,28 @@
 package com.healthcompanion.core.health
 
 import android.content.Context
+import android.provider.Settings
 import android.util.Log
 import androidx.health.services.client.HealthServices
 import androidx.health.services.client.PassiveMonitoringClient
 import androidx.health.services.client.data.DataType
 import androidx.health.services.client.data.PassiveListenerConfig
 import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Manages interaction with Wear OS Health Services.
  *
- * Subscribes to passive health data (steps, heart rate, calories, distance, floors)
- * using [PassiveMonitoringClient], which delegates sensor polling to the OS hardware
- * hub for near-zero extra battery drain.
+ * Subscribes to passive health data (steps, floors, heart rate) using [PassiveMonitoringClient],
+ * which delegates sensor polling to the OS hardware hub for near-zero extra battery drain.
  *
- * On registration, queries device capabilities to discover which [DataType]s the
- * watch hardware supports, and subscribes only to the intersection of desired and
- * available types. This ensures graceful degradation on watches without specific
- * sensors (e.g. no heart rate sensor on some models).
+ * Registration is **per permission and idempotent** ([ensureRegistered]):
+ * - Only sensors whose permissions are granted are registered (partial degradation), intersected
+ *   with what the watch hardware supports.
+ * - Health Services forgets registrations on reboot, so the last successful registration is stored
+ *   together with the device boot count. Calls with an unchanged permission set on the same boot are
+ *   no-ops; a new boot or a permission change triggers re-registration.
  *
  * ### Kotlin vs C++ Note:
  * - **Property Delegation (`by lazy`)**: Initializes [passiveMonitoringClient] on first access
@@ -30,71 +34,59 @@ import kotlinx.coroutines.guava.await
  * - **Future-to-Coroutine Bridging (`.await()`)**: The underlying Google Play Services API returns
  *   Guava `ListenableFuture<T>`. Calling `.await()` suspends the current coroutine until the future
  *   completes without blocking the calling thread, analogous to awaiting a `std::future` via `co_await`.
- * - **Generics with Star Projections (`DataType<*, *>`)**: In Kotlin, `<*, *>` represents an unknown/any
- *   type parameter, similar to generic wildcards or type erasure in C++ template programming.
+ * - **`Mutex.withLock { }`**: A suspending, non-reentrant lock (like `std::mutex` + `std::lock_guard`,
+ *   but waiting coroutines release their thread instead of blocking it).
  *
  * @param context Android context used to obtain Health Services client handles.
  */
-class HealthServicesManager(private val context: Context) {
+class HealthServicesManager(context: Context) {
+
+    private val appContext = context.applicationContext
 
     /**
      * Lazy client handle to Wear OS PassiveMonitoringClient.
      */
     private val passiveMonitoringClient: PassiveMonitoringClient by lazy {
-        HealthServices.getClient(context).passiveMonitoringClient
+        HealthServices.getClient(appContext).passiveMonitoringClient
+    }
+
+    private val registrationPrefs by lazy {
+        appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     /**
-     * The full set of passive data types we want to consume.
-     * At registration time, this is intersected with device capabilities.
-     */
-    private val desiredDataTypes: Set<DataType<*, *>> = setOf(
-        DataType.STEPS_DAILY,
-        DataType.HEART_RATE_BPM,
-        DataType.CALORIES_DAILY,
-        DataType.DISTANCE_DAILY,
-        DataType.FLOORS_DAILY
-    )
-
-    /**
-     * Convenience wrapper around [tryRegisterPassiveDataService] ignoring boolean result.
-     */
-    suspend fun registerPassiveDataService() {
-        tryRegisterPassiveDataService()
-    }
-
-    /**
-     * Queries device capabilities and registers the passive listener service
-     * for all supported data types.
+     * Makes sure the passive listener is registered for exactly the currently permitted and supported
+     * sensors. Cheap when nothing changed (no Health Services call).
      *
-     * @return `true` if registration succeeded (permissions granted and at least
-     *         one data type is supported), `false` otherwise.
+     * `DISTANCE_DAILY` and `CALORIES_DAILY` are intentionally never registered (see DD-13).
+     *
+     * @param force Re-register even if the stored registration looks current (e.g. after boot).
+     * @return `true` if a listener is registered for at least one sensor after the call.
      */
-    suspend fun tryRegisterPassiveDataService(): Boolean {
-        if (!HealthPermissions.hasPermissions(context)) {
-            return false
+    suspend fun ensureRegistered(force: Boolean = false): Boolean = registrationMutex.withLock {
+        val permitted = HealthPermissions.permittedSensors(appContext)
+        val key = PassiveSensorPlanner.registrationKey(permitted, currentBootCount())
+
+        if (!force && registrationPrefs.getString(KEY_REGISTRATION, null) == key) {
+            return@withLock permitted.isNotEmpty()
         }
 
-        val supportedTypes = getSupportedPassiveDataTypes()
-        val registrationTypes = desiredDataTypes.intersect(supportedTypes)
+        val supported = getSupportedPassiveDataTypes()
+        val dataTypes = permitted.map { it.dataType }.filter { it in supported }.toSet()
 
-        if (registrationTypes.isEmpty()) {
-            Log.w(TAG, "No desired passive data types are supported on this device.")
-            return false
+        if (dataTypes.isEmpty()) {
+            Log.i(TAG, "No permitted and supported passive sensors (permitted=$permitted); clearing listener.")
+            passiveMonitoringClient.clearPassiveListenerServiceAsync().await()
+        } else {
+            Log.d(TAG, "Registering passive listener for: ${dataTypes.map { it.name }}")
+            val config = PassiveListenerConfig.builder()
+                .setDataTypes(dataTypes)
+                .build()
+            passiveMonitoringClient.setPassiveListenerServiceAsync(PassiveDataService::class.java, config).await()
         }
 
-        Log.d(TAG, "Registering passive listener for: ${registrationTypes.map { it.name }}")
-
-        val config = PassiveListenerConfig.builder()
-            .setDataTypes(registrationTypes)
-            .build()
-
-        passiveMonitoringClient.setPassiveListenerServiceAsync(
-            PassiveDataService::class.java,
-            config
-        ).await()
-
-        return true
+        registrationPrefs.edit().putString(KEY_REGISTRATION, key).apply()
+        dataTypes.isNotEmpty()
     }
 
     /**
@@ -114,22 +106,30 @@ class HealthServicesManager(private val context: Context) {
     }
 
     /**
-     * Checks whether the device hardware supports passive heart rate monitoring.
-     *
-     * @return `true` if PPG heart rate monitoring is supported, `false` otherwise.
-     */
-    suspend fun hasHeartRateCapability(): Boolean {
-        return DataType.HEART_RATE_BPM in getSupportedPassiveDataTypes()
-    }
-
-    /**
      * Unregisters the passive background listener service, stopping further sensor event delivery.
      */
-    suspend fun unregisterPassiveDataService() {
+    suspend fun unregisterPassiveDataService() = registrationMutex.withLock {
         passiveMonitoringClient.clearPassiveListenerServiceAsync().await()
+        registrationPrefs.edit().remove(KEY_REGISTRATION).apply()
     }
+
+    private fun currentBootCount(): Int {
+        return Settings.Global.getInt(appContext.contentResolver, Settings.Global.BOOT_COUNT, -1)
+    }
+
+    private val PassiveSensor.dataType: DataType<*, *>
+        get() = when (this) {
+            PassiveSensor.STEPS -> DataType.STEPS_DAILY
+            PassiveSensor.FLOORS -> DataType.FLOORS_DAILY
+            PassiveSensor.HEART_RATE -> DataType.HEART_RATE_BPM
+        }
 
     companion object {
         private const val TAG = "HealthServicesManager"
+        private const val PREFS_NAME = "passive_registration"
+        private const val KEY_REGISTRATION = "registration_key"
+
+        /** Process-wide lock: the app, permission flow and boot worker may register concurrently. */
+        private val registrationMutex = Mutex()
     }
 }

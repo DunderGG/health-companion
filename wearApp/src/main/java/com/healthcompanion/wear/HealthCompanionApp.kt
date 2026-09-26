@@ -4,104 +4,72 @@
 package com.healthcompanion.wear
 
 import android.app.Application
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
+import android.util.Log
 import androidx.work.WorkManager
-import com.healthcompanion.core.data.db.CompanionDatabase
-import com.healthcompanion.core.data.repository.PetRepositoryImpl
-import com.healthcompanion.core.data.workers.PetDecayWorker
-import com.healthcompanion.core.domain.repository.PetRepository
-import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
-import com.healthcompanion.core.domain.usecase.LogHabitUseCase
-import com.healthcompanion.core.health.HealthServicesManager
+import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
+import com.healthcompanion.core.health.PassiveDataDependencies
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 /**
- * Wear OS Application class serving as the composition root and service locator for the application.
+ * Wear OS Application class owning the app's single dependency graph ([AppContainer]).
+ *
+ * Android components obtain dependencies from here: activities and the tile via
+ * `(application as HealthCompanionApp).container`, and the library-module
+ * [com.healthcompanion.core.health.PassiveDataService] via the [PassiveDataDependencies] interface.
  *
  * ### Kotlin vs C++ Note:
  * - **`lateinit var`**: In Kotlin, non-nullable types must be initialized in constructors by default.
- *   `lateinit` defers initialization until Android's [onCreate] lifecycle callback, avoiding the overhead
- *   of nullable `T?` types and null-checks everywhere (analogous to declaring a member pointer that is
- *   guaranteed to be instantiated in an init method before any usage).
+ *   `lateinit` defers initialization until Android's [onCreate] lifecycle callback (analogous to a member
+ *   pointer guaranteed to be set in an init method before any usage).
  * - **`private set`**: Exposes a public read-only property with a private mutating setter, equivalent
  *   to `const T& getProperty() const` in C++ with a private `setProperty(...)`.
- * - **Manual Dependency Injection**: Instantiates singletons (database, repository, use cases) once
- *   during app startup and provides them to ViewModels and services throughout the app lifecycle.
  */
-class HealthCompanionApp : Application() {
+class HealthCompanionApp : Application(), PassiveDataDependencies {
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    /** Singleton SQLite Room database instance. */
-    lateinit var database: CompanionDatabase
+    /** The application's dependency graph. */
+    lateinit var container: AppContainer
         private set
 
-    /** Repository instance managing pet state and persistence. */
-    lateinit var petRepository: PetRepository
-        private set
-
-    /** Use case streaming pet vitals with lazy decay evaluation. */
-    lateinit var getPetStateUseCase: GetPetStateUseCase
-        private set
-
-    /** Use case for recording health habits and touch interactions. */
-    lateinit var logHabitUseCase: LogHabitUseCase
-        private set
-
-    /** Manager for Wear OS Health Services sensor subscriptions. */
-    lateinit var healthServicesManager: HealthServicesManager
-        private set
+    override val ingestPassiveDataUseCase: IngestPassiveDataUseCase
+        get() = container.ingestPassiveDataUseCase
 
     /**
-     * Initializes singletons, schedules periodic background decay checks,
-     * and subscribes to passive sensor tracking via Health Services.
+     * Builds the dependency graph, removes obsolete background work,
+     * and syncs passive sensor tracking via Health Services.
      */
     override fun onCreate() {
         super.onCreate()
-        instance = this
+        container = AppContainer(this)
 
-        // Initialize Room Database & Repositories
-        database = CompanionDatabase.getInstance(this)
-        petRepository = PetRepositoryImpl(database.petDao())
-        getPetStateUseCase = GetPetStateUseCase(petRepository)
-        logHabitUseCase = LogHabitUseCase(petRepository)
-        healthServicesManager = HealthServicesManager(this)
+        cancelLegacyDecayWork()
 
-        // Schedule periodic battery-efficient decay check (every 2 hours)
-        schedulePeriodicDecay()
-
-        // Register passive step tracking via Health Services
+        // Sync the passive Health Services registration with the current permissions.
+        // Cheap no-op when nothing changed; re-registers after a reboot or permission change.
         appScope.launch {
-            healthServicesManager.registerPassiveDataService()
+            try {
+                container.healthServicesManager.ensureRegistered()
+            } catch (e: Exception) {
+                Log.w(TAG, "Passive registration failed", e)
+            }
         }
     }
 
     /**
-     * Enqueues a unique periodic WorkManager task running [PetDecayWorker] every 2 hours.
-     * Uses [ExistingPeriodicWorkPolicy.KEEP] so existing scheduled jobs are preserved across app launches.
+     * Earlier versions scheduled a 2-hour periodic `PetDecayWorker`. Decay is computed on read, so that
+     * worker was removed (AR-5); cancel the job persisted by WorkManager on upgraded installs so it never
+     * tries to instantiate the deleted worker class. Cheap and idempotent.
      */
-    private fun schedulePeriodicDecay() {
-        val decayRequest = PeriodicWorkRequestBuilder<PetDecayWorker>(2, TimeUnit.HOURS)
-            .build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "PetPeriodicDecayWork",
-            ExistingPeriodicWorkPolicy.KEEP,
-            decayRequest
-        )
+    private fun cancelLegacyDecayWork() {
+        WorkManager.getInstance(this).cancelUniqueWork(LEGACY_DECAY_WORK_NAME)
     }
 
-    companion object {
-        /**
-         * Globally accessible reference to the [HealthCompanionApp] instance.
-         */
-        lateinit var instance: HealthCompanionApp
-            private set
+    private companion object {
+        const val TAG = "HealthCompanionApp"
+        const val LEGACY_DECAY_WORK_NAME = "PetPeriodicDecayWork"
     }
 }
-

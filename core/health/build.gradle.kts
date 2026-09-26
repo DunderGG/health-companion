@@ -19,10 +19,8 @@ android {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:domain"))
-    implementation(project(":core:data"))
 
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.room.runtime)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.guava)
@@ -30,6 +28,9 @@ dependencies {
 
     // Health Services on Wear OS
     implementation(libs.androidx.health.services.client)
+
+    // WorkManager: re-registration after boot
+    implementation(libs.androidx.work.runtime.ktx)
 
     testImplementation(libs.junit)
 }

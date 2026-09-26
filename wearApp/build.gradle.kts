@@ -73,6 +73,7 @@ dependencies {
 
     // Coroutines & WorkManager
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.guava)
     implementation(libs.androidx.concurrent.futures.ktx)
     implementation(libs.androidx.work.runtime.ktx)
 

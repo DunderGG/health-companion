@@ -55,3 +55,11 @@ data class Vitals(
     }
 }
 
+/**
+ * Clamps a raw vital value into the valid `[0.0, 100.0]` range accepted by [Vitals].
+ * `NaN` (e.g. from a corrupt row or a `0/0` computation) maps to `0.0`.
+ *
+ * Use this for any computed or loaded value before constructing a [Vitals] instance.
+ */
+fun Float.toVitalRange(): Float = if (isNaN()) 0f else coerceIn(0f, 100f)
+

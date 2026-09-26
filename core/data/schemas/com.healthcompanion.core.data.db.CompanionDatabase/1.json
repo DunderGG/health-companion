@@ -1,0 +1,97 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "136a92fc38b201c25fa56eb3db624078",
+    "entities": [
+      {
+        "tableName": "pets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `stage` TEXT NOT NULL, `archetype` TEXT NOT NULL, `energy` REAL NOT NULL, `hunger` REAL NOT NULL, `hydration` REAL NOT NULL, `fitness` REAL NOT NULL, `happiness` REAL NOT NULL, `lastUpdatedTimestamp` INTEGER NOT NULL, `experiencePoints` INTEGER NOT NULL, `bornTimestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stage",
+            "columnName": "stage",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archetype",
+            "columnName": "archetype",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "energy",
+            "columnName": "energy",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hunger",
+            "columnName": "hunger",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hydration",
+            "columnName": "hydration",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fitness",
+            "columnName": "fitness",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "happiness",
+            "columnName": "happiness",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdatedTimestamp",
+            "columnName": "lastUpdatedTimestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "experiencePoints",
+            "columnName": "experiencePoints",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bornTimestamp",
+            "columnName": "bornTimestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '136a92fc38b201c25fa56eb3db624078')"
+    ]
+  }
+}
