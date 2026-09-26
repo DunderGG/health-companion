@@ -25,6 +25,7 @@ import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.health.HealthServicesManager
 import com.healthcompanion.core.health.SensorLiveStepSource
 import com.healthcompanion.wear.complications.PetMoodComplicationService
+import com.healthcompanion.wear.complications.StepGoalComplicationService
 import com.healthcompanion.wear.notifications.VitalAlertNotifier
 import com.healthcompanion.wear.notifications.VitalAlertWorker
 import com.healthcompanion.wear.tiles.PetStatusTileService
@@ -111,9 +112,10 @@ class AppContainer(context: Context) {
     /** Makes each tap on the tile's water button log exactly once (DD-42). */
     val tileClickLedger: TileClickLedger by lazy { TileClickLedger.create(appContext) }
 
-    /** Requests a Tile re-render and fresh complication data; the system throttles and coalesces frequent requests. */
+    /** Requests a Tile re-render and fresh data for both complications; the system throttles and coalesces frequent requests. */
     private fun requestSurfaceRefresh() {
         TileService.getUpdater(appContext).requestUpdate(PetStatusTileService::class.java)
         PetMoodComplicationService.requestRefresh(appContext)
+        StepGoalComplicationService.requestRefresh(appContext)
     }
 }

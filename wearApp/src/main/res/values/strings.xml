@@ -20,6 +20,9 @@
     <string name="complication_name">Pet Mood</string>
     <!-- %1$s pet name, %2$s mood label, %3$d overall health percent -->
     <string name="complication_description">%1$s: %2$s, health %3$d%%</string>
+    <string name="step_complication_name">Pet Steps</string>
+    <!-- %1$s today's steps, %2$s step goal -->
+    <string name="step_complication_description">%1$s of %2$s steps</string>
     <!-- Short mood labels: at most 7 characters, to fit a short-text complication. -->
     <string name="mood_short_ecstatic">Elated</string>
     <string name="mood_short_happy">Happy</string>

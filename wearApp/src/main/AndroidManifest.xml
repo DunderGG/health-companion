@@ -93,6 +93,25 @@
                 android:value="600" />
         </service>
 
+        <!-- Watch Face Complication: today's steps against the step goal (DD-51) -->
+        <service
+            android:name=".complications.StepGoalComplicationService"
+            android:exported="true"
+            android:icon="@drawable/ic_steps"
+            android:label="@string/step_complication_name"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="RANGED_VALUE,SHORT_TEXT" />
+            <!-- Steps only change on writes, which request an update; the period lets a new day start from 0. -->
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="600" />
+        </service>
+
     </application>
 
 </manifest>

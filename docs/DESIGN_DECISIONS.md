@@ -25,7 +25,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-36](#dd-36--archetype-from-7-day-consistency-locked-in-once-at-teen): archetype thresholds (6,000 steps; workout or heart rate ≥ 100; 1,500 ml + 2 meals; 4 of 7 days)?
 > - [DD-39](#dd-39--walkrun-from-burst-cadence-with-hysteresis-a-sleeping-pet-does-not-react): live walk/run thresholds, and should moving wake a sleeping pet?
 > - [DD-41](#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night): alert threshold, reminders for long episodes, quiet hours, and a quick "+250 ml" action?
-> - [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress): overall health or step progress as the complication ring, and the short mood labels?
+> - [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress): the short mood labels?
 > - [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only): how the purr, goal and evolution patterns feel on a real watch?
 > - [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype): goal ranges and increments, bedtime hours, and a configurable strength goal?
 > - [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream): should all five vitals tick when they fill up?
@@ -44,6 +44,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only): the three patterns on a real motor, the waveform fallback, and a live goal crossing.
 > - [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype): crown step size on the setting steppers, layout on a small round screen, and the vibration switch.
 > - [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream): the "vital filled up" tick on a real motor, lighter than the goal pattern.
+> - [DD-51](#dd-51--step-progress-is-a-second-complication-pet-steps): both Pet Steps types on real watch faces, and updates after a batch or a goal change.
 
 ---
 
@@ -101,6 +102,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype) | A settings screen for daily goals, bedtime and haptics; goals don't change the archetype | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
 | [DD-49](#dd-49--a-goals-page-between-the-vitals-and-the-settings-one-calculation-for-page-vibration-and-archetype) | A goals page between the vitals and the settings; one calculation for page, vibration and archetype | UI | Accepted |
 | [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream) | A light "vital filled up" tick, not while asleep; haptics read a fresh pet stream | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
+| [DD-51](#dd-51--step-progress-is-a-second-complication-pet-steps) | Step progress is a second complication, "Pet Steps" | Surfaces | Accepted · 🟠 verify on device |
 
 ---
 
@@ -597,7 +599,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 ## Watch face complication (Phase 3)
 
 ### DD-43 — The complication shows mood and overall health, not step progress
-- **Status**: Accepted (2026-09-26).
+- **Status**: Accepted (2026-09-26). The project owner kept overall health on this complication; step progress became a second complication in DD-51.
 - **Decision**:
   - `PetMoodComplicationService` (a `SuspendingComplicationDataSourceService`) offers three types:
     - **Short text**: a mood face and a short mood label.
@@ -617,7 +619,6 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!IMPORTANT]
 > **🟣 Your call: complication content.**
-> - Keep overall health as the ring, or add a daily step goal and offer a step-progress ring (as a second complication, or instead)?
 > - Short labels "Elated" and "Asleep" instead of "Ecstatic" and "Sleeping"?
 
 > [!WARNING]
@@ -809,3 +810,26 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!WARNING]
 > **🟠 Verify on device:** the tick is felt but clearly lighter than the goal pattern, and it plays once when a water tap fills hydration. On the emulator, confirm it with `dumpsys vibrator_manager` (`TICK` + `CLICK`).
+
+### DD-51 — Step progress is a second complication, "Pet Steps"
+- **Status**: Accepted (2026-09-26). The project owner chose a separate complication over replacing Pet Mood's health ring or a setting to switch it.
+- **Decision**:
+  - `StepGoalComplicationService` ("Pet Steps") shows today's steps against the user's step goal (DD-48):
+    - **Ranged value**: a ring from 0 to the goal, with the steps in the locale's compact form ("4.2K", "12K") and a walking icon. Steps past the goal show a full ring.
+    - **Short text**: the steps ("4,200") with the walking icon.
+  - Tapping either opens the app. The content description reads "4,200 of 6,000 steps".
+  - The steps are `DailyProgress.steps` from today's habit history (`ObserveDailyProgressUseCase.current()`), the same number as the goals page (DD-49), floor bonus steps included (DD-14).
+  - Refreshes: `AppContainer` asks for an update after every pet write and settings change, like Pet Mood (DD-29). `UPDATE_PERIOD_SECONDS` of 600 lets a new day start from 0 without a write.
+- **Why**: Health and steps answer different questions, and a watch face can show both. A separate complication leaves Pet Mood unchanged for anyone already using it.
+- **Alternatives**:
+  - Replace Pet Mood's health ring with step progress: one slot, but health disappears from the watch face.
+  - A setting to switch Pet Mood's ring: more flexible, but one more setting for something the watch face editor already does.
+  - The `GOAL_PROGRESS` type, made for goals that can be exceeded: it needs API 33, and the app supports API 30.
+  - Reading the live step counter: fresher, but would need a sensor or Health Services query on every request (DD-32, DD-37).
+- **Consequences**:
+  - The steps lag the watch's own step count by up to one passive batch, like the goals page, because they come from the habit history.
+  - After midnight, the ring can show yesterday's total for up to 10 minutes.
+  - Floor bonus steps make the number a little higher than the system step count.
+
+> [!WARNING]
+> **🟠 Verify on device:** both types render and tint on real watch faces (and in ambient mode), and the ring updates after a passive batch and when the step goal changes. Checked on the emulator: the ranged type in the Perfunctory face.

@@ -150,6 +150,7 @@ Use synthetic walking (§1.1) and follow `PassiveDataService` in logcat.
 - [ ] Tapping the health/hydration text opens the app.
 - [ ] Add the **Pet Mood** complication to a watch face in each slot type it offers (short text, ranged value, icon). The mood face is tinted by the watch face and stays visible in ambient mode (DD-43).
 - [ ] Logging water (in the app or on the tile) updates the complication's health ring within a few seconds. Tapping the complication opens the app.
+- [ ] Add the **Pet Steps** complication ([DD-51](DESIGN_DECISIONS.md#dd-51--step-progress-is-a-second-complication-pet-steps)) as a ranged value and as short text. The steps match the Goals page, the ring is full at the step goal, and it follows a step-goal change in Settings and a passive batch within a few seconds. After midnight it drops back to 0 within 10 minutes.
 - [ ] A synthetic sensor batch also updates the tile.
 - [ ] With the pet screen left open, the vitals ring visibly decays about once a minute.
 
@@ -285,6 +286,7 @@ Force Doze (§1.5) with an alert check pending.
 
 | Date | Check | Device / image | Result | Notes |
 | :--- | :--- | :--- | :--- | :--- |
+| 2026-09-26 | V3 (Pet Steps, partial), V13 (partial) | Wear_OS_Large_Round, API 37 | Pass | Pet Steps listed in the complication picker and rendered as a ranged value in the Perfunctory face ("135K", full ring, walking icon). The Goals page showed the synthetic totals with check marks. Not checked: short text, updates after a batch, the "vital filled up" tick (every vital was already full). |
 | 2026-09-26 | V12 (partial) | Wear_OS_Large_Round, API 37 | Pass | List, steppers, crown stepping (clockwise increases; one `SCROLL,-2` event moved four steps), bedtime wrapping 23:00 → 00:00, and saving all worked. Setting bedtime to 18:00 at 18:24 put the pet to sleep at once. Ambient mode on the settings list showed the ambient pet and returned to the list. Screens stay pure black. Not checked: tile and complication, reboot, vibration switch against `dumpsys`. |
 | 2026-09-26 | V11 (partial), V10 haptics | Wear_OS_Large_Round, API 37 | Pass | Petting played the composed purr (4 × `TICK`, `usage: TOUCH`) per `dumpsys vibrator_manager`. Crown paging produced rotary `CLICK` feedback. The goal pattern could not be triggered: synthetic walking had already reached every goal that day, so no pattern was correct. |
 | 2026-09-26 | DD-46 | Wear_OS_Large_Round, API 37 | Pass | After logging water, hydration shows 100% (was 99%). "100%" fits the Vitals rows. |

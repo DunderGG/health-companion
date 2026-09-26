@@ -160,7 +160,7 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 - [x] **Settings screen**: a Settings button on a third pager page opens a settings list: daily goals for steps, water and healthy meals (steppers, crown too), bedtime (18:00–03:00 to 04:00–12:00, whole hours) and a vibration switch. The goals only drive the daily goal vibration; the archetype keeps its fixed thresholds (DD-48).
 - [x] **Visible goals**: a Goals page between Vitals and Settings shows today's steps, water, healthy meals and workout against the user's goals, with bars and ✓ marks, from the same calculation as the goal vibration (DD-49).
 - [x] **"Vital filled up" haptic**: a light tick-click when a vital shown on screen reaches 100 % from below while the pet UI is open, never while the pet sleeps (DD-50).
-- [ ] Optional: a step-progress complication ring once a daily step goal exists (DD-43).
+- [x] Step-progress complication: a second complication, "Pet Steps", with a ring of today's steps towards the step goal (ranged value) or the step count (short text), next to Pet Mood (DD-51).
 
 ---
 
