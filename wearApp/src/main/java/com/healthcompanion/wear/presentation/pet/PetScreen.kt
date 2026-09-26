@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -31,6 +30,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
@@ -44,8 +44,8 @@ import com.healthcompanion.core.ui.components.WaterActionToken
  * bezel vitals ring, and quick-action buttons.
  *
  * ### Kotlin vs C++ Note:
- * - **`collectAsState()` with `by` Delegation**:
- *   `val uiState by viewModel.uiState.collectAsState()` connects Kotlin Coroutines' reactive `StateFlow`
+ * - **`collectAsStateWithLifecycle()` with `by` Delegation**:
+ *   `val uiState by viewModel.uiState.collectAsStateWithLifecycle()` connects Kotlin Coroutines' reactive `StateFlow`
  *   to Compose's reactive runtime. The `by` keyword delegates read access, automatically unwrapping
  *   `State<T>.value` (similar to dereferencing a smart pointer). Whenever `uiState` updates, Compose
  *   automatically recomposes this function.
@@ -65,7 +65,9 @@ fun PetScreen(
     showSensorChip: Boolean = false,
     onSensorChipClick: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Lifecycle-aware: collection (and with it the live step sensor and the decay ticker)
+    // stops when the activity is no longer visible, e.g. when the screen turns off.
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Box(
         modifier = modifier.fillMaxSize(),
@@ -144,6 +146,7 @@ fun PetScreen(
                             ModernPetCanvas(
                                 mood = mood,
                                 isPetting = state.isPettingFeedbackActive,
+                                activity = state.activity,
                                 canvasSize = 110.dp
                             )
                         }

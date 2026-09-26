@@ -8,7 +8,10 @@ import androidx.lifecycle.viewModelScope
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
+import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.model.HabitType
+import com.healthcompanion.core.model.Mood
+import com.healthcompanion.core.model.PetActivity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,8 +27,9 @@ import kotlinx.coroutines.launch
  * - **`viewModelScope` & RAII Lifetime**: Coroutines launched in `viewModelScope` are bound to the
  *   lifespan of the ViewModel. When the user exits the screen, `viewModelScope` is cancelled automatically,
  *   cancelling all pending child tasks (analogous to C++20 `std::jthread` joining/cancelling on destruction).
- * - **Reactive Combination (`combine`)**: Merges the database stream (`GetPetStateUseCase`) and local UI state
- *   (`_isPetting`) into a single unified [PetUiState.Success] output stream.
+ * - **Reactive Combination (`combine`)**: Merges the database stream (`GetPetStateUseCase`), local UI state
+ *   (`_isPetting`) and the live step reaction (`ObservePetActivityUseCase`) into a single unified
+ *   [PetUiState.Success] output stream.
  * - **Hot State (`.stateIn`)**:
  *   - Converts a cold stream into a hot, replayable `StateFlow` with an initial [PetUiState.Loading] value.
  *   - `SharingStarted.WhileSubscribed(5000)`: Upstream flows are kept alive for 5 seconds after the last UI
@@ -33,11 +37,13 @@ import kotlinx.coroutines.launch
  *
  * @param getPetStateUseCase Domain use case observing pet vitals and calculated mood.
  * @param logHabitUseCase Domain use case dispatching health habits and interactions.
+ * @param observePetActivityUseCase Live walking/running reaction to the user's steps.
  * @param clock Source of "now" for the petting cooldown.
  */
 class PetViewModel(
     private val getPetStateUseCase: GetPetStateUseCase,
     private val logHabitUseCase: LogHabitUseCase,
+    private val observePetActivityUseCase: ObservePetActivityUseCase,
     private val clock: Clock
 ) : ViewModel() {
 
@@ -55,12 +61,15 @@ class PetViewModel(
      */
     val uiState: StateFlow<PetUiState> = combine(
         getPetStateUseCase.execute(),
-        _isPetting
-    ) { petWithMood, isPetting ->
+        _isPetting,
+        observePetActivityUseCase.execute()
+    ) { petWithMood, isPetting, activity ->
         PetUiState.Success(
             pet = petWithMood.pet,
             mood = petWithMood.mood,
-            isPettingFeedbackActive = isPetting
+            isPettingFeedbackActive = isPetting,
+            // A sleeping pet stays asleep rather than sleepwalking alongside the user (DD-39).
+            activity = if (petWithMood.mood == Mood.SLEEPING) PetActivity.IDLE else activity
         )
     }.stateIn(
         scope = viewModelScope,

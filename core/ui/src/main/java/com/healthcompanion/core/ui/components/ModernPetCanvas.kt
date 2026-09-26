@@ -15,6 +15,8 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.sin
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
@@ -38,6 +40,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.healthcompanion.core.model.Mood
+import com.healthcompanion.core.model.PetActivity
 import com.healthcompanion.core.ui.theme.ElectricPurple
 import com.healthcompanion.core.ui.theme.HealthyGreen
 import com.healthcompanion.core.ui.theme.NeonCyan
@@ -61,6 +64,8 @@ import com.healthcompanion.core.ui.theme.SunsetOrange
  * @param mood The companion's current emotional state ([Mood]) determining colors and expressions.
  * @param modifier Layout modifier applied to the character's bounding box.
  * @param isPetting When `true`, triggers a joyful hop animation and bursts floating heart particles.
+ * @param activity Live gait mirroring the user's steps: a bobbing trot when walking, a forward-leaning
+ *                 sprint with speed lines when running. Transitions are eased, never snapped.
  * @param canvasSize Dimensions of the square drawing canvas in [Dp] (default: 140.dp).
  */
 @Composable
@@ -68,6 +73,7 @@ fun ModernPetCanvas(
     mood: Mood,
     modifier: Modifier = Modifier,
     isPetting: Boolean = false,
+    activity: PetActivity = PetActivity.IDLE,
     canvasSize: Dp = 140.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pet_character_animations")
@@ -111,7 +117,7 @@ fun ModernPetCanvas(
         targetValue = 12f,
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = if (mood == Mood.ECSTATIC) 600 else 1300,
+                durationMillis = if (mood == Mood.ECSTATIC || activity != PetActivity.IDLE) 600 else 1300,
                 easing = FastOutSlowInEasing
             ),
             repeatMode = RepeatMode.Reverse
@@ -162,139 +168,191 @@ fun ModernPetCanvas(
         label = "petting_hop"
     )
 
+    // Live step mirroring: one gait cycle is two steps (left paw, right paw)
+    val gaitPhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = if (activity == PetActivity.RUNNING) 420 else 760,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "gaitPhase"
+    )
+
+    // 0 = idle, 1 = moving; eased so starting and stopping blend instead of snapping
+    val motionAmount by animateFloatAsState(
+        targetValue = if (activity == PetActivity.IDLE) 0f else 1f,
+        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        label = "motion_amount"
+    )
+
+    // 0 = walking or idle, 1 = running
+    val runAmount by animateFloatAsState(
+        targetValue = if (activity == PetActivity.RUNNING) 1f else 0f,
+        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        label = "run_amount"
+    )
+
     Box(
         modifier = modifier.size(canvasSize),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val centerOffset = Offset(size.width / 2f, (size.height / 2f) + breathBounce + pettingHop)
+            // Each step bounces the body once: |sin| peaks twice per gait cycle
+            val stepBob = -abs(sin(gaitPhase)) * (3f * motionAmount + 3f * runAmount)
+            val centerOffset = Offset(size.width / 2f, (size.height / 2f) + breathBounce + pettingHop + stepBob)
             val bodyRadius = size.minDimension * 0.33f
 
-            val effectiveMood = if (isPetting) Mood.ECSTATIC else mood
-
-            // Dynamic companion body gradient based on mood
-            val bodyBrush = when (effectiveMood) {
-                Mood.ECSTATIC, Mood.HAPPY -> Brush.radialGradient(
-                    colors = listOf(NeonCyan, ElectricPurple),
+            // Speed lines trail behind (to the left of) a running pet
+            if (runAmount > 0.01f) {
+                drawSpeedLines(
                     center = centerOffset,
-                    radius = bodyRadius * 1.3f
-                )
-                Mood.THIRSTY -> Brush.radialGradient(
-                    colors = listOf(Color(0xFF80D8FF), Color(0xFF0091EA)),
-                    center = centerOffset,
-                    radius = bodyRadius * 1.3f
-                )
-                Mood.HUNGRY -> Brush.radialGradient(
-                    colors = listOf(SunsetOrange, Color(0xFFD84315)),
-                    center = centerOffset,
-                    radius = bodyRadius * 1.3f
-                )
-                Mood.TIRED, Mood.SLEEPING -> Brush.radialGradient(
-                    colors = listOf(Color(0xFF9FA8DA), Color(0xFF3949AB)),
-                    center = centerOffset,
-                    radius = bodyRadius * 1.3f
-                )
-                Mood.GRUMPY -> Brush.radialGradient(
-                    colors = listOf(Color(0xFFEF9A9A), Color(0xFFC62828)),
-                    center = centerOffset,
-                    radius = bodyRadius * 1.3f
-                )
-                Mood.CONTENT -> Brush.radialGradient(
-                    colors = listOf(HealthyGreen, Color(0xFF00897B)),
-                    center = centerOffset,
-                    radius = bodyRadius * 1.3f
+                    bodyRadius = bodyRadius,
+                    gaitPhase = gaitPhase,
+                    intensity = runAmount
                 )
             }
 
-            // 1. Draw Tail (Behind body)
-            drawTail(
-                center = centerOffset,
-                bodyRadius = bodyRadius,
-                tailAngle = if (effectiveMood == Mood.SLEEPING) 4f else tailWag,
-                bodyBrush = bodyBrush
-            )
-
-            // 2. Draw Ears (Behind body)
-            drawEars(
-                mood = effectiveMood,
-                center = centerOffset,
-                bodyRadius = bodyRadius,
-                earWiggle = earWiggle,
-                bodyBrush = bodyBrush
-            )
-
-            // 3. Draw Organic Soft Body
-            drawCircle(
-                brush = bodyBrush,
-                radius = bodyRadius,
-                center = centerOffset
-            )
-
-            // 4. Outer Soft Aura Glow Ring
-            drawCircle(
-                color = Color.White.copy(alpha = 0.18f),
-                radius = bodyRadius + 3f,
-                center = centerOffset,
-                style = Stroke(width = 2.dp.toPx())
-            )
-
-            // 5. Draw Cute Front Paws (Bottom of body)
-            drawPaws(
-                center = centerOffset,
-                bodyRadius = bodyRadius,
-                bodyBrush = bodyBrush
-            )
-
-            // 6. Draw Blushing Cheeks
-            val cheekY = centerOffset.y + (bodyRadius * 0.22f)
-            val cheekSpacing = bodyRadius * 0.58f
-            val cheekRadius = 6.5f
-            drawCircle(
-                color = SoftPink.copy(alpha = 0.45f),
-                radius = cheekRadius,
-                center = Offset(centerOffset.x - cheekSpacing, cheekY)
-            )
-            drawCircle(
-                color = SoftPink.copy(alpha = 0.45f),
-                radius = cheekRadius,
-                center = Offset(centerOffset.x + cheekSpacing, cheekY)
-            )
-
-            // 7. Draw Cute Tiny Nose
-            drawCircle(
-                color = SoftPink.copy(alpha = 0.85f),
-                radius = 2.4f,
-                center = Offset(centerOffset.x, centerOffset.y + 2f)
-            )
-
-            // 8. Draw Expressive Eyes with Anime Catchlights
-            drawEyes(
-                mood = effectiveMood,
-                center = centerOffset,
-                eyeSpacing = bodyRadius * 0.38f,
-                eyeYOffset = -bodyRadius * 0.12f,
-                blinkFactor = if (effectiveMood == Mood.SLEEPING) 0f else blinkProgress
-            )
-
-            // 9. Draw Mouth Expression
-            drawMouth(mood = effectiveMood, center = centerOffset)
-
-            // 10. Draw Contextual Floating Aura Particles (Ambient particles always active)
-            drawAuraParticles(
-                mood = effectiveMood,
-                center = centerOffset,
-                bodyRadius = bodyRadius,
-                sparkleAlpha = sparkleAlpha,
-                sparkleFloat = sparkleFloat
-            )
-
-            // 11. Dedicated Bursting Petting Hearts (Visible and floating upward on pet)
-            if (heartProgress > 0.01f) {
-                drawPettingHearts(
-                    progress = heartProgress,
-                    center = centerOffset,
-                    bodyRadius = bodyRadius
+            // Lean into the direction of travel, pivoting where the pet touches the ground
+            val leanDegrees = 3f * motionAmount + 6f * runAmount
+            withTransform({
+                rotate(
+                    degrees = leanDegrees,
+                    pivot = Offset(centerOffset.x, centerOffset.y + bodyRadius)
                 )
+            }) {
+                val effectiveMood = if (isPetting) Mood.ECSTATIC else mood
+
+                // Dynamic companion body gradient based on mood
+                val bodyBrush = when (effectiveMood) {
+                    Mood.ECSTATIC, Mood.HAPPY -> Brush.radialGradient(
+                        colors = listOf(NeonCyan, ElectricPurple),
+                        center = centerOffset,
+                        radius = bodyRadius * 1.3f
+                    )
+                    Mood.THIRSTY -> Brush.radialGradient(
+                        colors = listOf(Color(0xFF80D8FF), Color(0xFF0091EA)),
+                        center = centerOffset,
+                        radius = bodyRadius * 1.3f
+                    )
+                    Mood.HUNGRY -> Brush.radialGradient(
+                        colors = listOf(SunsetOrange, Color(0xFFD84315)),
+                        center = centerOffset,
+                        radius = bodyRadius * 1.3f
+                    )
+                    Mood.TIRED, Mood.SLEEPING -> Brush.radialGradient(
+                        colors = listOf(Color(0xFF9FA8DA), Color(0xFF3949AB)),
+                        center = centerOffset,
+                        radius = bodyRadius * 1.3f
+                    )
+                    Mood.GRUMPY -> Brush.radialGradient(
+                        colors = listOf(Color(0xFFEF9A9A), Color(0xFFC62828)),
+                        center = centerOffset,
+                        radius = bodyRadius * 1.3f
+                    )
+                    Mood.CONTENT -> Brush.radialGradient(
+                        colors = listOf(HealthyGreen, Color(0xFF00897B)),
+                        center = centerOffset,
+                        radius = bodyRadius * 1.3f
+                    )
+                }
+
+                // 1. Draw Tail (Behind body)
+                drawTail(
+                    center = centerOffset,
+                    bodyRadius = bodyRadius,
+                    tailAngle = if (effectiveMood == Mood.SLEEPING) 4f else tailWag,
+                    bodyBrush = bodyBrush
+                )
+
+                // 2. Draw Ears (Behind body)
+                drawEars(
+                    mood = effectiveMood,
+                    center = centerOffset,
+                    bodyRadius = bodyRadius,
+                    earWiggle = earWiggle,
+                    bodyBrush = bodyBrush
+                )
+
+                // 3. Draw Organic Soft Body
+                drawCircle(
+                    brush = bodyBrush,
+                    radius = bodyRadius,
+                    center = centerOffset
+                )
+
+                // 4. Outer Soft Aura Glow Ring
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.18f),
+                    radius = bodyRadius + 3f,
+                    center = centerOffset,
+                    style = Stroke(width = 2.dp.toPx())
+                )
+
+                // 5. Draw Cute Front Paws (Bottom of body), lifting alternately while moving
+                val pawLift = bodyRadius * 0.14f * motionAmount
+                drawPaws(
+                    center = centerOffset,
+                    bodyRadius = bodyRadius,
+                    bodyBrush = bodyBrush,
+                    leftLift = pawLift * max(0f, sin(gaitPhase)),
+                    rightLift = pawLift * max(0f, -sin(gaitPhase))
+                )
+
+                // 6. Draw Blushing Cheeks
+                val cheekY = centerOffset.y + (bodyRadius * 0.22f)
+                val cheekSpacing = bodyRadius * 0.58f
+                val cheekRadius = 6.5f
+                drawCircle(
+                    color = SoftPink.copy(alpha = 0.45f),
+                    radius = cheekRadius,
+                    center = Offset(centerOffset.x - cheekSpacing, cheekY)
+                )
+                drawCircle(
+                    color = SoftPink.copy(alpha = 0.45f),
+                    radius = cheekRadius,
+                    center = Offset(centerOffset.x + cheekSpacing, cheekY)
+                )
+
+                // 7. Draw Cute Tiny Nose
+                drawCircle(
+                    color = SoftPink.copy(alpha = 0.85f),
+                    radius = 2.4f,
+                    center = Offset(centerOffset.x, centerOffset.y + 2f)
+                )
+
+                // 8. Draw Expressive Eyes with Anime Catchlights
+                drawEyes(
+                    mood = effectiveMood,
+                    center = centerOffset,
+                    eyeSpacing = bodyRadius * 0.38f,
+                    eyeYOffset = -bodyRadius * 0.12f,
+                    blinkFactor = if (effectiveMood == Mood.SLEEPING) 0f else blinkProgress
+                )
+
+                // 9. Draw Mouth Expression
+                drawMouth(mood = effectiveMood, center = centerOffset)
+
+                // 10. Draw Contextual Floating Aura Particles (Ambient particles always active)
+                drawAuraParticles(
+                    mood = effectiveMood,
+                    center = centerOffset,
+                    bodyRadius = bodyRadius,
+                    sparkleAlpha = sparkleAlpha,
+                    sparkleFloat = sparkleFloat
+                )
+
+                // 11. Dedicated Bursting Petting Hearts (Visible and floating upward on pet)
+                if (heartProgress > 0.01f) {
+                    drawPettingHearts(
+                        progress = heartProgress,
+                        center = centerOffset,
+                        bodyRadius = bodyRadius
+                    )
+                }
             }
         }
     }
@@ -442,12 +500,14 @@ private fun DrawScope.drawEars(
 }
 
 /**
- * Cute resting front paws at the bottom of the body.
+ * Cute front paws at the bottom of the body; each can be lifted (in px) for the walking gait.
  */
 private fun DrawScope.drawPaws(
     center: Offset,
     bodyRadius: Float,
-    bodyBrush: Brush
+    bodyBrush: Brush,
+    leftLift: Float = 0f,
+    rightLift: Float = 0f
 ) {
     val pawY = center.y + (bodyRadius * 0.74f)
     val pawSpacing = bodyRadius * 0.36f
@@ -455,7 +515,7 @@ private fun DrawScope.drawPaws(
     val pawHeight = bodyRadius * 0.20f
 
     // Left paw
-    val leftPawTopLeft = Offset(center.x - pawSpacing - (pawWidth / 2f), pawY)
+    val leftPawTopLeft = Offset(center.x - pawSpacing - (pawWidth / 2f), pawY - leftLift)
     drawRoundRect(
         brush = bodyBrush,
         topLeft = leftPawTopLeft,
@@ -471,7 +531,7 @@ private fun DrawScope.drawPaws(
     )
 
     // Right paw
-    val rightPawTopLeft = Offset(center.x + pawSpacing - (pawWidth / 2f), pawY)
+    val rightPawTopLeft = Offset(center.x + pawSpacing - (pawWidth / 2f), pawY - rightLift)
     drawRoundRect(
         brush = bodyBrush,
         topLeft = rightPawTopLeft,
@@ -485,6 +545,31 @@ private fun DrawScope.drawPaws(
         cornerRadius = CornerRadius(pawHeight / 2f, pawHeight / 2f),
         style = Stroke(width = 1.2.dp.toPx())
     )
+}
+
+/**
+ * Horizontal motion streaks trailing a running pet. They flicker with the gait so they read as movement.
+ */
+private fun DrawScope.drawSpeedLines(
+    center: Offset,
+    bodyRadius: Float,
+    gaitPhase: Float,
+    intensity: Float
+) {
+    val flicker = 0.5f + 0.5f * sin(gaitPhase * 2f)
+    val rows = listOf(-0.45f to 0.55f, 0.05f to 0.80f, 0.50f to 0.45f)
+    rows.forEachIndexed { index, (yFactor, lengthFactor) ->
+        val rowFlicker = if (index % 2 == 0) flicker else 1f - flicker
+        val end = Offset(center.x - bodyRadius * 1.08f, center.y + bodyRadius * yFactor)
+        val length = bodyRadius * lengthFactor * (0.7f + 0.3f * rowFlicker)
+        drawLine(
+            color = Color.White.copy(alpha = intensity * (0.35f + 0.35f * rowFlicker)),
+            start = Offset(end.x - length, end.y),
+            end = end,
+            strokeWidth = 2.dp.toPx(),
+            cap = StrokeCap.Round
+        )
+    }
 }
 
 /**

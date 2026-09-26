@@ -23,6 +23,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-33](#dd-33--energy-recovers-during-a-fixed-local-night-window): fixed 22:00–07:00 bedtime, and full hunger and thirst decay at night?
 > - [DD-34](#dd-34--the-pet-always-sleeps-at-night): pet always asleep at night, hiding thirst and hunger warnings?
 > - [DD-36](#dd-36--archetype-from-7-day-consistency-locked-in-once-at-teen): archetype thresholds (6,000 steps; workout or heart rate ≥ 100; 1,500 ml + 2 meals; 4 of 7 days)?
+> - [DD-39](#dd-39--walkrun-from-burst-cadence-with-hysteresis-a-sleeping-pet-does-not-react): live walk/run thresholds, and should moving wake a sleeping pet?
 
 > [!WARNING]
 > **🟠 Needs verification on an emulator or watch**
@@ -30,6 +31,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-23](#dd-23--heart-rate-is-registered-only-with-background-access): permission dialogs on Wear OS 6 and API 33–35, and background heart-rate delivery.
 > - [DD-24](#dd-24--idempotent-registration-keyed-on-permitted-sensors--boot-count): whether the passive registration survives app updates.
 > - [DD-25](#dd-25--boot-re-registration-via-a-non-exported-receiver-and-workmanager): whether the boot receiver fires and passive data resumes after a reboot.
+> - [DD-37](#dd-37--live-steps-come-from-the-platform-step-detector-only-while-the-screen-is-visible): whether the watch has a step detector, how quickly it reports, and the battery cost of live reactions.
 
 ---
 
@@ -73,6 +75,9 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-34](#dd-34--the-pet-always-sleeps-at-night) | The pet always sleeps at night | Game design | Accepted (AR-3) · 🟣 your call |
 | [DD-35](#dd-35--an-append-only-habit-history-table-schema-v2) | An append-only habit history table (schema v2) | Persistence | Accepted (AR-3) |
 | [DD-36](#dd-36--archetype-from-7-day-consistency-locked-in-once-at-teen) | Archetype from 7-day consistency, locked in once at TEEN | Game design / balance | Accepted (AR-3) · 🟣 your call |
+| [DD-37](#dd-37--live-steps-come-from-the-platform-step-detector-only-while-the-screen-is-visible) | Live steps come from the platform step detector, only while the screen is visible | Sensors / battery | Accepted · 🟠 verify on device |
+| [DD-38](#dd-38--live-steps-are-cosmetic-only) | Live steps are cosmetic only | Sensors / balance | Accepted |
+| [DD-39](#dd-39--walkrun-from-burst-cadence-with-hysteresis-a-sleeping-pet-does-not-react) | Walk/run from burst cadence with hysteresis; a sleeping pet does not react | Game design / UI | Accepted · 🟣 your call |
 
 ---
 
@@ -452,3 +457,50 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!IMPORTANT]
 > **🟣 Your call: archetype thresholds.** These are provisional: 6,000 steps; a workout or heart rate ≥ 100 bpm; 1,500 ml plus 2 healthy meals; the winner needs 4 of 7 days and no tie. Tune them once real usage data exists. Also consider re-evaluating the archetype at `ADULT`.
+
+---
+
+## Live step reactions (Phase 2)
+
+### DD-37 — Live steps come from the platform step detector, only while the screen is visible
+- **Status**: Accepted (2026-09-26).
+- **Decision**:
+  - `SensorLiveStepSource` (`:core:health`) listens to `Sensor.TYPE_STEP_DETECTOR` through `SensorManager`, with `maxReportLatencyUs = 0`. When a watch has no detector, it falls back to `TYPE_STEP_COUNTER`, whose increases are spread evenly over the time since the previous reading (`StepCounterSpreader`, at most 20 steps per reading, at the real average spacing).
+  - The listener is registered only while the pet screen collects `PetViewModel.uiState`. `PetScreen` now uses `collectAsStateWithLifecycle()`, so collection stops when the activity is stopped (screen off, app in the background), plus the ViewModel's existing 5-second `WhileSubscribed` grace period.
+  - Without `ACTIVITY_RECOGNITION`, or without either sensor, the flow completes empty and the pet simply never walks. No new permission is needed.
+- **Why**:
+  - Passive Health Services data is batched by the OS and can arrive minutes late, which is useless for an "instant" reaction.
+  - `MeasureClient` does not offer steps.
+  - `ExerciseClient` would start a full workout session, with its own notification and battery cost, just to animate a pet.
+  - The hardware step detector is a low-power sensor, and holding it only while the screen is on keeps the cost within the display's own.
+- **Consequences**:
+  - Switching to `collectAsStateWithLifecycle()` also stops the 60-second decay ticker (DD-30) while the activity is stopped. Previously, plain `collectAsState()` kept collecting until the activity was destroyed.
+  - Reactions only exist in the app. The tile and future complications stay static.
+  - Sensor timestamps (`elapsedRealtimeNanos`) are converted to wall-clock time, so the cadence tracker can use the injected `Clock`.
+
+> [!WARNING]
+> **🟠 Verify on device:** whether the target watches expose `TYPE_STEP_DETECTOR` (or only the counter), how late the first events arrive after walking starts (many detectors confirm a few steps before reporting), and whether the Wear OS emulator produces any step events. Also check the battery impact while the pet screen stays on during a walk.
+
+### DD-38 — Live steps are cosmetic only
+- **Status**: Accepted (2026-09-26).
+- **Decision**: `ObservePetActivityUseCase` only produces a `PetActivity` for the UI. Live steps are never written to the pet and never award fitness or XP.
+- **Why**: The same steps are counted by the passive `STEPS_DAILY` totals (DD-08). Awarding them live as well would double count, and deduplicating two sources with different latencies is fragile (DD-09: prefer under-counting over double counting).
+- **Alternatives**: Award live steps and subtract them from the next passive delta. This is more immediate, but needs shared bookkeeping between a foreground and a background source, and breaks when the screen turns off mid-walk.
+- **Consequences**: The vitals ring still only moves when a passive batch arrives. The pet visibly reacts right away, and the reward follows later.
+
+### DD-39 — Walk/run from burst cadence with hysteresis; a sleeping pet does not react
+- **Status**: Accepted (2026-09-26).
+- **Decision**:
+  - The pure `StepCadence` tracker (`:core:domain`) considers the current *burst*: steps within the last 6 s that follow the last pause longer than 2.5 s. The cadence is measured across the burst's own span, so the pet reacts after **3 steps** instead of waiting for a full window.
+  - Below 3 steps, or 2.5 s after the last step: `IDLE`. Otherwise `WALKING`, or `RUNNING` once the cadence reaches **145 steps/min**. A running pet only drops back to walking below **130 steps/min** (hysteresis, so the animation doesn't flicker around one threshold).
+  - Steps and a 1-second ticker are merged into a single sequential `scan`, so the pet also stops within about a second of the user.
+  - `PetViewModel` shows `IDLE` whenever the mood is `SLEEPING`, so the pet stays asleep at night instead of sleepwalking (DD-34).
+  - The canvas blends between states over 350 ms: a bob per step, alternating paw lifts, a 3° lean when walking and 9° when running, faster tail wagging, and speed lines when running. The gait cycle is 760 ms when walking and 420 ms when running. It is stylised and not synced to the user's actual step times.
+- **Why**: Typical walking cadence is 90–130 steps/min and running is 150–180, so the thresholds sit in the gap. Burst-based measurement makes the reaction feel immediate, and the pause rule stops a single stray step from restarting the walk.
+- **Alternatives**: Sync every animation bounce to a real step event. This feels more "mirrored", but event delivery is jittery and sometimes batched, so the animation would stutter.
+
+> [!IMPORTANT]
+> **🟣 Your call: live reaction tuning.**
+> - Thresholds: 3 steps to react, 2.5 s pause to stop, run at ≥ 145 steps/min and back to walking below 130.
+> - Should walking or running wake a sleeping pet at night (e.g. a sleepy stumble), instead of it staying asleep?
+> - Should the mood change the gait, e.g. a `TIRED` pet refusing to run?

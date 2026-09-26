@@ -15,7 +15,9 @@ import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
+import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.health.HealthServicesManager
+import com.healthcompanion.core.health.SensorLiveStepSource
 import com.healthcompanion.wear.tiles.PetStatusTileService
 
 /**
@@ -57,6 +59,11 @@ class AppContainer(context: Context) {
 
     val ingestPassiveDataUseCase: IngestPassiveDataUseCase by lazy {
         IngestPassiveDataUseCase(petRepository, passiveSyncRepository, clock)
+    }
+
+    /** Live, cosmetic step reactions; the step sensor is held only while the pet screen collects it. */
+    val observePetActivityUseCase: ObservePetActivityUseCase by lazy {
+        ObservePetActivityUseCase(SensorLiveStepSource(appContext), clock)
     }
 
     val healthServicesManager: HealthServicesManager by lazy { HealthServicesManager(appContext) }

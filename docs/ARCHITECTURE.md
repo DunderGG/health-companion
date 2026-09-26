@@ -124,6 +124,7 @@ coreDomain --> coreModel : Evaluates Game Rules
 2. **[`:core:ui`](../core/ui)**:
    - Modern vector-based companion renderer (`ModernPetCanvas`).
    - Dynamic animations: breathing physics, eye blinking, mood facial expressions (Happy, Ecstatic, Hungry, Thirsty, Tired, Sleeping, Grumpy).
+   - Live gait (`PetActivity`): a bobbing trot with alternating paws when walking, a forward lean with speed lines when running.
    - Circular multi-vital progress ring (`VitalsRing`) designed for round watch dials.
    - Wear Material3 Theme & Color tokens.
 
@@ -135,8 +136,9 @@ coreDomain --> coreModel : Evaluates Game Rules
    - `DailyTotalTracker`: Converts cumulative daily sensor totals into apply-once deltas.
    - `NightWindow`: The pet's local-time night (22:00–07:00): energy recovery and the `SLEEPING` mood.
    - `ArchetypeSelector`: Picks the archetype from 7-day habit consistency when the pet reaches `TEEN`.
-   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`.
-   - Repository interfaces: `PetRepository`, `PassiveSyncRepository`.
+   - `StepCadence`: Turns live step timestamps into `IDLE` / `WALKING` / `RUNNING` (burst cadence with hysteresis).
+   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`, `ObservePetActivityUseCase`.
+   - Repository interfaces: `PetRepository`, `PassiveSyncRepository`. Sensor interface: `LiveStepSource`.
 
 4. **[`:core:data`](../core/data)**:
    - Offline-first persistence via Jetpack Room (`CompanionDatabase`, `PetDao`, `PetEntity`).
@@ -147,10 +149,11 @@ coreDomain --> coreModel : Evaluates Game Rules
    - Wraps Wear OS **Health Services API** (`androidx.health:health-services-client`).
    - `HealthServicesManager`: Queries device capabilities via `getCapabilitiesAsync()` and registers a `PassiveListenerService` for the intersection of desired and supported data types (`STEPS_DAILY`, `FLOORS_DAILY`, `HEART_RATE_BPM`). Gracefully skips unsupported sensors.
    - `PassiveDataService`: Receives OS-batched sensor data, extracts the latest daily totals (`IntervalDataType`, tagged with their local day) and the latest heart-rate sample (`SampleDataType`) into a `PassiveDataBatch`, and hands it to `IngestPassiveDataUseCase`.
+   - `SensorLiveStepSource`: Foreground-only live steps from the platform step detector (step-counter fallback via `StepCounterSpreader`) for cosmetic pet reactions (§4.4).
    - Depends only on `:core:domain`. `PassiveDataService` obtains `IngestPassiveDataUseCase` through the `PassiveDataDependencies` interface, which the `Application` implements.
 
 6. **[`:core:model`](../core/model)**:
-   - Pure domain models (`Pet`, `Vitals`, `Mood`, `HabitType`, `EvolutionStage`, `PetArchetype`). Zero Android UI dependencies.
+   - Pure domain models (`Pet`, `Vitals`, `Mood`, `PetActivity`, `HabitType`, `EvolutionStage`, `PetArchetype`). Zero Android UI dependencies.
 
 ### Directory & Source Tree
 
@@ -180,13 +183,15 @@ health-companion/
 │   ├── domain/                           # Pure Kotlin game engine & use cases
 │   │   ├── engine/PetDecayEngine.kt      # Mathematical decay & habit application
 │   │   ├── engine/MoodCalculator.kt      # Dynamic mood evaluation
-│   │   └── engine/EvolutionEngine.kt     # Evolution thresholds & archetypes
+│   │   ├── engine/EvolutionEngine.kt     # Evolution thresholds & archetypes
+│   │   └── engine/StepCadence.kt         # Live walk/run detection from step timestamps
 │   ├── data/                             # Persistence & Repository layer
 │   │   ├── db/CompanionDatabase.kt       # Room Database
 │   │   ├── repository/PetRepositoryImpl.kt
 │   ├── health/                           # Wear OS Health Services integration
 │   │   ├── HealthServicesManager.kt      # PassiveMonitoringClient wrapper
-│   │   └── PassiveDataService.kt         # PassiveListenerService: parses sensor batches
+│   │   ├── PassiveDataService.kt         # PassiveListenerService: parses sensor batches
+│   │   └── SensorLiveStepSource.kt       # Foreground step detector for live reactions
 │   └── ui/                               # Wear OS Compose UI Components
 │       ├── components/ModernPetCanvas.kt # Dynamic vector companion
 │       ├── components/VitalsRing.kt      # Circular multi-vital progress arcs
@@ -201,6 +206,7 @@ To keep the runtime architecture digestible and modular, the end-to-end happy-ca
 1. **Phase 1: App Startup & Reactive State Observation** (screen wake, decay-on-read, and reactive Compose binding).
 2. **Phase 2: User Micro-Interaction** (1-tap quick action, atomic game engine habit integration, and Room SQLite invalidation).
 3. **Phase 3: Passive Hardware Sensor Ingestion** (Health Services batched sensor events, conversion to domain habits, and persistence).
+4. **Live Step Reactions** (foreground step detector → walk/run animation, no persistence).
 
 ---
 
@@ -235,7 +241,7 @@ end box
 
 user -> UI : Opens App / Screen Wakes
 activate UI
-UI -> VM : Observes uiState (Flow via collectAsState)
+UI -> VM : Observes uiState (Flow via collectAsStateWithLifecycle)
 activate VM
 
 VM -> GetUseCase : execute()
@@ -272,7 +278,7 @@ deactivate UI
 #### Phase 1 Architectural Description
 - **Decay-on-Read Pattern**: Rather than running continuous 1-second background ticking loops that would rapidly deplete the watch battery (~300–400 mAh), the database stores vitals as they were at the last write timestamp. When the UI screen wakes and observes the state, `GetPetStateUseCase` lazily evaluates elapsed time decay via `PetDecayEngine.calculateDecay(vitals, now)` based on $\Delta t = \text{currentTimeMillis} - \text{lastUpdatedTimestamp}$.
 - **Reactive Stream Composition**:
-  1. `PetScreen` subscribes to `PetViewModel.uiState` using Compose's `collectAsState()` delegate.
+  1. `PetScreen` subscribes to `PetViewModel.uiState` using `collectAsStateWithLifecycle()`, so collection stops while the activity is not visible.
   2. `PetViewModel` combines the cold stream from `GetPetStateUseCase.execute()` with local petting state into a hot `StateFlow<PetUiState>` using `.stateIn(SharingStarted.WhileSubscribed(5000))`.
   3. `PetDao.getPetFlow()` establishes an SQLite table observer via Room.
   4. `MoodCalculator.calculateMood()` evaluates prioritized rules against the decayed vitals to determine the companion's expression (e.g., Happy, Content, Thirsty, Hungry).
@@ -484,7 +490,53 @@ deactivate GetUseCase
 
 ---
 
-### 4.4 Additional Sequence Diagrams for Future Documentation
+### 4.4 Live Step Reactions (Foreground Only)
+
+While the pet screen is visible, the pet walks or runs alongside the user. This path is separate from passive ingestion and purely cosmetic.
+
+```plantuml
+@startuml Phase4_Live_Step_Reactions
+!theme plain
+autonumber
+skinparam roundCorner 8
+skinparam sequenceMessageAlign center
+
+actor "Step Detector\n(SensorManager)" as sensor
+
+box "Health Integration (:core:health)" #EDE7F6
+    participant "SensorLiveStepSource" as Source
+end box
+
+box "Domain Layer (:core:domain)" #EDF7ED
+    participant "ObservePetActivityUseCase" as Observe
+    participant "StepCadence" as Cadence
+end box
+
+box "Presentation (:wearApp & :core:ui)" #F4F6F9
+    participant "PetViewModel" as VM
+    participant "ModernPetCanvas" as Canvas
+end box
+
+VM -> Observe : execute() (while PetScreen is STARTED)
+Observe -> Source : steps() → registerListener(TYPE_STEP_DETECTOR)
+sensor -> Source : onSensorChanged(step)
+Source --> Observe : step timestamp (wall clock)
+Observe -> Cadence : record(step, now) / advance(now) on 1 s tick
+Cadence --> Observe : IDLE / WALKING / RUNNING
+Observe --> VM : distinct PetActivity
+VM --> Canvas : PetUiState.Success(activity) (IDLE while SLEEPING)
+Canvas -> Canvas : eased gait: bob, paw lifts, lean, speed lines
+@enduml
+```
+
+- **Why not Health Services?** Passive data is batched and can be minutes late, `MeasureClient` offers no steps, and `ExerciseClient` would start a workout session. The platform step detector reports individual steps with low latency (DD-37). Watches without one fall back to the step counter.
+- **Lifecycle**: `PetScreen` collects with `collectAsStateWithLifecycle()`, so the sensor listener is removed (`callbackFlow.awaitClose`) about 5 s after the activity stops.
+- **Cadence rules** (`StepCadence`, DD-39): only the current burst counts (steps in the last 6 s since the last pause > 2.5 s). The pet reacts after 3 steps and runs at ≥ 145 steps/min, dropping back below 130 (hysteresis).
+- **No rewards**: live steps never touch vitals. The same steps are credited later through `STEPS_DAILY` deltas (DD-38).
+
+---
+
+### 4.5 Additional Sequence Diagrams for Future Documentation
 
 To keep the primary diagrams manageable and focused on the core runtime loop, the following sequence diagrams represent other operational scenarios that can be added as dedicated reference flows:
 
@@ -851,6 +903,7 @@ BOOT_COMPLETED → BootCompletedReceiver → PassiveRegistrationWorker → ensur
 
 ## 8. Wear OS Performance & Battery Best Practices
 - **Passive Health Services**: Using `PassiveMonitoringClient` delegates sensor polling to the OS hardware hub, consuming near-zero extra battery.
+- **Foreground-only live sensors**: The step detector used for live reactions (§4.4) is registered only while the pet screen is visible. It is never held in the background.
 - **Pure Vector UI**: All companion graphics are drawn via hardware-accelerated Compose Canvas paths, eliminating large bitmap assets from memory.
 - **Ambient Mode Compatible**: Pure black OLED backgrounds (`#0A0E14`) maximize battery preservation.
 - **Micro-Interactions**: Wear OS users interact in 3-to-5-second bursts. The Carousel Tile and 1-tap quick action buttons allow logging without deep navigation.

@@ -26,7 +26,11 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
   - [x] Add `HabitType.HeartRate(bpm)` to domain model and handle `SampleDataType` vs `IntervalDataType` differences.
   - [x] Integrate new sensor data into `PetDecayEngine` (heart rate → fitness, calories → workout bonus). *Superseded by AR-1: daily totals are now consumed as deltas; distance and calories are no longer consumed.*
   - [x] Graceful capability fallbacks: skip unsupported data types on watches without specific sensors.
-- [ ] Real-time step delta mapping: Convert real-world step bursts into instant companion animation reactions (e.g. running alongside user).
+- [x] Real-time step delta mapping: Convert real-world step bursts into instant companion animation reactions (e.g. running alongside user).
+  - [x] Foreground-only `SensorLiveStepSource` (step detector, step-counter fallback), held only while the pet screen is visible (DD-37).
+  - [x] Pure `StepCadence` tracker → `IDLE` / `WALKING` / `RUNNING` with hysteresis. Cosmetic only, never awarded (DD-38, DD-39).
+  - [x] `ModernPetCanvas` gait: step bob, alternating paws, forward lean, speed lines when running. A sleeping pet stays asleep.
+  - [ ] Verify on a watch: step-detector availability and latency, and the battery cost while walking with the screen on (🟠 DD-37).
 - [ ] Battery profiling and verification on Wear OS emulator / physical test watch.
 - [ ] Local push notifications via WorkManager when hydration or hunger reaches critical thresholds.
 

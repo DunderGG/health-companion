@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
                 return PetViewModel(
                     getPetStateUseCase = container.getPetStateUseCase,
                     logHabitUseCase = container.logHabitUseCase,
+                    observePetActivityUseCase = container.observePetActivityUseCase,
                     clock = container.clock
                 ) as T
             }

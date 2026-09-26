@@ -5,6 +5,7 @@ package com.healthcompanion.wear.presentation.pet
 
 import com.healthcompanion.core.model.Mood
 import com.healthcompanion.core.model.Pet
+import com.healthcompanion.core.model.PetActivity
 
 /**
  * Represents the immutable UI state rendered by [PetScreen].
@@ -28,11 +29,13 @@ sealed interface PetUiState {
      * @property mood Derived emotional state ([Mood]) driving animations and expressions.
      * @property isPettingFeedbackActive When `true`, indicates that petting feedback (spring hop & hearts)
      *                                  is actively playing.
+     * @property activity Live gait mirroring the user's steps (walking / running alongside them).
      */
     data class Success(
         val pet: Pet,
         val mood: Mood,
-        val isPettingFeedbackActive: Boolean = false
+        val isPettingFeedbackActive: Boolean = false,
+        val activity: PetActivity = PetActivity.IDLE
     ) : PetUiState
 }
 
