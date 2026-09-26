@@ -24,11 +24,52 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
   - [x] Subscribe to all available passive sensors: `HEART_RATE_BPM`, `CALORIES_DAILY`, `DISTANCE_DAILY`, `FLOORS_DAILY` (in addition to existing `STEPS_DAILY`).
   - [x] Expand `PassiveDataService` to dispatch heart rate, calories, distance, and floor data to the pet engine.
   - [x] Add `HabitType.HeartRate(bpm)` to domain model and handle `SampleDataType` vs `IntervalDataType` differences.
-  - [x] Integrate new sensor data into `PetDecayEngine` (heart rate → fitness, calories → workout bonus).
+  - [x] Integrate new sensor data into `PetDecayEngine` (heart rate → fitness, calories → workout bonus). ⚠ Daily totals are applied as deltas — see **AR-1** in Phase 2a.
   - [x] Graceful capability fallbacks: skip unsupported data types on watches without specific sensors.
 - [ ] Real-time step delta mapping: Convert real-world step bursts into instant companion animation reactions (e.g. running alongside user).
 - [ ] Battery profiling and verification on Wear OS emulator / physical test watch.
 - [ ] Local push notifications via WorkManager when hydration or hunger reaches critical thresholds.
+
+---
+
+## Phase 2a: Architecture Review Remediation
+Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-review-findings-2026-09-26). The steps are listed in the recommended order, and each one is sized to land as its own PR. Tick a finding off here, then remove or update its ⚠ notes in ARCHITECTURE.md.
+
+1. [ ] **AR-2 — Atomic pet updates** 🔴
+   - [ ] Wrap `recordHabit()` read-modify-write in `withTransaction { }` (or a `@Transaction` DAO method).
+   - [ ] Apply the same to `PetDecayWorker`, `CalculateDecayUseCase`, and the default-pet insert in `getPetFlow()`.
+   - [ ] Instrumented test: concurrent `recordHabit()` calls lose no updates.
+2. [ ] **AR-1 — Daily totals → deltas** 🔴
+   - [ ] Persist the last-seen total and its day per `*_DAILY` data type (new table or DataStore).
+   - [ ] Apply only positive deltas. Reset the baseline on day rollover.
+   - [ ] Collapse each sensor batch into a single transactional write.
+   - [ ] Drop or rework distance/floors so steps are not double-counted.
+   - [ ] Stop mapping `CALORIES_DAILY` to `Workout` (no energy drain from basal burn).
+   - [ ] Cap heart-rate XP per time window.
+   - [ ] Unit tests: delta calculation, midnight reset, repeated/out-of-order batches.
+3. [ ] **AR-8 — Data durability** 🟠 *(must land before any schema change, including step 2's table if one is used)*
+   - [ ] `exportSchema = true`. Commit the schema JSON. Restrict destructive fallback to debug builds.
+   - [ ] Clamp both bounds in `applyHabit` and make `PetEntity.toDomain()` tolerant of out-of-range values.
+   - [ ] Migration test from schema v1.
+4. [ ] **AR-6 — Permissions & registration** 🟠
+   - [ ] Register passive data types per granted permission (partial degradation).
+   - [ ] Adopt API 36 granular health permissions and verify passive heart rate on a Wear OS 6 image.
+   - [ ] Explicit, idempotent registration on grant and on boot. Stop re-registering on every process start.
+5. [ ] **AR-7 — Layering & dependency wiring** 🟡
+   - [ ] Remove the `:core:health` → `:core:data` dependency. Use `PetRepository` / `LogHabitUseCase`.
+   - [ ] Single shared dependency graph (`AppContainer` or Hilt) for the activity, services, tile, and workers.
+   - [ ] Inject a `Clock` into the engines and use cases.
+6. [ ] **AR-4 — Reactive surfaces** 🟠
+   - [ ] Request a tile update after every committed write.
+   - [ ] Replace `runBlocking` in `PetStatusTileService` with a suspending tile service.
+   - [ ] Add a subscription-scoped ticker to `GetPetStateUseCase` so decay advances on an open screen.
+7. [ ] **AR-5 — Repurpose or remove `PetDecayWorker`** 🟡
+   - [ ] Decide: repurpose for tile/complication refresh, day rollover, and critical-vital notifications, or delete it.
+   - [ ] Remove the explicit `WAKE_LOCK` permission if it is no longer needed.
+8. [ ] **AR-3 — Game-loop completeness** 🟠 *(depends on AR-8)*
+   - [ ] Energy restoration source (sleep heuristic, rest action, or Health Services sleep data).
+   - [ ] Pass `isNightTime` to `MoodCalculator` so `SLEEPING` works.
+   - [ ] `habit_events` table and consistency-based archetype selection (make `IRON_BEAST` reachable).
 
 ---
 
