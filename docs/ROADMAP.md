@@ -54,7 +54,7 @@ Fixes for the findings in the [2026-09-26 architecture review](reviews/2026-09-2
 4. [x] **AR-6 — Permissions & registration** 🟠
    - [x] Register passive data types per granted permission (partial degradation).
    - [x] Adopt API 36 granular health permissions (`health.READ_HEART_RATE`, `health.READ_HEALTH_DATA_IN_BACKGROUND`) plus an optional background heart-rate request.
-   - [ ] **Manual verification (needs emulator/watch)**: permission dialogs on Wear OS 6 and on API 33–35, passive heart-rate delivery, and re-registration after reboot.
+   - Manual device verification moved to [Phase 2a follow-ups](#phase-2a-follow-ups).
    - [x] Explicit, idempotent registration on grant and on boot (`BootCompletedReceiver` → `PassiveRegistrationWorker`). Process starts only re-register when the permission set or the boot count changed.
 5. [x] **AR-7 — Layering & dependency wiring** 🟡
    - [x] Remove the `:core:health` → `:core:data` dependency (`PassiveDataDependencies` provider interface).
@@ -64,7 +64,7 @@ Fixes for the findings in the [2026-09-26 architecture review](reviews/2026-09-2
    - [x] Request a tile update after every committed write (`NotifyingPetRepository`, wired in `AppContainer`).
    - [x] Replace `runBlocking` in `PetStatusTileService` with `serviceScope.future { }` (also fixes the `ResolvableFuture` lint errors).
    - [x] Add a subscription-scoped 60 s ticker to `GetPetStateUseCase` so decay advances on an open screen.
-   - [ ] Complication provider: still planned (Phase 3). It should hook into the same refresh callback.
+   - The complication provider is still planned in Phase 3 and should hook into the same refresh callback.
 7. [x] **AR-5 — Repurpose or remove `PetDecayWorker`** 🟡
    - [x] Decided: remove it (DD-32). Tile refresh is handled by AR-4 and day rollover by AR-1. Critical-vital notifications (Phase 2) will get their own scheduled work when implemented.
    - [x] Removed the explicit `WAKE_LOCK` permission (WorkManager still merges it in). Cancel the legacy periodic job on upgrade.
@@ -72,7 +72,23 @@ Fixes for the findings in the [2026-09-26 architecture review](reviews/2026-09-2
    - [x] Energy restoration source: night rest (+8 %/h, 22:00–07:00 local, `NightWindow`), computed per day/night segment (DD-33).
    - [x] Pass `isNightTime` to `MoodCalculator`. The pet is `SLEEPING` throughout its night (DD-34).
    - [x] `habit_events` table (schema v2, first real migration) and 7-day consistency-based archetype selection. `IRON_BEAST` is reachable via workouts or heart rate ≥ 100 bpm (DD-35, DD-36).
-   - [ ] Follow-ups: Health Services sleep detection (`UserActivityState` ASLEEP) as a real sleep signal, `ExerciseClient` workouts, and user-configurable bedtime.
+   - Sleep sensing, workouts and a configurable bedtime moved to [Phase 2a follow-ups](#phase-2a-follow-ups).
+
+### Phase 2a follow-ups
+Open work that came out of the review. None of it blocks merging the remediation.
+
+- [ ] **Device smoke test** (🟠 items in [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md)). Use the `Wear_OS_Large_Round` AVD (API 37) for the Wear OS 6+ path; the API 33–35 path needs an older Wear OS system image.
+  - [ ] Onboarding: the foreground permission dialog (activity + heart rate), then the separate background heart-rate dialog. Check degraded mode (chip) when activity recognition is denied, and heart-rate-only registration. (DD-22, DD-23)
+  - [ ] Passive data: send synthetic data (`adb shell am broadcast -a "androidx.health.services.client.action.SIMULATE_DATA"`) and check in logcat (`PassiveDataService`, `HealthServicesManager`) that each batch is applied once, repeated totals add nothing, and heart-rate awards respect the 30-minute limit. (DD-08, DD-15)
+  - [ ] Surfaces: the tile refreshes after a water log and after a sensor batch, and an open pet screen keeps decaying. (DD-29, DD-30)
+  - [ ] Reboot: after `adb reboot`, `BootCompletedReceiver` runs `PassiveRegistrationWorker` and passive data arrives again. (DD-25)
+  - [ ] App update: reinstall over the existing build (`adb install -r`) and confirm that passive data still arrives without a reboot. (DD-24)
+  - [ ] Midnight: how daily totals are attributed around the daily reset and after a time-zone change. (DD-17)
+  - [ ] Afterwards: record the results in the DD entries and remove their 🟠 callouts.
+- [ ] **Design calls**: settle the 🟣 "Needs your decision" items at the top of [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md) (balance values, night rules, archetype thresholds, heart-rate dialogs).
+- [ ] **Real sleep signal**: Health Services sleep detection (`UserActivityState.USER_ACTIVITY_ASLEEP`) layered on the night rest (DD-33).
+- [ ] **Workouts**: `ExerciseClient` sessions as `HabitType.Workout`, which also strengthens the `IRON_BEAST` path (DD-36).
+- [ ] **Configurable bedtime** instead of the fixed 22:00–07:00 `NightWindow` (DD-33).
 
 ---
 
@@ -89,7 +105,7 @@ Fixes for the findings in the [2026-09-26 architecture review](reviews/2026-09-2
     - [ ] `wearApp/src/main/res/values/strings.xml` — `app_name` string value (`"Health Companion"`)
     - [ ] `wearApp/build.gradle.kts` — `namespace` and `applicationId` (`com.healthcompanion.wear`)
     - [ ] `wearApp/src/main/AndroidManifest.xml` — `android:name=".HealthCompanionApp"` (if the Application class is renamed)
-  - **Kotlin source & package namespace** (affects all 31 `.kt` files — use IDE refactor: *Rename Package*)
+  - **Kotlin source & package namespace** (affects all `.kt` files, including tests — use IDE refactor: *Rename Package*)
     - [ ] All `package com.healthcompanion.*` declarations
     - [ ] All `import com.healthcompanion.*` statements
     - [ ] `core/*/build.gradle.kts` — `namespace` in each module (`com.healthcompanion.core.*`)
@@ -102,6 +118,7 @@ Fixes for the findings in the [2026-09-26 architecture review](reviews/2026-09-2
     - [ ] `README.md` — title heading, CI badge URL, and `git clone` URL
     - [ ] `docs/ARCHITECTURE.md` — `Health Companion` in overview, `HealthCompanionApp.kt` reference, package path in module diagram, `com/healthcompanion/wear/` source tree
     - [ ] `docs/ROADMAP.md` — title heading (`# Health Companion: Project Roadmap`) and this checklist itself
+    - [ ] `docs/DESIGN_DECISIONS.md` and `docs/reviews/*.md` — `Health Companion` in the intros, and package paths such as `core/data/.../repository/`
     - [ ] `CONTRIBUTING.md` — title, working-title note, `git clone` URL, `health-companion/` folder references, project structure tree
     - [ ] `NOTICE` — project name and GitHub URL on lines 1 and 5
   - **CI / GitHub**
@@ -132,7 +149,7 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 
 ## Phase 3: Wear OS Native Surfaces & Micro-Interactions
 - [ ] Interactive Wear OS Carousel Tile with direct 1-tap "+250ml Water" action button via ProtoLayout.
-- [ ] Watch Face Complication Provider (`PetMoodComplicationService`): Show pet mood icon or step-progress ring directly on standard watch dials.
+- [ ] Watch Face Complication Provider (`PetMoodComplicationService`): Show pet mood icon or step-progress ring directly on standard watch dials. Refresh it from the same `NotifyingPetRepository` callback that updates the tile (`AppContainer.requestSurfaceRefresh`).
 - [ ] Ambient Mode support: Low-power grayscale rendering for always-on displays.
 - [ ] Rotary Crown Integration: Use watch crown for smooth zooming, inspecting vitals breakdown, and interactive petting.
 - [ ] Haptic Feedback: Custom vibration patterns on petting, evolution, and goal completion.

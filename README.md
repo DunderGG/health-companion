@@ -95,6 +95,8 @@ adb shell am broadcast -a "androidx.health.services.client.action.SIMULATE_DATA"
 Detailed architectural specifications and development plans are maintained in the [`docs/`](docs/) directory:
 
 - 📖 **[System Architecture](docs/ARCHITECTURE.md)** — PlantUML system flows, module responsibilities, mathematical decay formulas, and source tree.
+- 🧭 **[Design Decisions](docs/DESIGN_DECISIONS.md)** — Why the system works the way it does: alternatives, trade-offs, and open questions (highlighted).
+- 🔍 **[Reviews](docs/reviews/README.md)** — Dated architecture reviews and their findings (e.g. AR-1 … AR-8).
 - 🗺️ **[Project Roadmap](docs/ROADMAP.md)** — 5-phase development roadmap, emulator synthetic sensor guide, and the **Phase 2b** community naming survey (*Resona*, *Symbio*, *Vitalkin*, *Paravita*, *Vitecho*, *AuraSync*).
 - 🤝 **[Contributing Guidelines](CONTRIBUTING.md)** — Environment setup, code style, required license headers, and PR workflow.
 
