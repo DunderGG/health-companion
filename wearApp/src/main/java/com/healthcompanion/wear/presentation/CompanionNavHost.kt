@@ -68,7 +68,11 @@ fun CompanionNavHost(
                 AmbientAware(petViewModel, ambientState) {
                     SettingsScreen(
                         viewModel = settingsViewModel,
-                        onEditField = { field -> navController.navigate(field.route) }
+                        onEditField = { field -> navController.navigate(field.route) },
+                        // Show the new pet: a fresh pet destination also starts the pager on its first page.
+                        onStartedOver = {
+                            navController.navigate(ROUTE_PET) { popUpTo(ROUTE_PET) { inclusive = true } }
+                        }
                     )
                 }
             }

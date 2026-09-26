@@ -72,6 +72,7 @@ class CheckCriticalVitalsUseCaseTest {
         override suspend fun updatePet(transform: (Pet) -> Pet): Pet = error("check must not write")
         override suspend fun recordHabit(habit: HabitType): Pet = error("check must not write")
         override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> = flowOf(emptyList())
+        override suspend fun startOver(): Pet = error("not used")
         override suspend fun recordHabits(habits: List<HabitType>): Pet = error("check must not write")
     }
 }

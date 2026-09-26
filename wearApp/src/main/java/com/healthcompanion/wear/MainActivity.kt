@@ -78,7 +78,7 @@ class MainActivity : ComponentActivity() {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val container = (application as HealthCompanionApp).container
-                return SettingsViewModel(container.settingsRepository) as T
+                return SettingsViewModel(container.settingsRepository, container.startOverUseCase) as T
             }
         }
     }

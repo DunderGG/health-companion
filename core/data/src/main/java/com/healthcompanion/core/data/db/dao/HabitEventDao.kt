@@ -30,4 +30,8 @@ interface HabitEventDao {
     /** Deletes events older than [cutoffMillis] to keep the table small on the watch. */
     @Query("DELETE FROM habit_events WHERE timestampMillis < :cutoffMillis")
     suspend fun deleteOlderThan(cutoffMillis: Long): Int
+
+    /** Deletes the whole history, when the user starts over with a new pet (DD-52). */
+    @Query("DELETE FROM habit_events")
+    suspend fun deleteAll(): Int
 }

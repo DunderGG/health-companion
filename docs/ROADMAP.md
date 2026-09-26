@@ -161,6 +161,7 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 - [x] **Visible goals**: a Goals page between Vitals and Settings shows today's steps, water, healthy meals and workout against the user's goals, with bars and ✓ marks, from the same calculation as the goal vibration (DD-49).
 - [x] **"Vital filled up" haptic**: a light tick-click when a vital shown on screen reaches 100 % from below while the pet UI is open, never while the pet sleeps (DD-50).
 - [x] Step-progress complication: a second complication, "Pet Steps", with a ring of today's steps towards the step goal (ranged value) or the step count (short text), next to Pet Mood (DD-51).
+- [x] **Start over**: a button at the end of Settings, with a confirmation dialog, replaces the pet with a new hatchling and deletes the habit history; settings are kept (DD-52).
 
 ---
 

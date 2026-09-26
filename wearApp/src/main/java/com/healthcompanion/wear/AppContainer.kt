@@ -22,6 +22,7 @@ import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
 import com.healthcompanion.core.domain.usecase.ObserveDailyProgressUseCase
 import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
+import com.healthcompanion.core.domain.usecase.StartOverUseCase
 import com.healthcompanion.core.health.HealthServicesManager
 import com.healthcompanion.core.health.SensorLiveStepSource
 import com.healthcompanion.wear.complications.PetMoodComplicationService
@@ -81,6 +82,9 @@ class AppContainer(context: Context) {
     val getPetStateUseCase: GetPetStateUseCase by lazy { GetPetStateUseCase(petRepository, settingsRepository, clock) }
 
     val logHabitUseCase: LogHabitUseCase by lazy { LogHabitUseCase(petRepository) }
+
+    /** Deletes the pet and its history for a new one, from Settings (DD-52). */
+    val startOverUseCase: StartOverUseCase by lazy { StartOverUseCase(petRepository) }
 
     val ingestPassiveDataUseCase: IngestPassiveDataUseCase by lazy {
         IngestPassiveDataUseCase(petRepository, passiveSyncRepository, clock)

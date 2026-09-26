@@ -49,6 +49,7 @@ class ObserveDailyProgressUseCaseTest {
         override suspend fun getPet(): Pet = error("not used")
         override suspend fun updatePet(transform: (Pet) -> Pet): Pet = error("not used")
         override suspend fun recordHabit(habit: HabitType): Pet = error("not used")
+        override suspend fun startOver(): Pet = error("not used")
         override suspend fun recordHabits(habits: List<HabitType>): Pet = error("not used")
     }
 

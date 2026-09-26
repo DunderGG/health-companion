@@ -225,6 +225,7 @@ Open the last pager page and tap **Settings**. On the emulator, turn the crown w
 - [ ] With Vibration off, petting, a goal and an evolution play nothing (`dumpsys vibrator_manager`).
 - [ ] Entering ambient mode on a settings screen shows the ambient pet. Waking returns to the same settings screen.
 - [ ] Settings survive force-stopping the app and a reboot.
+- [ ] **Start over** ([DD-52](DESIGN_DECISIONS.md#dd-52--start-over-deletes-the-pet-and-its-history-keeps-settings-and-sensor-bookkeeping)) asks first; dismissing keeps everything. Confirming shows a new hatchling "Aura" on the pet page, the Goals page and Pet Steps at 0, the tile and Pet Mood updated, and the settings unchanged. Steps walked earlier today are not credited; new steps are. Back up `databases/` with `run-as` first if the emulator's pet matters.
 
 ### V13 — Goals page ([DD-49](DESIGN_DECISIONS.md#dd-49--a-goals-page-between-the-vitals-and-the-settings-one-calculation-for-page-vibration-and-archetype))
 The third pager page. Easiest on a fresh day, or after clearing app data.
@@ -286,6 +287,7 @@ Force Doze (§1.5) with an alert check pending.
 
 | Date | Check | Device / image | Result | Notes |
 | :--- | :--- | :--- | :--- | :--- |
+| 2026-09-26 | V12 start over | Wear_OS_Large_Round, API 37 | Pass | Button and dialog shown; confirming replaced the adult pet with a hatchling on the pet page, Goals at 0/3 with only new steps counted. The database was backed up and restored afterwards. |
 | 2026-09-26 | V3 (Pet Steps, partial), V13 (partial) | Wear_OS_Large_Round, API 37 | Pass | Pet Steps listed in the complication picker and rendered as a ranged value in the Perfunctory face ("135K", full ring, walking icon). The Goals page showed the synthetic totals with check marks. Not checked: short text, updates after a batch, the "vital filled up" tick (every vital was already full). |
 | 2026-09-26 | V12 (partial) | Wear_OS_Large_Round, API 37 | Pass | List, steppers, crown stepping (clockwise increases; one `SCROLL,-2` event moved four steps), bedtime wrapping 23:00 → 00:00, and saving all worked. Setting bedtime to 18:00 at 18:24 put the pet to sleep at once. Ambient mode on the settings list showed the ambient pet and returned to the list. Screens stay pure black. Not checked: tile and complication, reboot, vibration switch against `dumpsys`. |
 | 2026-09-26 | V11 (partial), V10 haptics | Wear_OS_Large_Round, API 37 | Pass | Petting played the composed purr (4 × `TICK`, `usage: TOUCH`) per `dumpsys vibrator_manager`. Crown paging produced rotary `CLICK` feedback. The goal pattern could not be triggered: synthetic walking had already reached every goal that day, so no pattern was correct. |

@@ -74,6 +74,11 @@
     <string name="settings_bedtime_end">Wakes at</string>
     <string name="settings_haptics">Vibration</string>
     <string name="settings_haptics_description">All pet vibrations</string>
+    <string name="settings_pet">Pet</string>
+    <string name="settings_start_over">Start over</string>
+    <string name="settings_start_over_description">New pet, progress deleted</string>
+    <string name="start_over_title">Start over with a new pet?</string>
+    <string name="start_over_text">Your pet, its evolution and all habit history are deleted. Your settings are kept. This can\'t be undone.</string>
     <!-- %1$s formatted amount of water -->
     <string name="settings_value_water_ml">%1$s ml</string>
     <string name="settings_decrease">Decrease</string>

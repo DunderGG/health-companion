@@ -98,6 +98,7 @@ class IngestPassiveDataUseCaseTest {
         override suspend fun updatePet(transform: (Pet) -> Pet): Pet = transform(Pet())
         override suspend fun recordHabit(habit: HabitType): Pet = recordHabits(listOf(habit))
         override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> = flowOf(emptyList())
+        override suspend fun startOver(): Pet = error("not used")
         override suspend fun recordHabits(habits: List<HabitType>): Pet {
             recordedBatches += habits
             return Pet()

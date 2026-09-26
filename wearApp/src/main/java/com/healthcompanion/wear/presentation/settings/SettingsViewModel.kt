@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.healthcompanion.core.domain.repository.SettingsRepository
 import com.healthcompanion.core.domain.settings.UserSettings
+import com.healthcompanion.core.domain.usecase.StartOverUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -17,9 +18,11 @@ import kotlinx.coroutines.launch
  * "confirm" step, as in the system settings.
  *
  * @param settingsRepository Where the settings are stored.
+ * @param startOverUseCase Replaces the pet with a new one (DD-52).
  */
 class SettingsViewModel(
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val startOverUseCase: StartOverUseCase
 ) : ViewModel() {
 
     /** The stored settings, or `null` until they have been read. */
@@ -37,6 +40,19 @@ class SettingsViewModel(
     fun setValue(field: SettingField, value: Int) {
         viewModelScope.launch {
             settingsRepository.updateSettings { field.update(it, value) }
+        }
+    }
+
+    /**
+     * Deletes the pet and its history and starts over with a new pet (DD-52). The caller must have asked
+     * the user to confirm.
+     *
+     * @param onDone Called on the main thread once the new pet is stored.
+     */
+    fun startOver(onDone: () -> Unit) {
+        viewModelScope.launch {
+            startOverUseCase.execute()
+            onDone()
         }
     }
 

@@ -24,8 +24,9 @@ class NotifyingPetRepositoryTest {
         repository.recordHabit(HabitType.Hydration())
         repository.recordHabits(listOf(HabitType.Hydration(), HabitType.PettingInteraction()))
         repository.updatePet { it }
+        repository.startOver()
 
-        assertEquals(3, notifications)
+        assertEquals(4, notifications)
     }
 
     @Test
@@ -55,6 +56,7 @@ class NotifyingPetRepositoryTest {
         override suspend fun recordHabit(habit: HabitType): Pet = write { Pet() }
         override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> = flowOf(emptyList())
         override suspend fun recordHabits(habits: List<HabitType>): Pet = write { Pet() }
+        override suspend fun startOver(): Pet = write { Pet() }
 
         private fun write(block: () -> Pet): Pet {
             check(!fail) { "write failed" }

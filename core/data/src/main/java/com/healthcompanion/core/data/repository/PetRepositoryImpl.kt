@@ -151,6 +151,19 @@ class PetRepositoryImpl(
         }
     }
 
+    /**
+     * Replaces the pet with a fresh default one and deletes the habit history, in one transaction, so no
+     * concurrent write (e.g. a sensor batch) can land between the two (DD-52).
+     */
+    override suspend fun startOver(): Pet {
+        return database.withTransaction {
+            habitEventDao.deleteAll()
+            val pet = createDefaultPet()
+            petDao.insertOrUpdate(PetEntity.fromDomain(pet))
+            pet
+        }
+    }
+
     /** Rows whose habit can't be decoded (e.g. from a newer app version) are skipped, as in archetype selection. */
     override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> =
         habitEventDao.eventsSinceFlow(fromMillis).map { entities -> entities.mapNotNull { it.toDomain() } }

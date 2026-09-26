@@ -72,5 +72,13 @@ interface PetRepository {
      * @return A cold [Flow] of the matching events.
      */
     fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>>
+
+    /**
+     * Replaces the companion with a brand-new default pet and deletes the whole habit history, in one
+     * transaction (DD-52). Settings and sensor bookkeeping are not part of this repository and are kept.
+     *
+     * @return The new pet.
+     */
+    suspend fun startOver(): Pet
 }
 

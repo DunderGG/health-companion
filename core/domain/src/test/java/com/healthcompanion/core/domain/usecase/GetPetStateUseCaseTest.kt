@@ -142,6 +142,7 @@ class GetPetStateUseCaseTest {
         override suspend fun updatePet(transform: (Pet) -> Pet): Pet = transform(pet.value).also { pet.value = it }
         override suspend fun recordHabit(habit: HabitType): Pet = pet.value
         override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> = flowOf(emptyList())
+        override suspend fun startOver(): Pet = error("not used")
         override suspend fun recordHabits(habits: List<HabitType>): Pet = pet.value
     }
 }

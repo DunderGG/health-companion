@@ -15,7 +15,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,9 +32,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
+import androidx.wear.compose.material3.AlertDialog
+import androidx.wear.compose.material3.AlertDialogDefaults
+import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.wear.compose.material3.LevelIndicator
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ListSubHeader
@@ -55,21 +61,24 @@ private val GOAL_FIELDS = listOf(SettingField.STEPS, SettingField.WATER_ML, Sett
 private val BEDTIME_FIELDS = listOf(SettingField.BEDTIME_START, SettingField.BEDTIME_END)
 
 /**
- * The settings list (DD-48): daily goals, bedtime and the haptics switch. Tapping a number opens its
- * [SettingStepperScreen]. The crown scrolls the list.
+ * The settings list (DD-48): daily goals, bedtime and the haptics switch, and at the end "Start over"
+ * with a new pet (DD-52). Tapping a number opens its [SettingStepperScreen]. The crown scrolls the list.
  *
  * @param viewModel Holds and saves the settings.
  * @param onEditField Opens the stepper for a field.
+ * @param onStartedOver Called once a new pet has replaced the old one.
  * @param modifier Compose layout modifier applied to the root container.
  */
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onEditField: (SettingField) -> Unit,
+    onStartedOver: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val listState = rememberScalingLazyListState()
+    var confirmStartOver by rememberSaveable { mutableStateOf(false) }
 
     ScreenScaffold(scrollState = listState, modifier = modifier) { contentPadding ->
         val current = settings
@@ -100,8 +109,50 @@ fun SettingsScreen(
                     label = { Text(stringResource(R.string.settings_haptics)) }
                 )
             }
+
+            item { ListSubHeader { Text(stringResource(R.string.settings_pet)) } }
+            item {
+                // Tonal like the other rows, with the label in the error colour: destructive, but not shouting.
+                FilledTonalButton(
+                    onClick = { confirmStartOver = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.filledTonalButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    secondaryLabel = { Text(stringResource(R.string.settings_start_over_description)) },
+                    label = { Text(stringResource(R.string.settings_start_over)) }
+                )
+            }
         }
     }
+
+    StartOverDialog(
+        visible = confirmStartOver,
+        onDismiss = { confirmStartOver = false },
+        onConfirm = {
+            confirmStartOver = false
+            viewModel.startOver(onDone = onStartedOver)
+        }
+    )
+}
+
+/** Asks before deleting the pet: starting over can't be undone (DD-52). */
+@Composable
+private fun StartOverDialog(visible: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        visible = visible,
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.start_over_title), textAlign = TextAlign.Center) },
+        text = { Text(stringResource(R.string.start_over_text), textAlign = TextAlign.Center) },
+        confirmButton = {
+            AlertDialogDefaults.ConfirmButton(
+                onClick = onConfirm,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            )
+        },
+        dismissButton = { AlertDialogDefaults.DismissButton(onClick = onDismiss) }
+    )
 }
 
 @Composable

@@ -37,4 +37,7 @@ class NotifyingPetRepository(
 
     override suspend fun recordHabits(habits: List<HabitType>): Pet =
         delegate.recordHabits(habits).also { onPetChanged() }
+
+    override suspend fun startOver(): Pet =
+        delegate.startOver().also { onPetChanged() }
 }

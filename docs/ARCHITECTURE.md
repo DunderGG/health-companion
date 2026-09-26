@@ -122,7 +122,7 @@ coreDomain --> coreModel : Evaluates Game Rules
    - Standalone Wear OS application entry point (`com.google.android.wearable.standalone = true`).
    - UI orchestration, Wear Navigation, ViewModel bindings.
    - Goals page (DD-49): third pager page, today's progress towards each daily goal.
-   - Settings (DD-48): the last pager page opens `CompanionNavHost`'s settings list and one stepper screen per number (daily goals, bedtime), plus the vibration switch.
+   - Settings (DD-48): the last pager page opens `CompanionNavHost`'s settings list and one stepper screen per number (daily goals, bedtime), plus the vibration switch. The list ends with "Start over" (DD-52).
    - Composition root: `AppContainer` builds the single dependency graph (clock, database, repositories, use cases, `HealthServicesManager`). `HealthCompanionApp` owns it and implements `PassiveDataDependencies` for `:core:health`.
    - Wear OS surfaces: `PetStatusTileService` (Carousel Tile), `PetMoodComplicationService` and `StepGoalComplicationService` (Watch Face Complications).
    - Critical-vital notifications: `VitalAlertWorker` (scheduling) and `VitalAlertNotifier` (channel, posting, clearing).
@@ -147,7 +147,7 @@ coreDomain --> coreModel : Evaluates Game Rules
    - `UserSettings` / `DailyGoals`: What the user can set on the watch, with the selectable ranges (DD-48).
    - `VitalAlertPlanner`: Predicts when hydration/hunger cross their critical threshold and which alerts to post or clear.
    - `StepCadence`: Turns live step timestamps into `IDLE` / `WALKING` / `RUNNING` (burst cadence with hysteresis).
-   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`, `ObservePetActivityUseCase`, `ObserveDailyProgressUseCase`, `CheckCriticalVitalsUseCase`.
+   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`, `ObservePetActivityUseCase`, `ObserveDailyProgressUseCase`, `CheckCriticalVitalsUseCase`, `StartOverUseCase`.
    - Repository interfaces: `PetRepository`, `PassiveSyncRepository`, `VitalAlertStateRepository`, `SettingsRepository` (with the `NotifyingSettingsRepository` decorator and an in-memory implementation for tests). Sensor interface: `LiveStepSource`.
 
 4. **[`:core:data`](../core/data)**:

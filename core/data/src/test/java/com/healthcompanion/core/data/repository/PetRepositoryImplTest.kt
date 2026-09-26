@@ -15,6 +15,7 @@ import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.EvolutionStage
 import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
+import com.healthcompanion.core.model.Pet
 import com.healthcompanion.core.model.PetArchetype
 import com.healthcompanion.core.model.Vitals
 import java.time.Instant
@@ -123,6 +124,24 @@ class PetRepositoryImplTest {
 
         // Two hours asleep recover energy (+8/h); with the default 22:00 bedtime it would have drained to 46.
         assertEquals(66f, pet.vitals.energy, 0.01f)
+    }
+
+    @Test
+    fun `starting over replaces the pet with a fresh one and deletes the habit history`() = runBlocking {
+        var now = Instant.parse("2026-03-01T12:00:00Z").toEpochMilli()
+        val clockedRepository = PetRepositoryImpl(db, utcClock { now }, InMemorySettingsRepository())
+        clockedRepository.updatePet {
+            it.copy(name = "Mochi", stage = EvolutionStage.TEEN, experiencePoints = 900, archetype = PetArchetype.ZEN_SAGE)
+        }
+        clockedRepository.recordHabits(listOf(HabitType.Steps(7_000), HabitType.Hydration(250)))
+
+        now += day
+        val fresh = clockedRepository.startOver()
+
+        assertEquals(fresh, clockedRepository.getPet())
+        // A default pet, born now, with full vitals.
+        assertEquals(Pet(vitals = Vitals(lastUpdatedTimestamp = now), bornTimestamp = now), fresh)
+        assertEquals(emptyList<HabitEvent>(), db.habitEventDao().eventsSince(0L).mapNotNull { it.toDomain() })
     }
 
     @Test

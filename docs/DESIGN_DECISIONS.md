@@ -29,6 +29,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only): how the purr, goal and evolution patterns feel on a real watch?
 > - [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype): goal ranges and increments, bedtime hours, and a configurable strength goal?
 > - [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream): should all five vitals tick when they fill up?
+> - [DD-52](#dd-52--start-over-deletes-the-pet-and-its-history-keeps-settings-and-sensor-bookkeeping): what starting over keeps, and a name for the new pet?
 
 > [!WARNING]
 > **🟠 Needs verification on an emulator or watch** (step-by-step instructions: [VERIFICATION.md](VERIFICATION.md))
@@ -103,6 +104,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-49](#dd-49--a-goals-page-between-the-vitals-and-the-settings-one-calculation-for-page-vibration-and-archetype) | A goals page between the vitals and the settings; one calculation for page, vibration and archetype | UI | Accepted |
 | [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream) | A light "vital filled up" tick, not while asleep; haptics read a fresh pet stream | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
 | [DD-51](#dd-51--step-progress-is-a-second-complication-pet-steps) | Step progress is a second complication, "Pet Steps" | Surfaces | Accepted · 🟠 verify on device |
+| [DD-52](#dd-52--start-over-deletes-the-pet-and-its-history-keeps-settings-and-sensor-bookkeeping) | "Start over" deletes the pet and its history, keeps settings and sensor bookkeeping | Persistence / UI | Accepted · 🟣 your call |
 
 ---
 
@@ -833,3 +835,26 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!WARNING]
 > **🟠 Verify on device:** both types render and tint on real watch faces (and in ambient mode), and the ring updates after a passive batch and when the step goal changes. Checked on the emulator: the ranged type in the Perfunctory face.
+
+### DD-52 — "Start over" deletes the pet and its history, keeps settings and sensor bookkeeping
+- **Status**: Accepted (2026-09-26). Requested by the project owner.
+- **Decision**:
+  - The settings list ends with a **Pet** section and a **Start over** button. It is tonal like the other rows, with its label in the error colour.
+  - Tapping it asks for confirmation in an `AlertDialog`: "Start over with a new pet? Your pet, its evolution and all habit history are deleted. Your settings are kept. This can't be undone."
+  - Confirming calls `StartOverUseCase` → `PetRepository.startOver()`. In one Room transaction, this deletes every habit event and replaces the pet with a fresh default one: "Aura", `HATCHLING`, balanced, full vitals, born now.
+  - The app then opens the new pet on the pager's first page.
+  - `NotifyingPetRepository` refreshes the tile and complications and re-checks vitals afterwards, as for any write.
+  - **Kept**:
+    - The user's settings (goals, bedtime, vibration).
+    - The sensor bookkeeping (`passive_sync`), so activity from before starting over (e.g. today's steps so far) isn't credited to the new pet. Only new activity counts.
+    - The alert state (`vital_alerts`), so the vitals check that follows clears any alert still posted for the old pet.
+- **Why**: A single transaction means a sensor batch can't land between deleting the history and seeding the new pet. Keeping the sensor baselines makes the new pet start from zero, as "start over" suggests.
+- **Alternatives**:
+  - Clearing app data from the system settings: also wipes settings and permissions, and isn't discoverable.
+  - Also resetting the sensor baselines: the next batch would credit today's steps so far to the new pet (DD-16).
+  - Choosing a name for the new pet: there is no text input on the watch yet. It could come with a naming screen.
+  - An undo: keeping the old pet around adds a second pet to the schema for a rare action.
+- **Consequences**: Today's goal progress and the step complication drop to 0 along with the history, even for steps walked earlier today.
+
+> [!IMPORTANT]
+> **🟣 Your call: what starting over keeps.** Settings are kept, and today's activity before starting over isn't credited to the new pet. Should the new pet get a name the user picks?
