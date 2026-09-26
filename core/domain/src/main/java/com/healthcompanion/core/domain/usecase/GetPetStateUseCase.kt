@@ -58,14 +58,23 @@ class GetPetStateUseCase(
      * @return Cold [Flow] emitting [PetWithMood] on every pet change and every refresh tick.
      */
     fun execute(): Flow<PetWithMood> {
-        return combine(repository.getPetFlow(), ticker()) { pet, _ ->
-            val now = clock.nowMillis()
-            val zone = clock.zone()
-            val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals, now, zone)
-            val updatedPet = pet.copy(vitals = decayedVitals)
-            val mood = MoodCalculator.calculateMood(decayedVitals, isNightTime = NightWindow.DEFAULT.isNight(now, zone))
-            PetWithMood(updatedPet, mood)
-        }
+        return combine(repository.getPetFlow(), ticker()) { pet, _ -> withMood(pet) }
+    }
+
+    /**
+     * One-shot snapshot for pull-based surfaces (tile, complication) that cannot collect a stream.
+     *
+     * @return The stored pet with decay applied up to now, and its mood.
+     */
+    suspend fun current(): PetWithMood = withMood(repository.getPet())
+
+    private fun withMood(pet: Pet): PetWithMood {
+        val now = clock.nowMillis()
+        val zone = clock.zone()
+        val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals, now, zone)
+        val updatedPet = pet.copy(vitals = decayedVitals)
+        val mood = MoodCalculator.calculateMood(decayedVitals, isNightTime = NightWindow.DEFAULT.isNight(now, zone))
+        return PetWithMood(updatedPet, mood)
     }
 
     private fun ticker(): Flow<Unit> = flow {

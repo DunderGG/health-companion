@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monochrome mood face for the complication (TIRED: half-closed eyes, flat mouth); the watch face tints it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="2" android:pathData="M3,12A9,9 0,1 0,21 12A9,9 0,1 0,3 12Z" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M7,10.5L10,10.5M14,10.5L17,10.5M9,15.5L15,15.5" />
+</vector>

@@ -19,9 +19,6 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
-import com.healthcompanion.core.domain.engine.MoodCalculator
-import com.healthcompanion.core.domain.engine.NightWindow
-import com.healthcompanion.core.domain.engine.PetDecayEngine
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.wear.HealthCompanionApp
 import com.healthcompanion.wear.MainActivity
@@ -59,7 +56,7 @@ class PetStatusTileService : TileService() {
     /**
      * Handles a pending water tap, then constructs the Tile layout.
      *
-     * Queries current pet vitals from SQLite, calculates decay and mood, builds the ProtoLayout
+     * Reads the decayed pet and its mood (`GetPetStateUseCase.current()`), builds the ProtoLayout
      * tree, and sets a 10-minute cache freshness interval to conserve battery.
      *
      * @param requestParams Parameters including screen dimensions, device density, and the last clicked id.
@@ -82,11 +79,9 @@ class PetStatusTileService : TileService() {
     private suspend fun buildTile(deviceParameters: DeviceParameters): TileBuilders.Tile {
         val container = (application as HealthCompanionApp).container
 
-        val pet = container.petRepository.getPet()
+        val (pet, mood) = container.getPetStateUseCase.current()
+        val decayedVitals = pet.vitals
         val now = container.clock.nowMillis()
-        val zone = container.clock.zone()
-        val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals, now, zone)
-        val mood = MoodCalculator.calculateMood(decayedVitals, isNightTime = NightWindow.DEFAULT.isNight(now, zone))
 
         val openApp = ModifiersBuilders.Clickable.Builder()
             .setId(ID_OPEN_APP)

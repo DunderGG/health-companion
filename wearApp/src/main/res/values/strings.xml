@@ -4,6 +4,20 @@
     <string name="pet_name_default">Aura</string>
     <string name="action_drink_water">+250ml Water</string>
     <string name="tile_log_water_description">Log 250 milliliters of water</string>
+
+    <!-- Watch face complication -->
+    <string name="complication_name">Pet Mood</string>
+    <!-- %1$s pet name, %2$s mood label, %3$d overall health percent -->
+    <string name="complication_description">%1$s: %2$s, health %3$d%%</string>
+    <!-- Short mood labels: at most 7 characters, to fit a short-text complication. -->
+    <string name="mood_short_ecstatic">Elated</string>
+    <string name="mood_short_happy">Happy</string>
+    <string name="mood_short_content">Content</string>
+    <string name="mood_short_tired">Tired</string>
+    <string name="mood_short_thirsty">Thirsty</string>
+    <string name="mood_short_hungry">Hungry</string>
+    <string name="mood_short_grumpy">Grumpy</string>
+    <string name="mood_short_sleeping">Asleep</string>
     <string name="action_healthy_meal">Healthy Meal</string>
     <string name="action_snack">Quick Snack</string>
     <string name="action_pet">Pet Companion</string>

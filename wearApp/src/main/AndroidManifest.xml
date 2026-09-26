@@ -74,6 +74,25 @@
                 android:resource="@drawable/ic_launcher_foreground" />
         </service>
 
+        <!-- Watch Face Complication: pet mood and overall health (DD-43) -->
+        <service
+            android:name=".complications.PetMoodComplicationService"
+            android:exported="true"
+            android:icon="@drawable/ic_mood_happy"
+            android:label="@string/complication_name"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,ICON" />
+            <!-- Same 10-minute cadence as the tile, so decay shows without writes; writes also request an update. -->
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="600" />
+        </service>
+
     </application>
 
 </manifest>

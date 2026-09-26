@@ -25,6 +25,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-36](#dd-36--archetype-from-7-day-consistency-locked-in-once-at-teen): archetype thresholds (6,000 steps; workout or heart rate ≥ 100; 1,500 ml + 2 meals; 4 of 7 days)?
 > - [DD-39](#dd-39--walkrun-from-burst-cadence-with-hysteresis-a-sleeping-pet-does-not-react): live walk/run thresholds, and should moving wake a sleeping pet?
 > - [DD-41](#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night): alert threshold, reminders for long episodes, quiet hours, and a quick "+250 ml" action?
+> - [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress): overall health or step progress as the complication ring, and the short mood labels?
 
 > [!WARNING]
 > **🟠 Needs verification on an emulator or watch** (step-by-step instructions: [VERIFICATION.md](VERIFICATION.md))
@@ -35,6 +36,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-37](#dd-37--live-steps-come-from-the-platform-step-detector-only-while-the-screen-is-visible): whether the watch has a step detector, how quickly it reports, and the battery cost of live reactions.
 > - [DD-40](#dd-40--alerts-are-scheduled-at-the-predicted-crossing-not-polled): alert timing under Doze, clearing after logging, and surviving a reboot.
 > - [DD-42](#dd-42--the-tile-logs-water-in-place-through-a-loadaction-deduplicated-by-a-per-render-click-id): one tap on the tile logs water exactly once and re-renders promptly.
+> - [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress): all three complication types render and tint correctly, and the ring updates after a write.
 
 ---
 
@@ -84,6 +86,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-40](#dd-40--alerts-are-scheduled-at-the-predicted-crossing-not-polled) | Alerts are scheduled at the predicted crossing, not polled | Background / battery | Accepted · 🟠 verify on device |
 | [DD-41](#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night) | One alert per critical episode, at the mood threshold, never at night | Game design / notifications | Accepted · 🟣 your call |
 | [DD-42](#dd-42--the-tile-logs-water-in-place-through-a-loadaction-deduplicated-by-a-per-render-click-id) | The tile logs water in place through a `LoadAction`, deduplicated by a per-render click id | Surfaces | Accepted · 🟠 verify on device |
+| [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress) | The complication shows mood and overall health, not step progress | Surfaces | Accepted · 🟠 verify on device · 🟣 your call |
 
 ---
 
@@ -575,3 +578,34 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!WARNING]
 > **🟠 Verify on device:** one tap logs exactly 250 ml (check the hydration line and the in-app ring), the tile re-renders within a second or two, repeated refreshes don't log again, and tapping the vitals opens the app.
+
+---
+
+## Watch face complication (Phase 3)
+
+### DD-43 — The complication shows mood and overall health, not step progress
+- **Status**: Accepted (2026-09-26).
+- **Decision**:
+  - `PetMoodComplicationService` (a `SuspendingComplicationDataSourceService`) offers three types:
+    - **Short text**: a mood face and a short mood label.
+    - **Ranged value**: overall health 0–100, the same number as the in-app vitals ring, with the mood face and "72%".
+    - **Monochromatic image** (`ICON` in the manifest): the mood face alone.
+  - Each of the 8 moods has its own monochrome face (`ic_mood_*`, tinted by the watch face). Labels are shortened to fit a short-text slot (at most 7 characters: "Elated" for `ECSTATIC`, "Asleep" for `SLEEPING`). `MoodPresentation` maps them with an exhaustive `when`, so a new mood fails to compile until it has both.
+  - Freshness works like the tile: `UPDATE_PERIOD_SECONDS = 600` for decay, and `AppContainer.requestSurfaceRefresh` calls `requestUpdateAll()` after every committed write (DD-29). Tapping it opens the app.
+  - The tile and the complication read the same one-shot snapshot, `GetPetStateUseCase.current()`, so both apply the same decay and mood rules.
+- **Why**: The roadmap offered "mood icon or step-progress ring". A step ring needs a daily step goal, and the game has none: steps feed fitness and XP without a target. Overall health is already the app's headline number and already has a 0–100 range.
+- **Alternatives**:
+  - Step progress towards a new daily goal: needs a goal decision and today's step total (which currently lives only in the sensor baselines).
+  - `SMALL_IMAGE` with the full-colour pet: richer, but it can't be tinted, has no ambient version, and many watch faces only accept monochrome icons.
+  - A complication timeline predicting mood changes: decay is linear, so it could be computed ahead of time, but the 10-minute refresh is simpler and accurate enough.
+- **Consequences**:
+  - A mood change caused only by decay (e.g. falling asleep at 22:00) can show up to about 10 minutes late, or later when the system stretches update periods to save battery.
+  - Every pet write now also asks for a complication update. The call does nothing when the complication isn't on a watch face.
+
+> [!IMPORTANT]
+> **🟣 Your call: complication content.**
+> - Keep overall health as the ring, or add a daily step goal and offer a step-progress ring (as a second complication, or instead)?
+> - Short labels "Elated" and "Asleep" instead of "Ecstatic" and "Sleeping"?
+
+> [!WARNING]
+> **🟠 Verify on device:** all three types render on a watch face (with icons tinted, and in ambient mode), logging water updates the ring within a few seconds, and tapping it opens the app.

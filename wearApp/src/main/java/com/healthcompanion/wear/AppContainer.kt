@@ -20,6 +20,7 @@ import com.healthcompanion.core.domain.usecase.LogHabitUseCase
 import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.health.HealthServicesManager
 import com.healthcompanion.core.health.SensorLiveStepSource
+import com.healthcompanion.wear.complications.PetMoodComplicationService
 import com.healthcompanion.wear.notifications.VitalAlertNotifier
 import com.healthcompanion.wear.notifications.VitalAlertWorker
 import com.healthcompanion.wear.tiles.PetStatusTileService
@@ -27,7 +28,7 @@ import com.healthcompanion.wear.tiles.TileClickLedger
 
 /**
  * Composition root: the single dependency graph shared by the activity, view models,
- * the passive data service and the tile.
+ * the passive data service, the tile and the complication.
  *
  * Every dependency is created lazily, because the process is often started just to deliver a
  * sensor batch or render a tile, and should only build what that entry point needs.
@@ -49,8 +50,8 @@ class AppContainer(context: Context) {
     val database: CompanionDatabase by lazy { CompanionDatabase.getInstance(appContext) }
 
     /**
-     * Every committed write also asks the system to refresh the pull-based Tile and re-checks
-     * critical vitals, so all writers (UI, passive sensors) keep both current without knowing about them.
+     * Every committed write also asks the system to refresh the pull-based Tile and complication, and re-checks
+     * critical vitals, so all writers (UI, passive sensors) keep them current without knowing about them.
      */
     val petRepository: PetRepository by lazy {
         NotifyingPetRepository(PetRepositoryImpl(database, clock)) {
@@ -85,8 +86,9 @@ class AppContainer(context: Context) {
     /** Makes each tap on the tile's water button log exactly once (DD-42). */
     val tileClickLedger: TileClickLedger by lazy { TileClickLedger.create(appContext) }
 
-    /** Requests a Tile re-render; the system throttles and coalesces frequent requests. */
+    /** Requests a Tile re-render and fresh complication data; the system throttles and coalesces frequent requests. */
     private fun requestSurfaceRefresh() {
         TileService.getUpdater(appContext).requestUpdate(PetStatusTileService::class.java)
+        PetMoodComplicationService.requestRefresh(appContext)
     }
 }

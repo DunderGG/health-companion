@@ -32,7 +32,7 @@ package "Game Engine" as PetEngine {
 package "Wear OS User Surfaces" as WearSurfaces {
     [Main Wear Compose App\n(Interactions, Petting, Stats)] as MainApp
     [Wear OS Quick Tile\n(1-Swipe Status;\n1-Tap Water Log)] as Tile
-    [Watch Face Complication\n(Pet Mood Icon / Meter)\n(planned)] as Complication
+    [Watch Face Complication\n(Pet Mood Icon /\nHealth Ring)] as Complication
 }
 
 Steps --> Vitals : Boosts Fitness & XP
@@ -60,7 +60,7 @@ Vitals --> Complication : Updates Watch Dial
 | **Wear Utilities** | Horologist (`horologist-compose-layout`) | Rotary crown input, ambient mode scaffolds, and volume/haptics. |
 | **Health & Sensors** | Health Services for Wear OS (`androidx.health:health-services-client`) | Capability-aware passive monitoring via `PassiveMonitoringClient`: steps, floors, and heart rate. |
 | **Glance Surfaces** | AndroidX Wear Tiles & ProtoLayout | Instant-access carousel card with 1-tap micro-interactions. |
-| **Watch Face Integration** | AndroidX WatchFace Complications | *(planned — dependency declared, no data source service yet)* Live mood and vital progress complications on third-party watch faces. |
+| **Watch Face Integration** | AndroidX WatchFace Complications (`SuspendingComplicationDataSourceService`) | `PetMoodComplicationService`: mood face and overall-health ring on any watch face that accepts complications (DD-43). |
 | **Architecture Pattern** | Clean Architecture + MVI (UDF) | Unidirectional Data Flow with immutable `StateFlow<PetUiState>`. |
 | **Persistence** | Jetpack Room SQLite Database | Offline-first local storage for pet vitals, health logs, and history. |
 | **Preferences** | Jetpack DataStore Preferences | Small key-value bookkeeping: consumed sensor totals (`passive_sync`) and alerted vitals (`vital_alerts`). User settings and daily goals are planned. |
@@ -119,7 +119,7 @@ coreDomain --> coreModel : Evaluates Game Rules
    - Standalone Wear OS application entry point (`com.google.android.wearable.standalone = true`).
    - UI orchestration, Wear Navigation, ViewModel bindings.
    - Composition root: `AppContainer` builds the single dependency graph (clock, database, repositories, use cases, `HealthServicesManager`). `HealthCompanionApp` owns it and implements `PassiveDataDependencies` for `:core:health`.
-   - Wear OS surfaces: `PetStatusTileService` (Carousel Tile) and Watch Face Complications *(planned)*.
+   - Wear OS surfaces: `PetStatusTileService` (Carousel Tile) and `PetMoodComplicationService` (Watch Face Complication).
    - Critical-vital notifications: `VitalAlertWorker` (scheduling) and `VitalAlertNotifier` (channel, posting, clearing).
 
 2. **[`:core:ui`](../core/ui)**:
@@ -180,6 +180,7 @@ health-companion/
 │       ├── AppContainer.kt               # Composition root (manual DI)
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
 │       ├── presentation/pet/             # PetScreen, PetViewModel, PetUiState
+│       ├── complications/                # PetMoodComplicationService, MoodPresentation
 │       ├── notifications/                # VitalAlertWorker, VitalAlertNotifier
 │       └── tiles/                        # PetStatusTileService (Carousel Tile), TileClickLedger
 │
@@ -491,7 +492,7 @@ deactivate GetUseCase
   - `DISTANCE_DAILY` and `CALORIES_DAILY` are **not** consumed. Distance comes from the same walking as steps, and daily calories include basal burn, so neither reflects extra activity.
   - All habits from one batch are applied with `PetRepository.recordHabits()` in a single transaction.
 - **Unified Single Source of Truth**: Because `PassiveDataService` writes directly to Room SQLite via `PetRepositoryImpl`, the active `PetScreen` automatically receives the updated vitals through its database observation stream.
-  - **Pull-based surfaces**: Tiles cannot observe the `Flow`. `AppContainer` therefore wraps the repository in `NotifyingPetRepository`, which calls `TileService.getUpdater(context).requestUpdate(PetStatusTileService::class.java)` after every committed write, from the UI or the sensors. The tile also declares a 10-minute freshness interval so decay shows even without writes. Complications will hook into the same callback once a provider exists.
+  - **Pull-based surfaces**: Tiles cannot observe the `Flow`. `AppContainer` therefore wraps the repository in `NotifyingPetRepository`, which calls `TileService.getUpdater(context).requestUpdate(PetStatusTileService::class.java)` after every committed write, from the UI or the sensors. The same callback calls `ComplicationDataSourceUpdateRequester.requestUpdateAll()` for `PetMoodComplicationService`. Both surfaces also refresh every 10 minutes (tile freshness interval, complication `UPDATE_PERIOD_SECONDS`) so decay shows even without writes, and both read the same `GetPetStateUseCase.current()` snapshot.
   - **Critical-vital alerts**: The same callback requests an immediate `VitalAlertWorker` check. It runs `CheckCriticalVitalsUseCase` (read-only: vitals decayed in memory), posts or clears the thirsty/hungry notifications, and schedules the next check for the moment `VitalAlertPlanner` predicts the next threshold crossing, deferred past the pet's night (DD-40, DD-41).
 
 ---

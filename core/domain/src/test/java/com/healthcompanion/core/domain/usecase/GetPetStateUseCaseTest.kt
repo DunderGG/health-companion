@@ -73,6 +73,15 @@ class GetPetStateUseCaseTest {
         assertEquals(com.healthcompanion.core.model.Mood.SLEEPING, emissions.single().mood)
     }
 
+    @Test
+    fun `current snapshot applies decay up to now`() = runTest {
+        val repository = FakePetRepository(Pet(vitals = Vitals(hydration = 50f, lastUpdatedTimestamp = start)))
+        val useCase = GetPetStateUseCase(repository, utcClock { start + 2 * hour })
+
+        // 2 hours of decay at 3.0/hr.
+        assertEquals(44f, useCase.current().pet.vitals.hydration, 0.01f)
+    }
+
     /** Deterministic clock in UTC; `start` (1970-01-12 13:46 UTC) is daytime, outside the night window. */
     private fun utcClock(now: () -> Long) = object : Clock {
         override fun nowMillis(): Long = now()
