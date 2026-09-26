@@ -107,6 +107,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-51](#dd-51--step-progress-is-a-second-complication-pet-steps) | Step progress is a second complication, "Pet Steps" | Surfaces | Accepted · 🟠 verify on device |
 | [DD-52](#dd-52--start-over-deletes-the-pet-and-its-history-keeps-settings-and-sensor-bookkeeping) | "Start over" deletes the pet and its history, keeps settings and sensor bookkeeping | Persistence / UI | Accepted · 🟣 your call |
 | [DD-53](#dd-53--the-archetype-moves-to-a-pet-details-screen-the-pets-name-and-stage-never-reach-the-ring) | The archetype moves to a pet details screen; the pet's name and stage never reach the ring | UI | Accepted · 🟠 verify on device |
+| [DD-54](#dd-54--the-goals-page-counts-its-four-rows-and-each-one-filling-up-vibrates) | The goals page counts its four rows, and each one filling up vibrates | UI / game design | Accepted |
 
 ---
 
@@ -695,7 +696,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 ## Haptics (Phase 3)
 
 ### DD-47 — Three vibration patterns; goals are the daily focus goals; foreground only
-- **Status**: Accepted (2026-09-26). The project owner chose the goal definition, and asked for a settings screen with user-set goals and a minor "vital filled up" pattern as roadmap items (Phase 3a). The step, water and meal targets became user-configurable in DD-48; the defaults are the values below. DD-50 added the minor "vital filled up" pattern and fixed a replay of the fanfare on reopening the app.
+- **Status**: Accepted (2026-09-26). The project owner chose the goal definition, and asked for a settings screen with user-set goals and a minor "vital filled up" pattern as roadmap items (Phase 3a). The step, water and meal targets became user-configurable in DD-48; the defaults are the values below. DD-50 added the minor "vital filled up" pattern and fixed a replay of the fanfare on reopening the app. DD-54 made the goal vibration play for each of the four goals on the goals page, water and healthy meals separately.
 - **Decision**:
   - **Patterns** (`PetHapticPatterns`), each composed from API 30 primitives, with a waveform fallback for motors that can't play them:
     - **Petting**: a soft 4-tick purr, about 0.3 s. It replaces the generic long-press on the pet, and on API 33+ it is played as touch feedback, so the system's touch-vibration setting applies.
@@ -767,7 +768,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > **🟠 Verify on device:** one crown detent should move the stepper by about one value (on the emulator, one scroll event of 2 moved it by four). Check that the list and steppers fit a small round screen, and that switching vibration off silences the purr.
 
 ### DD-49 — A goals page between the vitals and the settings; one calculation for page, vibration and archetype
-- **Status**: Accepted (2026-09-26). The project owner chose a separate fourth page over merging goals into the settings page.
+- **Status**: Accepted (2026-09-26). The project owner chose a separate fourth page over merging goals into the settings page. DD-54 changed the title to count the four rows ("Goals · 2/4"), and the goal vibration to follow them.
 - **Decision**:
   - The pager now has four pages: Pet → Vitals → **Goals** → Settings.
   - The goals page is a fixed column like the Vitals page. Its title counts the reached goals ("Goals · 2/3"). It has four rows with bars:
@@ -902,3 +903,18 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!WARNING]
 > **🟠 Verify on device:** whether the 32 dp meal and water buttons, the "i" button and the ⚠ button are easy to hit on a real watch, and how the curved name looks in ambient mode on a real always-on display.
+
+### DD-54 — The goals page counts its four rows, and each one filling up vibrates
+- **Status**: Accepted (2026-09-26). The project owner reported "1/3" with two of four rows ticked, and chose to count the rows and to vibrate for each.
+- **Decision**:
+  - `DailyProgress.goalsMet` is the set of the four daily goals met today (`DailyGoal`: steps, water, healthy meals, workout), one per row of the goals page. Water and healthy meals count separately.
+  - The goals page title counts them: "Goals · 2/4".
+  - The goal vibration (DD-47) plays whenever one more of them is met, so water and healthy meals each get their own vibration.
+  - The archetype (DD-36), the pet details screen's goal days and today's percentages (DD-53) keep the three focus goals (`DailyProgress.reached`), where water and meals together are one goal, nourishment.
+- **Why**: DD-49's title counted the three focus goals under four rows, so steps plus water read as "1/3": water alone doesn't reach nourishment. The count should match what's on screen, and the vibration should keep matching the page (DD-49).
+- **Alternatives**:
+  - Four rows in the title, vibration unchanged: filling the water row would raise the count without a vibration.
+  - Keep three goals and group water and meals under one heading: the count would make sense, but the page would lose room and still show four bars.
+- **Consequences**:
+  - Up to four goal vibrations a day instead of three.
+  - The goals page counts water and meals separately, but the details screen's goal days count them as one ("Water & meals"), since those follow the archetype's focus goals.

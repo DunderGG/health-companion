@@ -3,6 +3,7 @@
 
 package com.healthcompanion.wear.presentation.pet
 
+import com.healthcompanion.core.domain.engine.DailyGoal
 import com.healthcompanion.core.domain.engine.DailyProgress
 import com.healthcompanion.core.domain.settings.DailyGoals
 import com.healthcompanion.core.model.PetArchetype
@@ -35,12 +36,17 @@ class GoalsBreakdownTest {
     }
 
     @Test
-    fun `full rows match the reached goals, so the page agrees with the goal vibration`() {
+    fun `full rows are the met goals, so the page's count agrees with the goal vibration`() {
         val progress = DailyProgress(goals, steps = 8_000, waterMl = 2_000, healthyMeals = 2, strengthReached = true)
-        val full = goalsBreakdown(progress).filter { it.isReached }.map { it.labelRes }
+        val lines = goalsBreakdown(progress)
 
-        assertEquals(listOf(R.string.goal_steps, R.string.goal_water, R.string.goal_strength), full)
-        // Nourishment needs both water and meals, so it isn't reached yet.
+        assertEquals(DailyGoal.entries.size, lines.size)
+        assertEquals(
+            listOf(R.string.goal_steps, R.string.goal_water, R.string.goal_strength),
+            lines.filter { it.isReached }.map { it.labelRes }
+        )
+        assertEquals(setOf(DailyGoal.STEPS, DailyGoal.WATER, DailyGoal.WORKOUT), progress.goalsMet)
+        // For the archetype, nourishment needs both water and meals, so it isn't reached yet.
         assertEquals(setOf(PetArchetype.CARDIO_RUNNER, PetArchetype.IRON_BEAST), progress.reached)
     }
 }

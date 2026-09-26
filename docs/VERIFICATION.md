@@ -208,7 +208,7 @@ On the emulator, use the rotary control in the extended controls (**⋯**), or `
 ### V11 — Haptics ([DD-47](DESIGN_DECISIONS.md#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only)) — physical watch for the feel
 `adb shell dumpsys vibrator_manager` lists every vibration with its primitives, so the emulator can confirm what was played. Only a watch shows how it feels.
 - [ ] Tapping the pet (outside its 10 s cooldown) plays the purr: four `TICK` primitives with `usage: TOUCH`. A tap during the cooldown plays nothing.
-- [ ] With the app open, crossing a daily focus goal plays the goal pattern once (`QUICK_RISE` + two `CLICK`s). The quickest way is on a fresh day, or after clearing app data: log 6 × 250 ml and 2 healthy meals. Goals already reached before the app was opened play nothing.
+- [ ] With the app open, meeting a daily goal plays the goal pattern once (`QUICK_RISE` + two `CLICK`s). The quickest way is on a fresh day, or after clearing app data: log 6 × 250 ml (water goal), then 2 healthy meals (meal goal); each plays it once. Goals already reached before the app was opened play nothing.
 - [ ] An evolution while the app is open plays the fanfare (`SLOW_RISE`, `QUICK_FALL`, three `CLICK`s), and a goal reached by the same write doesn't cut it off.
 - [ ] With the app closed, reaching a goal through a sensor batch doesn't vibrate.
 - [ ] With hydration below 100 %, tapping water until it shows 100 % plays the light tick (`TICK` + `CLICK`) once ([DD-50](DESIGN_DECISIONS.md#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream)). If the same tap reaches the water goal, only the goal pattern plays. Nothing plays for a vital that fills up during the night.
@@ -230,7 +230,7 @@ Open the last pager page and tap **Settings**. On the emulator, turn the crown w
 ### V13 — Goals page ([DD-49](DESIGN_DECISIONS.md#dd-49--a-goals-page-between-the-vitals-and-the-settings-one-calculation-for-page-vibration-and-archetype))
 The third pager page. Easiest on a fresh day, or after clearing app data.
 - [ ] The rows show today's steps, water and healthy meals against the goals from Settings, and "Not yet" for Workout. Logging water or a meal updates them at once.
-- [ ] A goal reached with the app open fills its row, shows "✓" and today's total, raises the title count, and plays the goal vibration at the same moment (V11). Water alone doesn't raise the count; water and meals together do.
+- [ ] A goal reached with the app open fills its row, shows "✓" and today's total, raises the title count (out of 4), and plays the goal vibration at the same moment (V11). Water and healthy meals each count and vibrate on their own (DD-54).
 - [ ] A heart rate of 100+ (synthetic data, §1.1) or a workout shows "✓ Done" for Workout.
 - [ ] After midnight the page starts empty, and the rows fit on the smallest supported round screen.
 

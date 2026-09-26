@@ -59,7 +59,7 @@ Vitals --> Complication : Updates Watch Dial
 | **UI Framework** | Jetpack Compose for Wear OS (`compose-material3`, `compose-foundation`) | Hardware-accelerated, declarative UI optimized for circular displays. |
 | **Ambient (Always-On)** | `androidx.wear:wear` (`AmbientLifecycleObserver`) | Keeps the pet screen visible when the watch dims, as a static grey outline with the time, a burn-in shift, and once-a-minute updates (DD-44). |
 | **Rotary Crown** | Wear Compose Material3 `VerticalPagerScaffold` | The crown snaps between the pet page and the vitals page, with haptics (DD-45). |
-| **Haptics** | `Vibrator` + `VibrationEffect.Composition` (API 30 primitives, waveform fallback) | Purr on petting, a light tick when a vital fills up, success pattern on reaching a daily focus goal, fanfare on evolution; only while the pet UI is open, and switchable in Settings (DD-47, DD-48, DD-50). |
+| **Haptics** | `Vibrator` + `VibrationEffect.Composition` (API 30 primitives, waveform fallback) | Purr on petting, a light tick when a vital fills up, success pattern on meeting a daily goal (each row of the goals page), fanfare on evolution; only while the pet UI is open, and switchable in Settings (DD-47, DD-48, DD-50, DD-54). |
 | **Wear Utilities** | Horologist (`horologist-compose-layout`) | Volume/haptics. |
 | **Health & Sensors** | Health Services for Wear OS (`androidx.health:health-services-client`) | Capability-aware passive monitoring via `PassiveMonitoringClient`: steps, floors, and heart rate. |
 | **Glance Surfaces** | AndroidX Wear Tiles & ProtoLayout | Instant-access carousel card with 1-tap micro-interactions. |
@@ -141,7 +141,7 @@ coreDomain --> coreModel : Evaluates Game Rules
    - `MoodCalculator`: Evaluates mood states dynamically based on vitals.
    - `EvolutionEngine`: Experience thresholds and archetype branching.
    - `DailyTotalTracker`: Converts cumulative daily sensor totals into apply-once deltas.
-   - `DailyProgress`: One day's goal totals and the goals they reach; shared by the goals page, the goal vibration and archetype selection (DD-49).
+   - `DailyProgress`: One day's goal totals, the four daily goals they meet (`goalsMet`: the goals page and the goal vibration, DD-54) and the three focus goals they reach (`reached`: archetype selection and the pet details, DD-49, DD-53).
    - `NightWindow`: The pet's local-time night (the user's bedtime, 22:00–07:00 by default): energy recovery, the `SLEEPING` mood and the alerts' quiet hours.
    - `ArchetypeSelector`: Picks the archetype from 7-day habit consistency when the pet reaches `TEEN`. Its per-day rules, with the user's own targets, are also the daily focus goals.
    - `UserSettings` / `DailyGoals`: What the user can set on the watch, with the selectable ranges (DD-48).

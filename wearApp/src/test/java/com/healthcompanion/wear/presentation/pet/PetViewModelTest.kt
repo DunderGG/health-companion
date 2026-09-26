@@ -185,6 +185,22 @@ class PetViewModelTest {
     }
 
     @Test
+    fun `each goal row filling up plays the goal pattern, water and meals separately`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val haptics = collectHaptics(viewModel)
+
+        repository.history.value = listOf(HabitEvent(HabitType.Hydration(1_500), start))
+        runCurrent()
+        repository.history.value += listOf(
+            HabitEvent(HabitType.Meal(isHealthy = true), start),
+            HabitEvent(HabitType.Meal(isHealthy = true), start)
+        )
+        runCurrent()
+
+        assertEquals(listOf(PetHapticEvent.GOAL_REACHED, PetHapticEvent.GOAL_REACHED), haptics)
+    }
+
+    @Test
     fun `today's goal progress follows the habit history and the user's goals`() = runTest(dispatcher) {
         val viewModel = viewModel()
         val progress = mutableListOf<DailyProgress?>()

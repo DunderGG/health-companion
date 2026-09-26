@@ -120,8 +120,8 @@ class PetViewModel(
     )
 
     /**
-     * Moments to play as vibration patterns (DD-47, DD-50): an accepted pet, a vital reaching 100 %, the pet
-     * evolving, and a daily focus goal being reached.
+     * Moments to play as vibration patterns (DD-47, DD-50, DD-54): an accepted pet, a vital reaching 100 %, the pet
+     * evolving, and a daily goal (a row of the goals page) being met.
      *
      * Cold, and meant to be collected only while the pet UI is shown: each collection takes the current
      * pet and goals as its baseline, so opening the app never replays something that happened while it
@@ -146,7 +146,7 @@ class PetViewModel(
                 }
             },
         observeDailyProgressUseCase.execute()
-            .map { it.reached }
+            .map { it.goalsMet }
             .distinctUntilChanged()
             .changes()
             .filter { (before, after) -> (after - before).isNotEmpty() }

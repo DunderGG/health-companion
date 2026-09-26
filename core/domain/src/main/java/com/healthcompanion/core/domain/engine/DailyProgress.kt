@@ -33,7 +33,19 @@ data class DailyProgress(
     /** Nourishment: both the water and the healthy-meal goal. */
     val nourishmentReached: Boolean get() = waterMl >= goals.waterMl && healthyMeals >= goals.healthyMeals
 
-    /** The reached goals, as the archetypes they count towards. */
+    /**
+     * The daily goals met today, one per row of the goals page: the page's count and the goal vibration
+     * (DD-54). Water and healthy meals count separately here, unlike in [reached].
+     */
+    val goalsMet: Set<DailyGoal>
+        get() = buildSet {
+            if (steps >= goals.steps) add(DailyGoal.STEPS)
+            if (waterMl >= goals.waterMl) add(DailyGoal.WATER)
+            if (healthyMeals >= goals.healthyMeals) add(DailyGoal.HEALTHY_MEALS)
+            if (strengthReached) add(DailyGoal.WORKOUT)
+        }
+
+    /** The reached focus goals, as the archetypes they count towards; water and meals together are one. */
     val reached: Set<PetArchetype>
         get() = buildSet {
             if (cardioReached) add(PetArchetype.CARDIO_RUNNER)
@@ -76,4 +88,19 @@ data class DailyProgress(
             }
         )
     }
+}
+
+/** The four daily goals, one per row of the goals page, in its order (DD-49, DD-54). */
+enum class DailyGoal {
+    /** The step goal; also the cardio focus goal. */
+    STEPS,
+
+    /** The water goal; half of the nourishment focus goal. */
+    WATER,
+
+    /** The healthy-meal goal; the other half of the nourishment focus goal. */
+    HEALTHY_MEALS,
+
+    /** A workout, or a heart rate of at least [ArchetypeSelector.ACTIVE_HEART_RATE_BPM]; the strength focus goal. */
+    WORKOUT
 }

@@ -19,12 +19,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
+import com.healthcompanion.core.domain.engine.DailyGoal
 import com.healthcompanion.wear.R
 import java.text.NumberFormat
 
 /**
- * Third page of the pet pager: today's progress towards each daily goal (DD-49), so the goal vibration
- * always matches something on screen. The targets are the user's own (DD-48).
+ * Third page of the pet pager: today's progress towards each daily goal (DD-49). The title counts the met
+ * rows, and each row filling up plays the goal vibration (DD-54). The targets are the user's own (DD-48).
  *
  * Like the Vitals page, the rows are a fixed column, so the crown only ever moves between pages.
  *
@@ -57,7 +58,7 @@ fun GoalsScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = stringResource(R.string.goals_title, current.reached.size, GOAL_COUNT),
+                text = stringResource(R.string.goals_title, current.goalsMet.size, DailyGoal.entries.size),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -66,9 +67,6 @@ fun GoalsScreen(
         }
     }
 }
-
-/** Cardio, strength and nourishment. */
-private const val GOAL_COUNT = 3
 
 @Composable
 private fun GoalRow(line: GoalLine) {

@@ -19,7 +19,7 @@ import java.time.LocalDate
 
 /**
  * Observes today's progress towards the daily focus goals (DD-47, DD-49): the totals shown on the goals
- * page, and the goals they reach ([DailyProgress.reached]) for the goal vibration. Progress is measured
+ * page, and the goals they meet ([DailyProgress.goalsMet]) for the goal vibration (DD-54). Progress is measured
  * against the user's own goals (DD-48), e.g. 6,000 steps for cardio by default.
  *
  * "Today" is evaluated on every emission, so a stream that stays open past midnight starts the new day
