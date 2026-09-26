@@ -15,6 +15,7 @@ import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Mood
 import com.healthcompanion.core.model.PetActivity
+import com.healthcompanion.core.model.Vitals
 import com.healthcompanion.wear.haptics.PetHapticEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -26,13 +27,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
 
 /**
@@ -119,22 +120,31 @@ class PetViewModel(
     )
 
     /**
-     * Moments to play as vibration patterns (DD-47): an accepted pet, the pet evolving, and a daily focus
-     * goal being reached.
+     * Moments to play as vibration patterns (DD-47, DD-50): an accepted pet, a vital reaching 100 %, the pet
+     * evolving, and a daily focus goal being reached.
      *
      * Cold, and meant to be collected only while the pet UI is shown: each collection takes the current
-     * stage and goals as its baseline, so opening the app never replays something that happened while it
-     * was closed. Nothing is emitted while the user has switched haptics off.
+     * pet and goals as its baseline, so opening the app never replays something that happened while it
+     * was closed. That is why it reads its own fresh pet stream rather than [uiState], which keeps its last
+     * value while the app is in the background and would replay it first. Nothing is emitted while the
+     * user has switched haptics off.
      */
     val hapticEvents: Flow<PetHapticEvent> = merge(
         pettingAccepted,
-        uiState
-            .filterIsInstance<PetUiState.Success>()
-            .map { it.pet.stage }
+        getPetStateUseCase.execute(refresh = ambientUpdates)
+            .map { state ->
+                PetMoment(state.pet.stage.level, fullVitals(state.pet.vitals), asleep = state.mood == Mood.SLEEPING)
+            }
             .distinctUntilChanged()
             .changes()
-            .filter { (before, after) -> after.level > before.level }
-            .map { PetHapticEvent.EVOLUTION },
+            .transform { (before, after) ->
+                if (after.stageLevel > before.stageLevel) emit(PetHapticEvent.EVOLUTION)
+                // Not while the pet sleeps: energy fills up overnight on its own, and the pet shouldn't
+                // buzz the wrist at night (DD-50).
+                if (!after.asleep && (after.fullVitals - before.fullVitals).isNotEmpty()) {
+                    emit(PetHapticEvent.VITAL_FILLED)
+                }
+            },
         observeDailyProgressUseCase.execute()
             .map { it.reached }
             .distinctUntilChanged()
@@ -205,6 +215,19 @@ class PetViewModel(
         return true
     }
 }
+
+/**
+ * What the haptics compare between two pet states.
+ *
+ * @property stageLevel Evolution stage, for the fanfare.
+ * @property fullVitals Label ids of the vitals shown as 100 %, for the "vital filled up" tick (DD-50).
+ * @property asleep Whether the pet is sleeping.
+ */
+private data class PetMoment(val stageLevel: Int, val fullVitals: Set<Int>, val asleep: Boolean)
+
+/** Label ids of the vitals shown as 100 %, with the same rounding as the Vitals page. */
+private fun fullVitals(vitals: Vitals): Set<Int> =
+    vitalsBreakdown(vitals).filter { it.percent == 100 }.map { it.labelRes }.toSet()
 
 /**
  * Consecutive pairs `(previous, current)`; the first value only becomes the baseline and is not emitted.

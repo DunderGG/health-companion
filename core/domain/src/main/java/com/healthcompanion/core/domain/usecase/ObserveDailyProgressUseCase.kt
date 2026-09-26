@@ -46,7 +46,7 @@ class ObserveDailyProgressUseCase(
             .distinctUntilChanged()
     }
 
-    /** One-shot snapshot for pull-based surfaces, such as the step complication (DD-50). */
+    /** One-shot snapshot for pull-based surfaces, such as the step complication (DD-51). */
     suspend fun current(): DailyProgress =
         today(repository.habitEventsSinceFlow(startOfToday()).first(), settingsRepository.getSettings().dailyGoals)
 

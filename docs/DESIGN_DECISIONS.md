@@ -28,6 +28,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress): overall health or step progress as the complication ring, and the short mood labels?
 > - [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only): how the purr, goal and evolution patterns feel on a real watch?
 > - [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype): goal ranges and increments, bedtime hours, and a configurable strength goal?
+> - [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream): should all five vitals tick when they fill up?
 
 > [!WARNING]
 > **🟠 Needs verification on an emulator or watch** (step-by-step instructions: [VERIFICATION.md](VERIFICATION.md))
@@ -42,6 +43,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-44](#dd-44--the-pet-screen-stays-on-in-ambient-mode-as-a-static-outline-and-releases-the-step-sensor): ambient look and once-a-minute updates on a real always-on display, and sensor release.
 > - [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only): the three patterns on a real motor, the waveform fallback, and a live goal crossing.
 > - [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype): crown step size on the setting steppers, layout on a small round screen, and the vibration switch.
+> - [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream): the "vital filled up" tick on a real motor, lighter than the goal pattern.
 
 ---
 
@@ -98,6 +100,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only) | Three vibration patterns; goals are the daily focus goals; foreground only | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
 | [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype) | A settings screen for daily goals, bedtime and haptics; goals don't change the archetype | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
 | [DD-49](#dd-49--a-goals-page-between-the-vitals-and-the-settings-one-calculation-for-page-vibration-and-archetype) | A goals page between the vitals and the settings; one calculation for page, vibration and archetype | UI | Accepted |
+| [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream) | A light "vital filled up" tick, not while asleep; haptics read a fresh pet stream | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
 
 ---
 
@@ -687,7 +690,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 ## Haptics (Phase 3)
 
 ### DD-47 — Three vibration patterns; goals are the daily focus goals; foreground only
-- **Status**: Accepted (2026-09-26). The project owner chose the goal definition, and asked for a settings screen with user-set goals and a minor "vital filled up" pattern as roadmap items (Phase 3a). The step, water and meal targets became user-configurable in DD-48; the defaults are the values below.
+- **Status**: Accepted (2026-09-26). The project owner chose the goal definition, and asked for a settings screen with user-set goals and a minor "vital filled up" pattern as roadmap items (Phase 3a). The step, water and meal targets became user-configurable in DD-48; the defaults are the values below. DD-50 added the minor "vital filled up" pattern and fixed a replay of the fanfare on reopening the app.
 - **Decision**:
   - **Patterns** (`PetHapticPatterns`), each composed from API 30 primitives, with a waveform fallback for motors that can't play them:
     - **Petting**: a soft 4-tick purr, about 0.3 s. It replaces the generic long-press on the pet, and on API 33+ it is played as touch feedback, so the system's touch-vibration setting applies.
@@ -779,3 +782,30 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Consequences**:
   - Settings are one crown turn further away.
   - The goals page and the goal vibration each collect today's history (two Room flows while the pager is shown), so a new collection of the vibration stream always starts from a fresh baseline (DD-47).
+
+### DD-50 — A light "vital filled up" tick, not while asleep; haptics read a fresh pet stream
+- **Status**: Accepted (2026-09-26). Requested by the project owner in DD-47.
+- **Decision**:
+  - **Pattern** `VITAL_FILLED`: a tick at 0.5 and a click at 0.6, about 0.1 s. It is the shortest and softest pattern, and has the lowest priority, so it never cuts off a purr, goal or fanfare (`HapticArbiter`).
+  - **When**: a vital's *displayed* percentage (rounded, DD-46) reaches 100 from below while the pet UI is open. This is typically logging water or a meal, petting, or a sensor batch that tops up fitness.
+    - Several vitals filling in the same write play the pattern once.
+    - Nothing plays while the pet sleeps, so energy recovering overnight doesn't buzz the wrist.
+    - The Vibration switch covers it (DD-48).
+  - **Fix**: the haptics now read their own fresh pet stream (`GetPetStateUseCase.execute`) instead of `uiState`.
+    - `uiState` is a `WhileSubscribed(5000)` StateFlow, which keeps its last value after the app has been in the background for more than 5 s.
+    - On reopening, that stale value became the baseline, and the fresh one then looked like a change. An evolution that happened while the app was closed played the fanfare on opening, contradicting DD-47. The same would have happened for a vital filled from the tile.
+    - A regression test covers it.
+- **Why**: Filling a vital is the most frequent small success. Tying it to the displayed value means the tick always matches the screen. A tick-click shape, rather than a rise, keeps it clearly lighter than the goal pattern.
+- **Alternatives**:
+  - Using the raw value (≥ 100.0): values are clamped, so this is nearly the same, but a vital shown as 100 % could then miss the tick.
+  - Only for vitals the user fills directly (hunger, hydration): simpler to explain, but fitness and happiness filling up is also progress.
+  - Fixing the replay by `replayExpirationMillis = 0` on `uiState`: the pet page would flash its loading spinner on every return.
+- **Consequences**:
+  - While the pet UI is shown, the pet state is read twice: once for the screen and once for the haptics. Each has its own 60 s ticker (DD-30), and both stop with the UI.
+  - Logging water that fills hydration *and* reaches the water goal plays only the goal pattern.
+
+> [!IMPORTANT]
+> **🟣 Your call: which vitals tick.** All five do. Energy only rises at night while the pet sleeps, so in practice it never ticks. Should only the vitals the user fills directly (hunger, hydration) tick instead?
+
+> [!WARNING]
+> **🟠 Verify on device:** the tick is felt but clearly lighter than the goal pattern, and it plays once when a water tap fills hydration. On the emulator, confirm it with `dumpsys vibrator_manager` (`TICK` + `CLICK`).

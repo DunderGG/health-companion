@@ -6,19 +6,22 @@ package com.healthcompanion.wear.haptics
 import android.os.VibrationEffect
 
 /**
- * Moments the wrist should feel (DD-47), from least to most important.
+ * Moments the wrist should feel (DD-47, DD-50), from least to most important.
  *
  * @property priority A pattern never cuts off one with a higher priority that is still playing.
  */
 enum class PetHapticEvent(val priority: Int) {
+    /** A vital just reached 100 % on screen (DD-50): a light tick-click, lighter than a goal. */
+    VITAL_FILLED(0),
+
     /** A tap on the pet was accepted (not in its cooldown): a soft purr. */
-    PETTING(0),
+    PETTING(1),
 
     /** Today's habits just reached a daily focus goal (e.g. 6,000 steps): a short success pattern. */
-    GOAL_REACHED(1),
+    GOAL_REACHED(2),
 
     /** The pet grew into its next stage: a longer fanfare. */
-    EVOLUTION(2)
+    EVOLUTION(3)
 }
 
 /**
@@ -47,8 +50,18 @@ data class HapticPattern(
     val fallbackDurationMs: Long get() = fallbackTimings.sum()
 }
 
-/** The three patterns. They differ in length and shape, so they can be told apart without looking. */
+/** The four patterns. They differ in length and shape, so they can be told apart without looking. */
 object PetHapticPatterns {
+
+    /** A light tick and a click: "topped up". About 0.1 s, the shortest and softest pattern. */
+    val VITAL_FILLED = HapticPattern(
+        steps = listOf(
+            HapticStep(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f),
+            HapticStep(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.6f, delayMs = 60)
+        ),
+        fallbackTimings = longArrayOf(0, 20, 60, 30),
+        fallbackAmplitudes = intArrayOf(0, 90, 0, 150)
+    )
 
     /** Four soft ticks rising and fading, like a purr under the finger. About 0.3 s. */
     val PETTING = HapticPattern(
@@ -87,6 +100,7 @@ object PetHapticPatterns {
     )
 
     fun of(event: PetHapticEvent): HapticPattern = when (event) {
+        PetHapticEvent.VITAL_FILLED -> VITAL_FILLED
         PetHapticEvent.PETTING -> PETTING
         PetHapticEvent.GOAL_REACHED -> GOAL_REACHED
         PetHapticEvent.EVOLUTION -> EVOLUTION

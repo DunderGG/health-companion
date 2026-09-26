@@ -210,7 +210,9 @@ On the emulator, use the rotary control in the extended controls (**⋯**), or `
 - [ ] With the app open, crossing a daily focus goal plays the goal pattern once (`QUICK_RISE` + two `CLICK`s). The quickest way is on a fresh day, or after clearing app data: log 6 × 250 ml and 2 healthy meals. Goals already reached before the app was opened play nothing.
 - [ ] An evolution while the app is open plays the fanfare (`SLOW_RISE`, `QUICK_FALL`, three `CLICK`s), and a goal reached by the same write doesn't cut it off.
 - [ ] With the app closed, reaching a goal through a sensor batch doesn't vibrate.
-- [ ] On the wrist, the three patterns are easy to tell apart, and the purr feels soft.
+- [ ] With hydration below 100 %, tapping water until it shows 100 % plays the light tick (`TICK` + `CLICK`) once ([DD-50](DESIGN_DECISIONS.md#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream)). If the same tap reaches the water goal, only the goal pattern plays. Nothing plays for a vital that fills up during the night.
+- [ ] Close the app, let the pet evolve or fill hydration from the tile, wait over 5 s and reopen: nothing vibrates.
+- [ ] On the wrist, the four patterns are easy to tell apart, the purr feels soft, and the tick is the lightest.
 
 ### V12 — Settings ([DD-48](DESIGN_DECISIONS.md#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype))
 Open the last pager page and tap **Settings**. On the emulator, turn the crown with `adb shell input rotaryencoder scroll --axis SCROLL,-1` (V10).

@@ -49,4 +49,13 @@ class PetHapticPatternsTest {
         assertTrue(arbiter.tryStart(PetHapticEvent.EVOLUTION, nowMs = 0))
         assertTrue(arbiter.tryStart(PetHapticEvent.PETTING, nowMs = PetHapticPatterns.EVOLUTION.fallbackDurationMs))
     }
+
+    @Test
+    fun `a vital filling up does not cut off a purr, but a purr replaces it`() {
+        val arbiter = HapticArbiter()
+        assertTrue(arbiter.tryStart(PetHapticEvent.PETTING, nowMs = 0))
+        assertFalse(arbiter.tryStart(PetHapticEvent.VITAL_FILLED, nowMs = 50))
+        assertTrue(arbiter.tryStart(PetHapticEvent.VITAL_FILLED, nowMs = 1_000))
+        assertTrue(arbiter.tryStart(PetHapticEvent.PETTING, nowMs = 1_050))
+    }
 }

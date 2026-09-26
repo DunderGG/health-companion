@@ -59,7 +59,7 @@ Vitals --> Complication : Updates Watch Dial
 | **UI Framework** | Jetpack Compose for Wear OS (`compose-material3`, `compose-foundation`) | Hardware-accelerated, declarative UI optimized for circular displays. |
 | **Ambient (Always-On)** | `androidx.wear:wear` (`AmbientLifecycleObserver`) | Keeps the pet screen visible when the watch dims, as a static grey outline with the time, a burn-in shift, and once-a-minute updates (DD-44). |
 | **Rotary Crown** | Wear Compose Material3 `VerticalPagerScaffold` | The crown snaps between the pet page and the vitals page, with haptics (DD-45). |
-| **Haptics** | `Vibrator` + `VibrationEffect.Composition` (API 30 primitives, waveform fallback) | Purr on petting, success pattern on reaching a daily focus goal, fanfare on evolution; only while the pet UI is open (DD-47). |
+| **Haptics** | `Vibrator` + `VibrationEffect.Composition` (API 30 primitives, waveform fallback) | Purr on petting, a light tick when a vital fills up, success pattern on reaching a daily focus goal, fanfare on evolution; only while the pet UI is open, and switchable in Settings (DD-47, DD-48, DD-50). |
 | **Wear Utilities** | Horologist (`horologist-compose-layout`) | Volume/haptics. |
 | **Health & Sensors** | Health Services for Wear OS (`androidx.health:health-services-client`) | Capability-aware passive monitoring via `PassiveMonitoringClient`: steps, floors, and heart rate. |
 | **Glance Surfaces** | AndroidX Wear Tiles & ProtoLayout | Instant-access carousel card with 1-tap micro-interactions. |
@@ -192,7 +192,7 @@ health-companion/
 │       ├── presentation/pet/             # PetPager (pet, vitals, goals, settings pages), PetScreen, VitalsScreen, GoalsScreen, PetViewModel
 │       ├── presentation/settings/        # SettingsScreen, SettingStepperScreen, SettingField, SettingsViewModel
 │       ├── presentation/ambient/         # AmbientState, BurnInShift (always-on mode)
-│       ├── haptics/                      # PetHaptics, PetHapticPatterns (petting, goal, evolution)
+│       ├── haptics/                      # PetHaptics, PetHapticPatterns (vital filled, petting, goal, evolution)
 │       ├── complications/                # PetMoodComplicationService, MoodPresentation
 │       ├── notifications/                # VitalAlertWorker, VitalAlertNotifier
 │       └── tiles/                        # PetStatusTileService (Carousel Tile), TileClickLedger

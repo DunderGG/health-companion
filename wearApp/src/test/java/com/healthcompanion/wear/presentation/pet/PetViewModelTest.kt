@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -199,6 +200,34 @@ class PetViewModelTest {
     }
 
     @Test
+    fun `a vital reaching 100 % plays the light pattern, but not one already full on opening`() = runTest(dispatcher) {
+        repository.pet.value = repository.pet.value.copy(vitals = repository.pet.value.vitals.copy(hunger = 100f))
+        val viewModel = viewModel()
+        val haptics = collectHaptics(viewModel)
+
+        repository.pet.value = repository.pet.value.copy(vitals = repository.pet.value.vitals.copy(hydration = 100f))
+        runCurrent()
+        // Another write while it stays full plays nothing.
+        repository.pet.value = repository.pet.value.copy(experiencePoints = 5)
+        runCurrent()
+
+        assertEquals(listOf(PetHapticEvent.VITAL_FILLED), haptics)
+    }
+
+    @Test
+    fun `a vital filling up while the pet sleeps plays nothing`() = runTest(dispatcher) {
+        now = start + 10 * hour // 23:46 UTC, inside the night window
+        repository.pet.value = repository.pet.value.copy(vitals = repository.pet.value.vitals.copy(lastUpdatedTimestamp = now))
+        val viewModel = viewModel()
+        val haptics = collectHaptics(viewModel)
+
+        repository.pet.value = repository.pet.value.copy(vitals = repository.pet.value.vitals.copy(hydration = 100f))
+        runCurrent()
+
+        assertEquals(emptyList<PetHapticEvent>(), haptics)
+    }
+
+    @Test
     fun `no pattern plays while the user has switched haptics off`() = runTest(dispatcher) {
         settings.updateSettings { it.copy(hapticsEnabled = false) }
         val viewModel = viewModel()
@@ -208,6 +237,31 @@ class PetViewModelTest {
         viewModel.petCompanion()
         repository.pet.value = repository.pet.value.copy(stage = EvolutionStage.CHILD)
         repository.history.value += HabitEvent(HabitType.Steps(7_000), start)
+        runCurrent()
+
+        assertEquals(emptyList<PetHapticEvent>(), haptics)
+    }
+
+    @Test
+    fun `reopening the app doesn't replay what changed while it was in the background`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val screen = backgroundScope.launch { viewModel.uiState.collect {} }
+        val firstVisit = backgroundScope.launch { viewModel.hapticEvents.collect {} }
+        runCurrent()
+        screen.cancel()
+        firstVisit.cancel()
+        // Longer than WhileSubscribed(5000): the pet state stops, keeping its last value.
+        advanceTimeBy(6_000)
+        runCurrent()
+
+        // Meanwhile a sensor batch evolves the pet, and a tap on the tile fills hydration.
+        repository.pet.value = repository.pet.value.copy(
+            stage = EvolutionStage.CHILD,
+            vitals = repository.pet.value.vitals.copy(hydration = 100f)
+        )
+
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        val haptics = collectHaptics(viewModel)
         runCurrent()
 
         assertEquals(emptyList<PetHapticEvent>(), haptics)
