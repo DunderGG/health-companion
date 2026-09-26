@@ -14,7 +14,7 @@ import kotlinx.coroutines.guava.await
 /**
  * Manages interaction with Wear OS Health Services.
  *
- * Subscribes to passive health data (steps, heart rate, calories, distance, floors)
+ * Subscribes to passive health data (steps, heart rate, floors)
  * using [PassiveMonitoringClient], which delegates sensor polling to the OS hardware
  * hub for near-zero extra battery drain.
  *
@@ -47,12 +47,13 @@ class HealthServicesManager(private val context: Context) {
     /**
      * The full set of passive data types we want to consume.
      * At registration time, this is intersected with device capabilities.
+     *
+     * `DISTANCE_DAILY` is intentionally omitted (it is derived from the same walking as steps),
+     * as is `CALORIES_DAILY` (it includes basal burn, so it does not reflect activity).
      */
     private val desiredDataTypes: Set<DataType<*, *>> = setOf(
         DataType.STEPS_DAILY,
         DataType.HEART_RATE_BPM,
-        DataType.CALORIES_DAILY,
-        DataType.DISTANCE_DAILY,
         DataType.FLOORS_DAILY
     )
 

@@ -3,30 +3,36 @@
 
 package com.healthcompanion.core.health
 
+import android.os.SystemClock
 import android.util.Log
 import androidx.health.services.client.PassiveListenerService
 import androidx.health.services.client.data.DataPointContainer
 import androidx.health.services.client.data.DataType
+import androidx.health.services.client.data.IntervalDataPoint
 import com.healthcompanion.core.data.db.CompanionDatabase
+import com.healthcompanion.core.data.repository.PassiveSyncRepositoryImpl
 import com.healthcompanion.core.data.repository.PetRepositoryImpl
-import com.healthcompanion.core.model.HabitType
+import com.healthcompanion.core.domain.usecase.DailyTotalReading
+import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
+import com.healthcompanion.core.domain.usecase.PassiveDataBatch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
 
 /**
  * Wear OS system-managed passive listener service.
  *
- * Receives batched health data from Health Services and dispatches each
- * data type to the appropriate [HabitType] for the pet game engine.
+ * Receives batched health data from Health Services, converts it into a platform-independent
+ * [PassiveDataBatch], and hands it to [IngestPassiveDataUseCase], which applies only the *new*
+ * activity to the pet in a single atomic write.
  *
- * Supported data types:
- * - [DataType.STEPS_DAILY] → [HabitType.Steps]
- * - [DataType.HEART_RATE_BPM] → [HabitType.HeartRate] (SampleDataType)
- * - [DataType.CALORIES_DAILY] → [HabitType.Workout] (passive calorie burn)
- * - [DataType.DISTANCE_DAILY] → [HabitType.Steps] (converted to step equivalent)
- * - [DataType.FLOORS_DAILY] → [HabitType.Steps] (converted to step equivalent)
+ * Consumed data types:
+ * - [DataType.STEPS_DAILY] → cumulative daily total, converted to step deltas
+ * - [DataType.FLOORS_DAILY] → cumulative daily total, converted to floor deltas (step-equivalent bonus)
+ * - [DataType.HEART_RATE_BPM] → latest sample (SampleDataType), rate-limited fitness signal
  *
  * ### Kotlin vs C++ Note:
  * - **`CoroutineScope(SupervisorJob() + Dispatchers.IO)`**:
@@ -48,121 +54,56 @@ class PassiveDataService : PassiveListenerService() {
      */
     override fun onNewDataPointsReceived(dataPoints: DataPointContainer) {
         serviceScope.launch {
-            val db = CompanionDatabase.getInstance(applicationContext)
-            val repository = PetRepositoryImpl(db)
-
-            processSteps(dataPoints, repository)
-            processHeartRate(dataPoints, repository)
-            processCalories(dataPoints, repository)
-            processDistance(dataPoints, repository)
-            processFloors(dataPoints, repository)
+            try {
+                val ingest = IngestPassiveDataUseCase(
+                    petRepository = PetRepositoryImpl(CompanionDatabase.getInstance(applicationContext)),
+                    syncRepository = PassiveSyncRepositoryImpl.getInstance(applicationContext)
+                )
+                val batch = toPassiveDataBatch(dataPoints)
+                Log.d(TAG, "Passive batch received: $batch")
+                ingest.execute(batch)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to ingest passive data batch", e)
+            }
         }
     }
 
-    // ── Steps (IntervalDataType) ─────────────────────────────────────
-
     /**
-     * Extracts cumulative daily steps from [dataPoints] and logs [HabitType.Steps].
-     *
-     * @param dataPoints Health Services data payload.
-     * @param repository Companion repository to record the habit.
+     * Extracts the latest reading per data type from a Health Services payload.
      */
-    private suspend fun processSteps(
-        dataPoints: DataPointContainer,
-        repository: PetRepositoryImpl
-    ) {
-        val stepDataPoints = dataPoints.getData(DataType.STEPS_DAILY)
-        if (stepDataPoints.isNotEmpty()) {
-            val latestTotalSteps = stepDataPoints.last().value
-            Log.d(TAG, "Steps received: $latestTotalSteps")
-            repository.recordHabit(HabitType.Steps(latestTotalSteps.toInt()))
-        }
+    private fun toPassiveDataBatch(dataPoints: DataPointContainer): PassiveDataBatch {
+        // Health Services timestamps are relative to device boot; anchor them to wall-clock time.
+        val bootInstant = Instant.ofEpochMilli(System.currentTimeMillis() - SystemClock.elapsedRealtime())
+
+        val latestHeartRate = dataPoints.getData(DataType.HEART_RATE_BPM)
+            .maxByOrNull { it.getTimeInstant(bootInstant) }
+            ?.value
+
+        return PassiveDataBatch(
+            steps = latestDailyTotal(dataPoints.getData(DataType.STEPS_DAILY), bootInstant),
+            floors = latestDailyTotal(dataPoints.getData(DataType.FLOORS_DAILY), bootInstant),
+            latestHeartRateBpm = latestHeartRate
+        )
     }
 
-    // ── Heart Rate (SampleDataType) ──────────────────────────────────
-
     /**
-     * Extracts the latest heart rate sample in BPM and logs [HabitType.HeartRate].
-     *
-     * @param dataPoints Health Services data payload.
-     * @param repository Companion repository to record the habit.
+     * Returns the most recent cumulative daily total, tagged with the local day it belongs to.
      */
-    private suspend fun processHeartRate(
-        dataPoints: DataPointContainer,
-        repository: PetRepositoryImpl
-    ) {
-        val hrDataPoints = dataPoints.getData(DataType.HEART_RATE_BPM)
-        if (hrDataPoints.isNotEmpty()) {
-            // Use the most recent sample for the fitness signal
-            val latestBpm = hrDataPoints.last().value
-            Log.d(TAG, "Heart rate received: $latestBpm bpm")
-            repository.recordHabit(HabitType.HeartRate(latestBpm.toFloat()))
-        }
-    }
+    private fun <T : Number> latestDailyTotal(
+        points: List<IntervalDataPoint<T>>,
+        bootInstant: Instant
+    ): DailyTotalReading? {
+        val latest = points.maxByOrNull { it.getEndInstant(bootInstant) } ?: return null
 
-    // ── Calories (IntervalDataType) ──────────────────────────────────
+        // An interval ending exactly at midnight still belongs to the previous day,
+        // so attribute the reading to the last instant inside its interval.
+        val epochDay = latest.getEndInstant(bootInstant)
+            .minusMillis(1)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+            .toEpochDay()
 
-    /**
-     * Extracts passive calorie burn and logs it as a [HabitType.Workout] with zero active duration.
-     *
-     * @param dataPoints Health Services data payload.
-     * @param repository Companion repository to record the habit.
-     */
-    private suspend fun processCalories(
-        dataPoints: DataPointContainer,
-        repository: PetRepositoryImpl
-    ) {
-        val calDataPoints = dataPoints.getData(DataType.CALORIES_DAILY)
-        if (calDataPoints.isNotEmpty()) {
-            val totalCalories = calDataPoints.last().value
-            Log.d(TAG, "Calories received: $totalCalories kcal")
-            // Map passive calorie burn to a zero-duration workout with calorie data
-            repository.recordHabit(HabitType.Workout(durationMinutes = 0, calories = totalCalories.toInt()))
-        }
-    }
-
-    // ── Distance (IntervalDataType, meters) ──────────────────────────
-
-    /**
-     * Extracts total daily distance in meters and converts it to equivalent step counts (avg stride ~0.75m).
-     *
-     * @param dataPoints Health Services data payload.
-     * @param repository Companion repository to record the habit.
-     */
-    private suspend fun processDistance(
-        dataPoints: DataPointContainer,
-        repository: PetRepositoryImpl
-    ) {
-        val distDataPoints = dataPoints.getData(DataType.DISTANCE_DAILY)
-        if (distDataPoints.isNotEmpty()) {
-            val totalMeters = distDataPoints.last().value
-            // Convert meters to approximate step equivalent (avg stride ~0.75m)
-            val stepEquivalent = (totalMeters / 0.75).toInt()
-            Log.d(TAG, "Distance received: $totalMeters m → ~$stepEquivalent steps")
-            repository.recordHabit(HabitType.Steps(stepEquivalent))
-        }
-    }
-
-    // ── Floors (IntervalDataType) ────────────────────────────────────
-
-    /**
-     * Extracts climbed floors and converts each floor into ~20 equivalent steps.
-     *
-     * @param dataPoints Health Services data payload.
-     * @param repository Companion repository to record the habit.
-     */
-    private suspend fun processFloors(
-        dataPoints: DataPointContainer,
-        repository: PetRepositoryImpl
-    ) {
-        val floorDataPoints = dataPoints.getData(DataType.FLOORS_DAILY)
-        if (floorDataPoints.isNotEmpty()) {
-            val totalFloors = floorDataPoints.last().value
-            // Each floor ≈ ~20 step equivalent for fitness boost
-            val stepEquivalent = (totalFloors * 20).toInt()
-            Log.d(TAG, "Floors received: $totalFloors → ~$stepEquivalent step equivalent")
-            repository.recordHabit(HabitType.Steps(stepEquivalent))
-        }
+        return DailyTotalReading(epochDay = epochDay, total = latest.value.toDouble())
     }
 
     companion object {

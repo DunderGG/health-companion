@@ -53,5 +53,14 @@ interface PetRepository {
      * @return The updated and evolved [Pet] state immediately after persistence.
      */
     suspend fun recordHabit(habit: HabitType): Pet
+
+    /**
+     * Atomically applies several habits in order within a single write, e.g. all habits
+     * derived from one passive sensor batch.
+     *
+     * @param habits The habits to apply, in order.
+     * @return The updated and evolved [Pet] state immediately after persistence.
+     */
+    suspend fun recordHabits(habits: List<HabitType>): Pet
 }
 

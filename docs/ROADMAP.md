@@ -24,7 +24,7 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
   - [x] Subscribe to all available passive sensors: `HEART_RATE_BPM`, `CALORIES_DAILY`, `DISTANCE_DAILY`, `FLOORS_DAILY` (in addition to existing `STEPS_DAILY`).
   - [x] Expand `PassiveDataService` to dispatch heart rate, calories, distance, and floor data to the pet engine.
   - [x] Add `HabitType.HeartRate(bpm)` to domain model and handle `SampleDataType` vs `IntervalDataType` differences.
-  - [x] Integrate new sensor data into `PetDecayEngine` (heart rate → fitness, calories → workout bonus). ⚠ Daily totals are applied as deltas — see **AR-1** in Phase 2a.
+  - [x] Integrate new sensor data into `PetDecayEngine` (heart rate → fitness, calories → workout bonus). *Superseded by AR-1: daily totals are now consumed as deltas; distance and calories are no longer consumed.*
   - [x] Graceful capability fallbacks: skip unsupported data types on watches without specific sensors.
 - [ ] Real-time step delta mapping: Convert real-world step bursts into instant companion animation reactions (e.g. running alongside user).
 - [ ] Battery profiling and verification on Wear OS emulator / physical test watch.
@@ -39,15 +39,15 @@ Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-r
    - [x] Wrap `recordHabit()` read-modify-write in `withTransaction { }` (via `PetRepository.updatePet { transform }`).
    - [x] Apply the same to `PetDecayWorker`, `CalculateDecayUseCase`, and the default-pet insert in `getPetFlow()` (now `insertIfAbsent`).
    - [x] Integration test (Robolectric + in-memory Room, runs in `./gradlew test`): concurrent `recordHabit()` calls lose no updates.
-2. [ ] **AR-1 — Daily totals → deltas** 🔴
-   - [ ] Persist the last-seen total and its day per `*_DAILY` data type (new table or DataStore).
-   - [ ] Apply only positive deltas. Reset the baseline on day rollover.
-   - [ ] Collapse each sensor batch into a single transactional write.
-   - [ ] Drop or rework distance/floors so steps are not double-counted.
-   - [ ] Stop mapping `CALORIES_DAILY` to `Workout` (no energy drain from basal burn).
-   - [ ] Cap heart-rate XP per time window.
-   - [ ] Unit tests: delta calculation, midnight reset, repeated/out-of-order batches.
-3. [ ] **AR-8 — Data durability** 🟠 *(must land before any schema change, including step 2's table if one is used)*
+2. [x] **AR-1 — Daily totals → deltas** 🔴
+   - [x] Persist the last-consumed total and its day per `*_DAILY` data type (DataStore `passive_sync`, avoiding a Room schema change before AR-8).
+   - [x] Apply only positive deltas, in whole units with the remainder carried over. Reset the baseline on day rollover.
+   - [x] Collapse each sensor batch into a single transactional write (`PetRepository.recordHabits()`).
+   - [x] Drop distance (it double-counts steps). Keep floors as a delta-based climbing bonus.
+   - [x] Stop consuming `CALORIES_DAILY` (no energy drain from basal burn).
+   - [x] Cap heart-rate awards to one per 30 minutes.
+   - [x] Unit tests: delta calculation, midnight reset, repeated/out-of-order/concurrent batches.
+3. [ ] **AR-8 — Data durability** 🟠 *(must land before any Room schema change)*
    - [ ] `exportSchema = true`. Commit the schema JSON. Restrict destructive fallback to debug builds.
    - [ ] Clamp both bounds in `applyHabit` and make `PetEntity.toDomain()` tolerant of out-of-range values.
    - [ ] Migration test from schema v1.

@@ -58,7 +58,7 @@ Vitals --> Complication : Updates Watch Dial
 | **Target Platform** | Wear OS 3.0+ (API 30–36) | Standalone wearable app (`com.google.android.wearable.standalone = true`). |
 | **UI Framework** | Jetpack Compose for Wear OS (`compose-material3`, `compose-foundation`) | Hardware-accelerated, declarative UI optimized for circular displays. |
 | **Wear Utilities** | Horologist (`horologist-compose-layout`) | Rotary crown input, ambient mode scaffolds, and volume/haptics. |
-| **Health & Sensors** | Health Services for Wear OS (`androidx.health:health-services-client`) | Capability-aware passive monitoring via `PassiveMonitoringClient`: steps, heart rate, calories, distance, and floors. |
+| **Health & Sensors** | Health Services for Wear OS (`androidx.health:health-services-client`) | Capability-aware passive monitoring via `PassiveMonitoringClient`: steps, floors, and heart rate. |
 | **Glance Surfaces** | AndroidX Wear Tiles & ProtoLayout | Instant-access carousel card with 1-tap micro-interactions. |
 | **Watch Face Integration** | AndroidX WatchFace Complications | *(planned — dependency declared, no data source service yet)* Live mood and vital progress complications on third-party watch faces. |
 | **Architecture Pattern** | Clean Architecture + MVI (UDF) | Unidirectional Data Flow with immutable `StateFlow<PetUiState>`. |
@@ -132,18 +132,21 @@ coreDomain --> coreModel : Evaluates Game Rules
    - `PetDecayEngine`: Mathematical timestamp-delta decay calculation.
    - `MoodCalculator`: Evaluates mood states dynamically based on vitals.
    - `EvolutionEngine`: Experience thresholds and archetype branching.
-   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `CalculateDecayUseCase`.
+   - `DailyTotalTracker`: Converts cumulative daily sensor totals into apply-once deltas.
+   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `CalculateDecayUseCase`, `IngestPassiveDataUseCase`.
+   - Repository interfaces: `PetRepository`, `PassiveSyncRepository`.
 
 4. **[`:core:data`](../core/data)**:
    - Offline-first persistence via Jetpack Room (`CompanionDatabase`, `PetDao`, `PetEntity`).
    - `PetRepositoryImpl`: Coordinates between SQLite database and domain engine.
+   - `PassiveSyncRepositoryImpl`: DataStore-backed bookkeeping of consumed sensor totals and heart-rate award timing.
    - `PetDecayWorker`: Background WorkManager worker for periodic health maintenance.
 
 5. **[`:core:health`](../core/health)**:
    - Wraps Wear OS **Health Services API** (`androidx.health:health-services-client`).
-   - `HealthServicesManager`: Queries device capabilities via `getCapabilitiesAsync()` and registers a `PassiveListenerService` for the intersection of desired and supported data types (`STEPS_DAILY`, `HEART_RATE_BPM`, `CALORIES_DAILY`, `DISTANCE_DAILY`, `FLOORS_DAILY`). Gracefully skips unsupported sensors.
-   - `PassiveDataService`: Receives OS-batched sensor data and dispatches each type to the appropriate `HabitType` for the game engine. Handles both `IntervalDataType` (steps, calories, distance, floors) and `SampleDataType` (heart rate).
-   - ⚠ Currently treats cumulative `*_DAILY` totals as deltas (**AR-1**) and constructs `PetRepositoryImpl` directly instead of going through the domain layer (**AR-7**).
+   - `HealthServicesManager`: Queries device capabilities via `getCapabilitiesAsync()` and registers a `PassiveListenerService` for the intersection of desired and supported data types (`STEPS_DAILY`, `FLOORS_DAILY`, `HEART_RATE_BPM`). Gracefully skips unsupported sensors.
+   - `PassiveDataService`: Receives OS-batched sensor data, extracts the latest daily totals (`IntervalDataType`, tagged with their local day) and the latest heart-rate sample (`SampleDataType`) into a `PassiveDataBatch`, and hands it to `IngestPassiveDataUseCase`.
+   - ⚠ Constructs `PetRepositoryImpl` / `PassiveSyncRepositoryImpl` directly, so it depends on `:core:data` (**AR-7**).
 
 6. **[`:core:model`](../core/model)**:
    - Pure domain models (`Pet`, `Vitals`, `Mood`, `HabitType`, `EvolutionStage`, `PetArchetype`). Zero Android UI dependencies.
@@ -180,7 +183,7 @@ health-companion/
 │   │   └── workers/PetDecayWorker.kt     # Periodic background maintenance
 │   ├── health/                           # Wear OS Health Services integration
 │   │   ├── HealthServicesManager.kt      # PassiveMonitoringClient wrapper
-│   │   └── PassiveDataService.kt         # PassiveListenerService for step counting
+│   │   └── PassiveDataService.kt         # PassiveListenerService: parses sensor batches
 │   └── ui/                               # Wear OS Compose UI Components
 │       ├── components/ModernPetCanvas.kt # Dynamic vector companion
 │       ├── components/VitalsRing.kt      # Circular multi-vital progress arcs
@@ -394,12 +397,14 @@ box "Health Integration (:core:health)" #EDE7F6
 end box
 
 box "Domain Layer (:core:domain)" #EDF7ED
+    participant "IngestPassiveDataUseCase" as Ingest
     participant "PetDecayEngine" as DecayEngine
     participant "EvolutionEngine" as EvoEngine
     participant "GetPetStateUseCase" as GetUseCase
 end box
 
 box "Data & Persistence (:core:data)" #FFF8E1
+    participant "PassiveSyncRepositoryImpl\n(DataStore)" as Sync
     participant "PetRepositoryImpl" as Repo
     participant "PetDao\n(Room SQLite)" as DAO
 end box
@@ -413,18 +418,31 @@ sensors -> PassiveService : onNewDataPointsReceived(dataPoints)
 activate PassiveService
 note over PassiveService
   Runs in CoroutineScope(SupervisorJob + Dispatchers.IO)
-  Extracts STEPS_DAILY, HEART_RATE_BPM, CALORIES_DAILY
+  Builds PassiveDataBatch: latest STEPS_DAILY / FLOORS_DAILY
+  total (+ local day) and latest HEART_RATE_BPM sample
 end note
 
-PassiveService -> Repo : recordHabit(HabitType.Steps(totalSteps))
+PassiveService -> Ingest : execute(batch)
+activate Ingest
+Ingest -> Sync : consumeDailyTotal("steps_daily", day, total, 200)
+activate Sync
+note over Sync
+  DailyTotalTracker: new delta since
+  last consumed total (atomic edit)
+end note
+Sync --> Ingest : consumed steps (e.g. 400)
+deactivate Sync
+Ingest -> Sync : consumeDailyTotal("floors_daily", ...) / tryClaimHeartRateAward(...)
+Ingest -> Repo : recordHabits([Steps(400), HeartRate(72)])
 activate Repo
-Repo -> DecayEngine : applyHabit(vitals, Steps)
-Repo -> EvoEngine : checkEvolution(...)
-Repo -> DAO : insertOrUpdate(PetEntity)
+Repo -> DecayEngine : applyHabit(...) per habit
+Repo -> EvoEngine : checkEvolution(...) per habit
+Repo -> DAO : insertOrUpdate(PetEntity) [one transaction]
 activate DAO
 DAO --> Repo : committed
 deactivate DAO
 deactivate Repo
+deactivate Ingest
 deactivate PassiveService
 
 == Reactive UI & Surface Update ==
@@ -447,12 +465,17 @@ deactivate GetUseCase
 
 #### Phase 3 Architectural Description
 - **Hardware-Hub Passive Monitoring**: By registering a `PassiveListenerService` via `PassiveMonitoringClient`, the companion app offloads sensor polling (accelerometer, step detector, PPG heart rate) to the dedicated low-power sensor hardware hub. The application CPU is only woken when the OS delivers batched sensor data.
-- **Biometric to Companion Mapping** (current implementation):
-  - `DataType.STEPS_DAILY` $\rightarrow$ mapped to `HabitType.Steps` (restores fitness vital and awards XP proportional to step volume).
-  - `DataType.HEART_RATE_BPM` $\rightarrow$ mapped to `HabitType.HeartRate` (evaluates resting vs active cardio zones).
-  - `DataType.CALORIES_DAILY` $\rightarrow$ mapped to passive energy burn in `HabitType.Workout`.
-  - `DataType.DISTANCE_DAILY` & `DataType.FLOORS_DAILY` $\rightarrow$ converted into equivalent step units.
-  - ⚠ **Known bug (AR-1)**: All `*_DAILY` types are *cumulative totals since local midnight*, but each batch's total is applied as if it were new activity. The whole day's activity is re-applied on every batch. In addition, distance mostly double-counts steps, and `CALORIES_DAILY` includes basal burn and drains 10 energy per batch. **Target design**: persist the last-seen total per data type, apply only the positive delta, reset the baseline on day rollover, and treat distance/calories as signals rather than separate rewards.
+- **Cumulative Totals → Deltas**: `*_DAILY` data types report the *running total since local midnight*, and Health Services may deliver the same total more than once. `IngestPassiveDataUseCase` therefore never applies a total directly. It asks `PassiveSyncRepository.consumeDailyTotal()` for the part not yet applied. The pure `DailyTotalTracker` rules are:
+  - A new local day (or first-ever reading) counts everything since midnight. A reading from an earlier day is ignored.
+  - On the same day only the increase over the already-consumed total counts. A lower total (usually an out-of-order batch) is ignored.
+  - Deltas are consumed in whole units (200 steps = 1 XP unit, 10 floors). The remainder carries over, so small batches never lose progress to integer rounding.
+  - Baselines live in DataStore (`passive_sync`), not Room, to avoid a schema migration before AR-8. `DataStore.edit` serializes concurrent batches. Deltas are consumed *before* the pet is updated: a crash in between under-counts rather than double counts.
+- **Biometric to Companion Mapping**:
+  - `DataType.STEPS_DAILY` delta $\rightarrow$ `HabitType.Steps` (restores fitness vital and awards XP proportional to step volume).
+  - `DataType.FLOORS_DAILY` delta $\rightarrow$ `HabitType.Steps` bonus (20 step equivalents per floor, for climbing effort).
+  - `DataType.HEART_RATE_BPM` latest sample $\rightarrow$ `HabitType.HeartRate` (resting vs active cardio zones), awarded **at most once per 30 minutes**.
+  - `DISTANCE_DAILY` and `CALORIES_DAILY` are **not** consumed. Distance comes from the same walking as steps, and daily calories include basal burn, so neither reflects extra activity.
+  - All habits from one batch are applied with `PetRepository.recordHabits()` in a single transaction.
 - **Unified Single Source of Truth**: Because `PassiveDataService` writes directly to Room SQLite via `PetRepositoryImpl`, the active `PetScreen` automatically receives the updated vitals through its database observation stream.
   - ⚠ **Known gap (AR-4)**: Only Flow-observing surfaces update automatically. Tiles are *pull-based*: `PetStatusTileService` renders a snapshot served from a 10-minute cache and must be refreshed explicitly via `TileService.getUpdater(context).requestUpdate(...)` after writes. Complications will likewise need `ComplicationDataSourceUpdateRequester`.
 
@@ -706,7 +729,7 @@ $$\text{decay} = \frac{\text{currentTime} - \text{lastUpdatedTimestamp}}{3600000
 
 | Vital | Range | Hourly Decay | Real-World Restoration Trigger | Effect on Companion |
 | :--- | :--- | :--- | :--- | :--- |
-| **Fitness / Vitality** | 0–100 | $1.5\% / \text{hr}$ | Steps, heart rate, calories, distance, and floors via `PassiveMonitoringClient`; active workouts | High fitness triggers athletic evolutions and energetic animations |
+| **Fitness / Vitality** | 0–100 | $1.5\% / \text{hr}$ | Step and floor deltas, and rate-limited heart rate via `PassiveMonitoringClient`; active workouts *(planned)* | High fitness triggers athletic evolutions and energetic animations |
 | **Hydration** | 0–100 | $3.0\% / \text{hr}$ | $+250\text{ml}$ quick tap on watch / Tile | Thirsty pet appears droopy; sends gentle haptic reminder |
 | **Hunger / Nutrition**| 0–100 | $2.5\% / \text{hr}$ | Healthy Meal ($+30\%$) / Snack ($+20\%$) | Starving pet refuses to play; well-fed pet smiles and dances |
 | **Energy** | 0–100 | $2.0\% / \text{hr}$ | Night sleep and rest periods *(planned — no restoration source exists yet, see AR-3)* | Sleepy pet yawns and sleeps when watch is in ambient mode |
@@ -796,7 +819,7 @@ A review of the implementation against this document. The overall structure is s
 
 | ID | Severity | Summary |
 | :--- | :--- | :--- |
-| AR-1 | 🔴 Critical | Cumulative daily sensor totals are applied as deltas |
+| AR-1 | ✅ Resolved | Cumulative daily sensor totals are applied as deltas |
 | AR-2 | ✅ Resolved | Pet updates are non-atomic read-modify-write (lost updates) |
 | AR-3 | 🟠 High | Some vitals cannot recover; sleep, night mood, and consistency-based archetypes are unimplemented |
 | AR-4 | 🟠 High | Tiles, complications, and the open screen do not update reactively |
@@ -805,7 +828,8 @@ A review of the implementation against this document. The overall structure is s
 | AR-7 | 🟡 Medium | Layering violation (`:core:health` → `:core:data`) and fragmented dependency wiring |
 | AR-8 | 🟠 High | Destructive migrations can delete the pet; invalid rows crash the app |
 
-### AR-1 — Cumulative daily totals treated as deltas
+### AR-1 — Cumulative daily totals treated as deltas ✅ Resolved
+- **Resolution**: `PassiveDataService` now only parses batches. `IngestPassiveDataUseCase` consumes deltas via the pure `DailyTotalTracker` (DataStore-backed `PassiveSyncRepositoryImpl`) and applies all resulting habits in one `recordHabits()` transaction. Out-of-order and same-day decreasing totals are ignored rather than re-anchored. Distance and daily calories are no longer registered. Heart-rate awards are limited to one per 30 minutes. See [§4.3](#43-phase-3-passive-hardware-sensor-ingestion). Covered by `DailyTotalTrackerTest`, `IngestPassiveDataUseCaseTest` and `PassiveSyncRepositoryImplTest`.
 - **Where**: [`PassiveDataService.kt`](../core/health/src/main/java/com/healthcompanion/core/health/PassiveDataService.kt), `PetDecayEngine.applyHabit()`.
 - **Problem**: `STEPS_DAILY`, `CALORIES_DAILY`, `DISTANCE_DAILY` and `FLOORS_DAILY` report the running total since local midnight. Each batch passes that total to `recordHabit()`, so the whole day's activity is re-applied on every batch.
 - **Impact**: At 8,000 steps, every batch adds +80 fitness and awards XP again. `CALORIES_DAILY` includes basal burn (~2,000 kcal), so each batch is logged as a zero-minute workout worth ~40 XP that also **drains 10 energy**. Distance largely double-counts steps. Net effect: fitness is pinned at 100, XP grows without bound, energy trends to 0, and the pet is stuck in `TIRED`. Heart-rate samples also award 5 XP per batch, which inflates XP further.
@@ -829,7 +853,7 @@ A review of the implementation against this document. The overall structure is s
 - **Problems**:
   - **Energy** only ever decreases (decay, workouts, unhealthy meals). Nothing restores it, because there is no sleep source.
   - `isNightTime` is never passed, so `Mood.SLEEPING` never occurs.
-  - The archetype is chosen from a snapshot of vitals at the `TEEN` transition rather than from habit consistency. `IRON_BEAST` is unreachable. After AR-1, almost every pet becomes `CARDIO_RUNNER`.
+  - The archetype is chosen from a snapshot of vitals at the `TEEN` transition rather than from habit consistency. `IRON_BEAST` is unreachable. With the pre-AR-1 inflated fitness, almost every pet became `CARDIO_RUNNER`; `fitness > 80` at the `TEEN` transition still dominates.
   - `ExerciseClient` workouts and sleep monitoring do not exist.
 - **Target design**:
   - Add an energy restoration source: a sleep heuristic (e.g. inactivity plus night window), an explicit "rest" action, or Health Services sleep data where available.
@@ -850,7 +874,7 @@ A review of the implementation against this document. The overall structure is s
 ### AR-5 — `PetDecayWorker` is redundant
 - **Where**: [`PetDecayWorker.kt`](../core/data/src/main/java/com/healthcompanion/core/data/workers/PetDecayWorker.kt), `HealthCompanionApp.schedulePeriodicDecay()`.
 - **Problem**: Under decay-on-read, persisting a decayed snapshot every 2 hours changes no user-visible result. It only adds another writer (safe since AR-2, but pointless) and triggers an extra Room invalidation.
-- **Target design**: Give it a real job or remove it. Useful jobs: refreshing tiles and complications (AR-4), the day-rollover reset of sensor baselines (AR-1), and critical-vital notifications (Phase 2). If it is removed, drop the explicit `WAKE_LOCK` permission as well.
+- **Target design**: Give it a real job or remove it. Useful jobs: refreshing tiles and complications (AR-4), pruning stale sensor baselines (AR-1 handles day rollover lazily on the next reading), and critical-vital notifications (Phase 2). If it is removed, drop the explicit `WAKE_LOCK` permission as well.
 
 ### AR-6 — Permissions and Health Services registration
 - **Where**: [`HealthPermissions.kt`](../core/health/src/main/java/com/healthcompanion/core/health/HealthPermissions.kt), [`HealthServicesManager.kt`](../core/health/src/main/java/com/healthcompanion/core/health/HealthServicesManager.kt), `HealthCompanionApp.onCreate()`, `AndroidManifest.xml`.
@@ -878,7 +902,7 @@ A review of the implementation against this document. The overall structure is s
 - **Where**: [`CompanionDatabase.kt`](../core/data/src/main/java/com/healthcompanion/core/data/db/CompanionDatabase.kt), [`Vitals.kt`](../core/model/src/main/java/com/healthcompanion/core/model/Vitals.kt), `PetEntity.toDomain()`.
 - **Problems**:
   - With `exportSchema = false` and `fallbackToDestructiveMigration(dropAllTables = true)`, any schema change deletes the pet.
-  - `Vitals` uses `require()` to validate ranges, and `toDomain()` calls it with no guard. A single out-of-range value (e.g. a negative delta after AR-1, since `applyHabit` boosts are only clamped at the top) throws inside `getPetFlow()` and crashes the app every time the pet is loaded.
+  - `Vitals` uses `require()` to validate ranges, and `toDomain()` calls it with no guard. A single out-of-range value (e.g. a negative habit amount, since `applyHabit` boosts are only clamped at the top) throws inside `getPetFlow()` and crashes the app every time the pet is loaded.
 - **Target design**:
   - Enable `exportSchema = true`, commit the schemas, and write explicit `Migration`s. Keep destructive fallback for debug builds at most.
   - Clamp both bounds in `applyHabit` (`coerceIn(0f, 100f)`) and have `toDomain()` coerce values so they load safely rather than throwing.

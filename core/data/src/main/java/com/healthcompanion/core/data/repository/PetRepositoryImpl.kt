@@ -91,15 +91,27 @@ class PetRepositoryImpl(
      * @return The updated and evolved [Pet] instance.
      */
     override suspend fun recordHabit(habit: HabitType): Pet {
-        return updatePet { currentPet ->
-            val (updatedVitals, xpGained) = PetDecayEngine.applyHabit(
-                vitals = currentPet.vitals,
-                habit = habit
-            )
-            EvolutionEngine.checkEvolution(
-                pet = currentPet.copy(vitals = updatedVitals),
-                additionalXp = xpGained
-            )
+        return recordHabits(listOf(habit))
+    }
+
+    /**
+     * Applies each habit in order (decay, boosts, XP, evolution) within one [updatePet] transaction.
+     *
+     * @param habits The habits to apply, in order.
+     * @return The updated and evolved [Pet] instance.
+     */
+    override suspend fun recordHabits(habits: List<HabitType>): Pet {
+        return updatePet { startPet ->
+            habits.fold(startPet) { currentPet, habit ->
+                val (updatedVitals, xpGained) = PetDecayEngine.applyHabit(
+                    vitals = currentPet.vitals,
+                    habit = habit
+                )
+                EvolutionEngine.checkEvolution(
+                    pet = currentPet.copy(vitals = updatedVitals),
+                    additionalXp = xpGained
+                )
+            }
         }
     }
 
