@@ -4,6 +4,7 @@
 package com.healthcompanion.core.domain.usecase
 
 import com.healthcompanion.core.domain.engine.MoodCalculator
+import com.healthcompanion.core.domain.engine.NightWindow
 import com.healthcompanion.core.domain.engine.PetDecayEngine
 import com.healthcompanion.core.domain.repository.PetRepository
 import com.healthcompanion.core.domain.time.Clock
@@ -58,9 +59,11 @@ class GetPetStateUseCase(
      */
     fun execute(): Flow<PetWithMood> {
         return combine(repository.getPetFlow(), ticker()) { pet, _ ->
-            val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals, clock.nowMillis())
+            val now = clock.nowMillis()
+            val zone = clock.zone()
+            val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals, now, zone)
             val updatedPet = pet.copy(vitals = decayedVitals)
-            val mood = MoodCalculator.calculateMood(decayedVitals)
+            val mood = MoodCalculator.calculateMood(decayedVitals, isNightTime = NightWindow.DEFAULT.isNight(now, zone))
             PetWithMood(updatedPet, mood)
         }
     }

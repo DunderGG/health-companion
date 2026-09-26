@@ -5,10 +5,13 @@ package com.healthcompanion.core.data.db
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.healthcompanion.core.data.db.dao.HabitEventDao
 import com.healthcompanion.core.data.db.dao.PetDao
+import com.healthcompanion.core.data.db.entity.HabitEventEntity
 import com.healthcompanion.core.data.db.entity.PetEntity
 import com.healthcompanion.core.data.db.migrations.ALL_MIGRATIONS
 
@@ -28,9 +31,13 @@ import com.healthcompanion.core.data.db.migrations.ALL_MIGRATIONS
  *   the original receiver object.
  */
 @Database(
-    entities = [PetEntity::class],
+    entities = [PetEntity::class, HabitEventEntity::class],
     version = CompanionDatabase.VERSION,
-    exportSchema = true
+    exportSchema = true,
+    autoMigrations = [
+        // v2: adds the habit_events table (AR-3).
+        AutoMigration(from = 1, to = 2)
+    ]
 )
 abstract class CompanionDatabase : RoomDatabase() {
 
@@ -39,6 +46,9 @@ abstract class CompanionDatabase : RoomDatabase() {
      * Room generates the concrete implementation.
      */
     abstract fun petDao(): PetDao
+
+    /** DAO for the habit history (schema v2+). */
+    abstract fun habitEventDao(): HabitEventDao
 
     companion object {
         @Volatile
@@ -75,7 +85,7 @@ abstract class CompanionDatabase : RoomDatabase() {
         private const val DATABASE_NAME = "health_companion.db"
 
         /** Current schema version. Bump together with a migration in [ALL_MIGRATIONS]. */
-        const val VERSION = 1
+        const val VERSION = 2
     }
 }
 

@@ -7,8 +7,15 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.healthcompanion.core.data.db.CompanionDatabase
+import com.healthcompanion.core.data.db.entity.HabitEventEntity
 import com.healthcompanion.core.domain.time.Clock
+import com.healthcompanion.core.model.EvolutionStage
+import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
+import com.healthcompanion.core.model.PetArchetype
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -43,6 +50,46 @@ class PetRepositoryImplTest {
     @After
     fun tearDown() {
         db.close()
+    }
+
+    private val day = 24 * 60 * 60 * 1000L
+
+    private fun utcClock(now: () -> Long) = object : Clock {
+        override fun nowMillis(): Long = now()
+        override fun zone(): ZoneId = ZoneOffset.UTC
+    }
+
+    @Test
+    fun `reaching teen locks in the archetype from recent habit history`() = runBlocking {
+        val now = Instant.parse("2026-01-10T18:00:00Z").toEpochMilli()
+        val clockedRepository = PetRepositoryImpl(db, utcClock { now })
+
+        // Five consistent 7,000-step days in the past week.
+        db.habitEventDao().insertAll(
+            (0 until 5).map { back -> HabitEventEntity.fromDomain(HabitType.Steps(7_000), now - back * day) }
+        )
+        clockedRepository.updatePet { it.copy(stage = EvolutionStage.CHILD, experiencePoints = 740) }
+
+        val evolved = clockedRepository.recordHabit(HabitType.Hydration(250)) // +15 XP -> 755 (TEEN)
+
+        assertEquals(EvolutionStage.TEEN, evolved.stage)
+        assertEquals(PetArchetype.CARDIO_RUNNER, evolved.archetype)
+        assertEquals(PetArchetype.CARDIO_RUNNER, clockedRepository.getPet().archetype)
+    }
+
+    @Test
+    fun `recorded habits are stored in the history and old history is pruned`() = runBlocking {
+        val now = Instant.parse("2026-03-01T12:00:00Z").toEpochMilli()
+        val clockedRepository = PetRepositoryImpl(db, utcClock { now })
+        db.habitEventDao().insertAll(listOf(HabitEventEntity.fromDomain(HabitType.Steps(500), now - 31 * day)))
+
+        clockedRepository.recordHabits(listOf(HabitType.Hydration(250), HabitType.Meal(isHealthy = true)))
+
+        val history = db.habitEventDao().eventsSince(0L).mapNotNull { it.toDomain() }
+        assertEquals(
+            listOf(HabitEvent(HabitType.Hydration(250), now), HabitEvent(HabitType.Meal(isHealthy = true), now)),
+            history
+        )
     }
 
     @Test

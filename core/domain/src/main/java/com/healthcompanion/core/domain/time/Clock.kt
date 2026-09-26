@@ -3,6 +3,8 @@
 
 package com.healthcompanion.core.domain.time
 
+import java.time.ZoneId
+
 /**
  * Source of the current wall-clock time, injected wherever game logic depends on "now".
  *
@@ -17,6 +19,9 @@ fun interface Clock {
 
     /** Current epoch time in milliseconds. */
     fun nowMillis(): Long
+
+    /** The user's local time zone, used for day boundaries and the pet's night window. */
+    fun zone(): ZoneId = ZoneId.systemDefault()
 
     companion object {
         /** The real system wall clock. */

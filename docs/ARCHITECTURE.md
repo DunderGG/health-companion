@@ -20,7 +20,7 @@ package "Real-World Health Activities" as RealWorld {
     [Active Workouts\n(ExerciseClient)\n(planned)] as Workouts
     [Hydration Log\n(+250ml quick-tap)] as Water
     [Nutrition Log\n(Healthy Meal / Snack)] as Food
-    [Sleep & Rest\n(Passive Monitoring)\n(planned)] as Sleep
+    [Night Rest\n(22:00–07:00 NightWindow;\nsleep sensing planned)] as Sleep
 }
 
 package "Game Engine" as PetEngine {
@@ -133,6 +133,8 @@ coreDomain --> coreModel : Evaluates Game Rules
    - `MoodCalculator`: Evaluates mood states dynamically based on vitals.
    - `EvolutionEngine`: Experience thresholds and archetype branching.
    - `DailyTotalTracker`: Converts cumulative daily sensor totals into apply-once deltas.
+   - `NightWindow`: The pet's local-time night (22:00–07:00): energy recovery and the `SLEEPING` mood.
+   - `ArchetypeSelector`: Picks the archetype from 7-day habit consistency when the pet reaches `TEEN`.
    - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`.
    - Repository interfaces: `PetRepository`, `PassiveSyncRepository`.
 
@@ -275,7 +277,7 @@ deactivate UI
   4. `MoodCalculator.calculateMood()` evaluates prioritized rules against the decayed vitals to determine the companion's expression (e.g., Happy, Content, Thirsty, Hungry).
   5. `PetScreen` recomposes the hardware-accelerated `ModernPetCanvas` and `VitalsRing` in the active mood state.
 - **Live decay while open**: `GetPetStateUseCase` combines the Room stream with a 60-second ticker, so the displayed vitals keep decaying on an open screen even when nothing is written. The ticker only runs while the ViewModel collects (`WhileSubscribed(5000)`), so it costs nothing when the screen is gone.
-- ⚠ **Known gap (AR-3)**: `MoodCalculator` is always called with `isNightTime = false`, so `Mood.SLEEPING` is never produced.
+- **Night mood**: `GetPetStateUseCase` (and the tile) pass `NightWindow.DEFAULT.isNight(now, zone)` to `MoodCalculator`, and the pet is shown `SLEEPING` throughout its night.
 
 ---
 
@@ -717,7 +719,7 @@ Compose PetScreen ───────────────► Recomposes Mo
 | `id` | `String` | `id` | `id` | `TEXT` | No (PK) | Companion identifier (`"companion_primary"`). |
 | `name` | `String` | `name` | `name` | `TEXT` | No | User-assigned companion name (e.g. "Kairo"). |
 | `stage` | `EvolutionStage` | `stage` | `stage` | `TEXT` | No | Enum name (`EGG`, `HATCHLING`, `CHILD`, etc.). |
-| `archetype` | `PetArchetype` | `archetype` | `archetype` | `TEXT` | No | Enum name (`BALANCED`, `SWIFT_STRIDER`, etc.). |
+| `archetype` | `PetArchetype` | `archetype` | `archetype` | `TEXT` | No | Enum name (`BALANCED`, `CARDIO_RUNNER`, `ZEN_SAGE`, `IRON_BEAST`). |
 | `vitals.energy` | `Float` | `energy` | `energy` | `REAL` | No | Energy level `[0.0, 100.0]`. |
 | `vitals.hunger` | `Float` | `hunger` | `hunger` | `REAL` | No | Hunger level `[0.0, 100.0]`. |
 | `vitals.hydration` | `Float` | `hydration` | `hydration` | `REAL` | No | Hydration level `[0.0, 100.0]`. |
@@ -726,6 +728,16 @@ Compose PetScreen ───────────────► Recomposes Mo
 | `vitals.lastUpdatedTimestamp` | `Long` | `lastUpdatedTimestamp` | `lastUpdatedTimestamp` | `INTEGER` | No | Epoch millisecond timestamp of last write. |
 | `experiencePoints` | `Int` | `experiencePoints` | `experiencePoints` | `INTEGER` | No | Cumulative XP earned towards evolution. |
 | `bornTimestamp` | `Long` | `bornTimestamp` | `bornTimestamp` | `INTEGER` | No | Epoch millisecond timestamp of pet birth. |
+
+**`habit_events`** (schema v2+, `HabitEventEntity`, `HabitEventDao`): an append-only history of applied habits. It is written in the same transaction as the pet update, and rows older than 30 days are pruned on each write.
+
+| Column | SQLite Affinity | Nullable | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `INTEGER` | No (PK, auto) | Row id. |
+| `type` | `TEXT` | No | Stable habit type name (`STEPS`, `HYDRATION`, `MEAL`, `WORKOUT`, `SLEEP`, `PETTING`, `HEART_RATE`). Never rename; unknown names are skipped on load. |
+| `amount` | `REAL` | No | Primary value (steps, ml, 1/0 healthy meal, minutes, intensity, bpm). |
+| `detail` | `REAL` | Yes | Secondary value (workout calories, sleep quality). |
+| `timestampMillis` | `INTEGER` | No (indexed) | Epoch millisecond timestamp when the habit was applied. |
 
 ---
 
@@ -741,17 +753,18 @@ $$\text{decay} = \frac{\text{currentTime} - \text{lastUpdatedTimestamp}}{3600000
 | **Fitness / Vitality** | 0–100 | $1.5\% / \text{hr}$ | Step and floor deltas, and rate-limited heart rate via `PassiveMonitoringClient`; active workouts *(planned)* | High fitness triggers athletic evolutions and energetic animations |
 | **Hydration** | 0–100 | $3.0\% / \text{hr}$ | $+250\text{ml}$ quick tap on watch / Tile | Thirsty pet appears droopy; sends gentle haptic reminder |
 | **Hunger / Nutrition**| 0–100 | $2.5\% / \text{hr}$ | Healthy Meal ($+30\%$) / Snack ($+20\%$) | Starving pet refuses to play; well-fed pet smiles and dances |
-| **Energy** | 0–100 | $2.0\% / \text{hr}$ | Night sleep and rest periods *(planned — no restoration source exists yet, see AR-3)* | Sleepy pet yawns and sleeps when watch is in ambient mode |
+| **Energy** | 0–100 | $2.0\% / \text{hr}$ | Recovers at +8 %/hr during the pet's night (22:00–07:00 local, `NightWindow`), computed per day/night segment. Real sleep sensing is planned | Sleepy pet yawns and sleeps when watch is in ambient mode |
 | **Happiness**| 0–100 | $2.0\% / \text{hr}$ | Weighted vitals + direct petting/rotary play | Drops if any vital < 20; unlocks tricks, dialogue bubbles, XP |
 
 ### Evolution & Archetypes
 - **Evolution Stages**: `EGG` (Lv 0) $\rightarrow$ `HATCHLING` (Lv 1, 100 XP) $\rightarrow$ `CHILD` (Lv 2, 300 XP) $\rightarrow$ `TEEN` (Lv 3, 750 XP) $\rightarrow$ `ADULT` (Lv 4, 1500 XP) $\rightarrow$ `ANCIENT_SAGE` (Lv 5, 3000 XP).
-- **Habit-Based Archetypes**: At `TEEN` stage, habits determine the pet's persona:
-  - *Swift Strider (Cardio)*: High step count consistency.
-  - *Zen Ascetic (Mindful)*: High sleep quality and perfect hydration.
-  - *Mighty Titan (Strength)*: High workout frequency.
-  - *Balanced Soul (Harmony)*: Balanced habits across all vitals.
-- ⚠ **Current implementation (AR-3)**: `EvolutionEngine` assigns the archetype once, from a snapshot of vitals at the moment `TEEN` is reached, not from habit consistency. `IRON_BEAST` (Mighty Titan) is never assigned. Consistency-based archetypes require a persisted habit event log, which does not exist yet.
+- **Habit-Based Archetypes**: The moment the pet first reaches `TEEN`, `ArchetypeSelector` locks in a persona from the last 7 local days of `habit_events`. A day counts towards a focus area when:
+  - *Swift Strider* (`CARDIO_RUNNER`): ≥ 6,000 steps (floor bonus steps included).
+  - *Mighty Titan* (`IRON_BEAST`): a logged workout or a heart-rate reading ≥ 100 bpm.
+  - *Zen Ascetic* (`ZEN_SAGE`): ≥ 1,500 ml water and ≥ 2 healthy meals.
+  - *Balanced Soul* (`BALANCED`): the result when no focus area has ≥ 4 qualifying days, or when there is a tie.
+
+  The archetype never changes afterwards. See DD-35 and DD-36.
 
 ---
 
@@ -851,7 +864,7 @@ A review of the implementation against this document. The overall structure is s
 | :--- | :--- | :--- |
 | AR-1 | ✅ Resolved | Cumulative daily sensor totals are applied as deltas |
 | AR-2 | ✅ Resolved | Pet updates are non-atomic read-modify-write (lost updates) |
-| AR-3 | 🟠 High | Some vitals cannot recover; sleep, night mood, and consistency-based archetypes are unimplemented |
+| AR-3 | ✅ Resolved | Some vitals cannot recover; sleep, night mood, and consistency-based archetypes are unimplemented |
 | AR-4 | ✅ Resolved | Tiles, complications, and the open screen do not update reactively |
 | AR-5 | ✅ Resolved | `PetDecayWorker` is redundant under decay-on-read |
 | AR-6 | ✅ Resolved | Permission degradation is all-or-nothing; API 36 permission model; implicit boot re-registration |
@@ -878,7 +891,15 @@ A review of the implementation against this document. The overall structure is s
 - **Impact**: Updates are silently lost (e.g. a water tap is overwritten by a concurrent step batch).
 - **Target design**: Wrap the read-modify-write in `RoomDatabase.withTransaction { }` (or a `@Transaction` DAO method). Collapse each sensor batch into a single transactional write.
 
-### AR-3 — Unrecoverable vitals and unimplemented game inputs
+### AR-3 — Unrecoverable vitals and unimplemented game inputs ✅ Resolved
+- **Resolution**:
+  - Energy recovers during the pet's night (`NightWindow`, 22:00–07:00 local), integrated per day/night segment.
+  - The pet is `SLEEPING` throughout the night (`isNightTime` is now passed).
+  - A new `habit_events` table (schema v2 via `@AutoMigration(1, 2)`, the first real migration) records every applied habit.
+  - `ArchetypeSelector` picks the archetype from 7-day consistency at the `TEEN` transition, so `IRON_BEAST` is now reachable.
+  - Still open: Health Services sleep detection (`UserActivityState.USER_ACTIVITY_ASLEEP`) and `ExerciseClient` workouts.
+
+  See DD-33 to DD-36.
 - **Where**: `PetDecayEngine`, `MoodCalculator`, `EvolutionEngine`, `GetPetStateUseCase`.
 - **Problems**:
   - **Energy** only ever decreases (decay, workouts, unhealthy meals). Nothing restores it, because there is no sleep source.

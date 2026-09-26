@@ -20,7 +20,8 @@ object MoodCalculator {
      * Determines the companion's current emotional state by evaluating vitals against priority thresholds.
      *
      * ### Priority Order:
-     * 1. **[Mood.SLEEPING]**: [isNightTime] is true and energy < 40%.
+     * 1. **[Mood.SLEEPING]**: [isNightTime] is true. The pet sleeps through its [NightWindow], which is
+     *    when its energy recovers, so it is shown asleep regardless of other vitals.
      * 2. **[Mood.TIRED]**: Energy is critically low (< 20%).
      * 3. **[Mood.THIRSTY]**: Hydration is critically low (< 25%).
      * 4. **[Mood.HUNGRY]**: Hunger is critically low (< 25%).
@@ -30,13 +31,13 @@ object MoodCalculator {
      * 8. **[Mood.CONTENT]**: Default baseline mood for all other conditions.
      *
      * @param vitals The current vitals of the companion.
-     * @param isNightTime Flag indicating if the current local time falls during nocturnal hours (e.g. 22:00 - 07:00).
+     * @param isNightTime Whether "now" falls inside the pet's [NightWindow] (see [NightWindow.isNight]).
      *                    Defaults to `false`.
      * @return The resulting [Mood] driving character sprite expressions, animations, and particle effects.
      */
     fun calculateMood(vitals: Vitals, isNightTime: Boolean = false): Mood {
         return when {
-            isNightTime && vitals.energy < 40f -> Mood.SLEEPING
+            isNightTime -> Mood.SLEEPING
             vitals.energy < 20f -> Mood.TIRED
             vitals.hydration < 25f -> Mood.THIRSTY
             vitals.hunger < 25f -> Mood.HUNGRY

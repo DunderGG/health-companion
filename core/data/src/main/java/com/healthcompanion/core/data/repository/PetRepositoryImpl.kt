@@ -5,7 +5,9 @@ package com.healthcompanion.core.data.repository
 
 import androidx.room.withTransaction
 import com.healthcompanion.core.data.db.CompanionDatabase
+import com.healthcompanion.core.data.db.entity.HabitEventEntity
 import com.healthcompanion.core.data.db.entity.PetEntity
+import com.healthcompanion.core.domain.engine.ArchetypeSelector
 import com.healthcompanion.core.domain.engine.EvolutionEngine
 import com.healthcompanion.core.domain.engine.PetDecayEngine
 import com.healthcompanion.core.domain.repository.PetRepository
@@ -43,6 +45,7 @@ class PetRepositoryImpl(
 ) : PetRepository {
 
     private val petDao = database.petDao()
+    private val habitEventDao = database.habitEventDao()
 
     /**
      * Streams continuous companion updates. If the database is currently empty, seeds a default
@@ -87,9 +90,7 @@ class PetRepositoryImpl(
     }
 
     /**
-     * Orchestrates habit logging atomically via [updatePet]:
-     * 1. Computes decay and applies habit stat boosts via [PetDecayEngine.applyHabit].
-     * 2. Evaluates XP gains and potential evolution via [EvolutionEngine.checkEvolution].
+     * Records a single habit; see [recordHabits].
      *
      * @param habit The health habit or interaction event ([HabitType]).
      * @return The updated and evolved [Pet] instance.
@@ -99,26 +100,47 @@ class PetRepositoryImpl(
     }
 
     /**
-     * Applies each habit in order (decay, boosts, XP, evolution) within one [updatePet] transaction.
+     * Applies habits atomically, in one transaction:
+     * 1. Applies each habit in order: decay and stat boosts via [PetDecayEngine.applyHabit], then XP and
+     *    stage via [EvolutionEngine.checkEvolution].
+     * 2. Appends the habits to the `habit_events` history and prunes events older than [HISTORY_RETENTION_MS].
+     * 3. If the pet just reached `TEEN` ([EvolutionEngine.reachesSpecialization]), locks in its archetype
+     *    from the recent history via [ArchetypeSelector].
      *
      * @param habits The habits to apply, in order.
      * @return The updated and evolved [Pet] instance.
      */
     override suspend fun recordHabits(habits: List<HabitType>): Pet {
-        return updatePet { startPet ->
+        return database.withTransaction {
             // Read "now" inside the transaction so it is never older than a concurrently stored timestamp.
             val now = clock.nowMillis()
-            habits.fold(startPet) { currentPet, habit ->
+            val zone = clock.zone()
+            val startPet = loadOrSeedPet()
+
+            var pet = habits.fold(startPet) { currentPet, habit ->
                 val (updatedVitals, xpGained) = PetDecayEngine.applyHabit(
                     vitals = currentPet.vitals,
                     habit = habit,
-                    currentTimeMillis = now
+                    currentTimeMillis = now,
+                    zone = zone
                 )
                 EvolutionEngine.checkEvolution(
                     pet = currentPet.copy(vitals = updatedVitals),
                     additionalXp = xpGained
                 )
             }
+
+            habitEventDao.insertAll(habits.map { HabitEventEntity.fromDomain(it, now) })
+            habitEventDao.deleteOlderThan(now - HISTORY_RETENTION_MS)
+
+            if (EvolutionEngine.reachesSpecialization(before = startPet, after = pet)) {
+                val windowStart = now - ArchetypeSelector.WINDOW_DAYS * DAY_MS
+                val recentEvents = habitEventDao.eventsSince(windowStart).mapNotNull { it.toDomain() }
+                pet = pet.copy(archetype = ArchetypeSelector.select(recentEvents, now, zone))
+            }
+
+            petDao.insertOrUpdate(PetEntity.fromDomain(pet))
+            pet
         }
     }
 
@@ -147,6 +169,13 @@ class PetRepositoryImpl(
             vitals = Vitals(lastUpdatedTimestamp = now),
             bornTimestamp = now
         )
+    }
+
+    private companion object {
+        const val DAY_MS = 24 * 60 * 60 * 1000L
+
+        /** Habit history is kept for 30 days: enough for the 7-day archetype window, small on the watch. */
+        const val HISTORY_RETENTION_MS = 30 * DAY_MS
     }
 }
 

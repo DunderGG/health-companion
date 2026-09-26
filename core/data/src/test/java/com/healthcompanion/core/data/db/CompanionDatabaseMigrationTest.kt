@@ -68,6 +68,38 @@ class CompanionDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun `migrating from v1 to v2 keeps the pet and adds an empty habit history`() = runBlocking {
+        helper.createDatabase(DB_NAME, 1).apply {
+            execSQL(
+                """
+                INSERT INTO pets (id, name, stage, archetype, energy, hunger, hydration, fitness,
+                                  happiness, lastUpdatedTimestamp, experiencePoints, bornTimestamp)
+                VALUES ('companion_primary', 'Kairo', 'CHILD', 'BALANCED', 50, 60, 70, 80, 90,
+                        1000, 400, 500)
+                """.trimIndent()
+            )
+            close()
+        }
+
+        // Runs the v1 -> v2 auto-migration and validates the result against the exported 2.json.
+        helper.runMigrationsAndValidate(DB_NAME, 2, true, *ALL_MIGRATIONS).close()
+
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = Room.databaseBuilder(context, CompanionDatabase::class.java, DB_NAME)
+            .addMigrations(*ALL_MIGRATIONS)
+            .build()
+
+        try {
+            val pet = db.petDao().getPet()!!.toDomain()
+            assertEquals("Kairo", pet.name)
+            assertEquals(400, pet.experiencePoints)
+            assertEquals(emptyList<Any>(), db.habitEventDao().eventsSince(0L))
+        } finally {
+            db.close()
+        }
+    }
+
     private companion object {
         const val DB_NAME = "migration-test.db"
     }

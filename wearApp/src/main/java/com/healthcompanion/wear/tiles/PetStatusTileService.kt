@@ -14,6 +14,7 @@ import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
 import com.healthcompanion.core.domain.engine.MoodCalculator
+import com.healthcompanion.core.domain.engine.NightWindow
 import com.healthcompanion.core.domain.engine.PetDecayEngine
 import com.healthcompanion.wear.HealthCompanionApp
 import kotlinx.coroutines.CoroutineScope
@@ -56,8 +57,10 @@ class PetStatusTileService : TileService() {
         val container = (application as HealthCompanionApp).container
 
         val pet = container.petRepository.getPet()
-        val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals, container.clock.nowMillis())
-        val mood = MoodCalculator.calculateMood(decayedVitals)
+        val now = container.clock.nowMillis()
+        val zone = container.clock.zone()
+        val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals, now, zone)
+        val mood = MoodCalculator.calculateMood(decayedVitals, isNightTime = NightWindow.DEFAULT.isNight(now, zone))
 
         val rootLayout = LayoutElementBuilders.Column.Builder()
             .addContent(

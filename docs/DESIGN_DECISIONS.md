@@ -46,6 +46,10 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-30](#dd-30--60-second-decay-ticker-only-while-collected) | 60-second decay ticker, only while collected | Game engine / UI | Accepted (AR-4) |
 | [DD-31](#dd-31--tile-futures-via-kotlinx-coroutines-guava-not-horologist) | Tile futures via kotlinx-coroutines-guava, not Horologist | Surfaces | Accepted (AR-4) |
 | [DD-32](#dd-32--no-periodic-background-work) | No periodic background work | Background / battery | Accepted (AR-5) |
+| [DD-33](#dd-33--energy-recovers-during-a-fixed-local-night-window) | Energy recovers during a fixed local night window | Game engine / balance | Accepted (AR-3) ⚠ |
+| [DD-34](#dd-34--the-pet-always-sleeps-at-night) | The pet always sleeps at night | Game design | Accepted (AR-3) ⚠ |
+| [DD-35](#dd-35--an-append-only-habit-history-table-schema-v2) | An append-only habit history table (schema v2) | Persistence | Accepted (AR-3) |
+| [DD-36](#dd-36--archetype-from-7-day-consistency-locked-in-once-at-teen) | Archetype from 7-day consistency, locked in once at TEEN | Game design / balance | Accepted (AR-3) ⚠ |
 
 ---
 
@@ -337,3 +341,59 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
   - Critical-vital notifications (ROADMAP Phase 2) will need their own scheduling. Consider exact alarms or a worker that runs only when a vital is predicted to cross a threshold, computed from the decay rates.
   - The `cancelUniqueWork` call can be removed once no installs from before AR-5 remain.
   - `WAKE_LOCK` is no longer declared by the app, but WorkManager's manifest still merges it in.
+
+---
+
+## Game-loop completeness (AR-3)
+
+### DD-33 — Energy recovers during a fixed local night window
+- **Status**: Accepted (AR-3, 2026-09-26). ⚠ Game-balance values; real sleep sensing is open.
+- **Decision**: Inside `NightWindow.DEFAULT` (22:00–07:00 in `Clock.zone()`), energy **recovers** at +8 %/h instead of decaying at −2 %/h. `calculateDecay` splits the elapsed time into day/night segments and clamps after each one. Other vitals keep decaying at night.
+- **Why**: Energy previously had no way to recover, so every pet ended up permanently `TIRED`. A deterministic, sensor-free rule:
+  - works for everyone, including people who don't wear the watch at night or whose watch doesn't detect sleep;
+  - is pure and testable;
+  - fits decay-on-read (DD-02).
+
+  Piecewise integration is required because the rate changes sign: a day that drains energy to 0, followed by a night, must end at the night's recovery, not at a net sum (the test documents 72 vs 52).
+- **Alternatives**:
+  - Health Services sleep detection (`UserActivityState.USER_ACTIVITY_ASLEEP`, needs `ACTIVITY_RECOGNITION`): the most "mirroring", but unverified on hardware and useless when the watch is charging overnight.
+  - An explicit "rest" button: more UI, and it's a chore.
+- ⚠ **Open**:
+  - A user-configurable bedtime, instead of a fixed 22–07 in the device zone.
+  - Whether hydration and hunger should decay more slowly at night (−27 and −22.5 over 9 h, while the user can't log anything).
+  - Layering real sleep data on top, e.g. bonus XP or happiness for detected sleep.
+
+### DD-34 — The pet always sleeps at night
+- **Status**: Accepted (AR-3). ⚠ Game design.
+- **Decision**: `MoodCalculator` returns `SLEEPING` whenever `isNightTime` is true, regardless of vitals. Previously the rule was night *and* energy < 40, and it was never reached because `isNightTime` was never passed.
+- **Why**: The pet recovers energy at night because it is asleep (DD-33). Under the old threshold rule it would wake up as soon as energy passed 40, at around 2 a.m., which is incoherent.
+- **Consequences**: Thirst and hunger warnings aren't shown at night. They reappear at 07:00 if still relevant.
+
+### DD-35 — An append-only habit history table (schema v2)
+- **Status**: Accepted (AR-3).
+- **Decision**:
+  - A new `habit_events` table (`id`, `type`, `amount`, `detail?`, indexed `timestampMillis`) is added via `@AutoMigration(from = 1, to = 2)`, the first real schema migration, exercising the AR-8 infrastructure.
+  - `recordHabits()` appends the applied habits in the same transaction as the pet update and prunes rows older than **30 days**.
+  - Habits are flattened into a stable type name plus up to two numbers. Unknown type names are skipped on load.
+- **Why**: Consistency-based features (archetypes, streaks, future history charts) need history. A snapshot of vitals can't express "5 of the last 7 days".
+- **Alternatives**:
+  - Per-day aggregate rows: smaller, but lose detail and complicate edge cases like midnight.
+  - JSON blobs: not queryable.
+  - Keep history in DataStore: no range queries, and no shared transaction with the pet.
+- **Consequences**: The table stays small (a few hundred rows over 30 days). `updatePet { }` writes (non-habit transforms) are not recorded. Longer retention would be needed for any future long-term charts.
+
+### DD-36 — Archetype from 7-day consistency, locked in once at TEEN
+- **Status**: Accepted (AR-3). ⚠ Game-balance thresholds.
+- **Decision**:
+  - When the pet *first* reaches `TEEN` while still `BALANCED` (`EvolutionEngine.reachesSpecialization`), `ArchetypeSelector` scores the last 7 local days. Each day can qualify for:
+    - **cardio**: ≥ 6,000 steps, floor bonus steps included;
+    - **strength**: a workout, or a heart-rate reading ≥ 100 bpm;
+    - **zen**: ≥ 1,500 ml water and ≥ 2 healthy meals.
+  - The focus area with the most qualifying days wins if it has ≥ 4 days and no tie. Otherwise the pet stays `BALANCED`.
+  - `checkEvolution` itself no longer changes the archetype, and the archetype never changes after this moment.
+- **Why**: The design promises "consistency", not a lucky snapshot. The old vitals rule made nearly every pet `CARDIO_RUNNER`, and `IRON_BEAST` was unreachable.
+- **Consequences**:
+  - Until `ExerciseClient` workouts exist, the strength path relies on sparse heart-rate awards (≤ 1 per 30 min, DD-15).
+  - Pets that were already `TEEN`+ and `BALANCED` before this change stay `BALANCED`. The old code would have kept re-evaluating them.
+  - Zen no longer considers sleep, because there is no real sleep signal yet (DD-33).
+- ⚠ **Open**: Tune the thresholds once real usage data exists. Consider re-evaluating the archetype at `ADULT`.

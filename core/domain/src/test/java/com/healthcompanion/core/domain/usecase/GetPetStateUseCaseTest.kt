@@ -17,6 +17,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 class GetPetStateUseCaseTest {
 
@@ -26,7 +28,7 @@ class GetPetStateUseCaseTest {
     @Test
     fun `open screen keeps decaying on each tick without any database write`() = runTest {
         val repository = FakePetRepository(Pet(vitals = Vitals(hydration = 50f, lastUpdatedTimestamp = start)))
-        val clock = Clock { start + testScheduler.currentTime }
+        val clock = utcClock { start + testScheduler.currentTime }
         val useCase = GetPetStateUseCase(repository, clock, refreshIntervalMillis = hour)
 
         val emissions = mutableListOf<PetWithMood>()
@@ -45,7 +47,7 @@ class GetPetStateUseCaseTest {
     @Test
     fun `stored pet changes are emitted immediately`() = runTest {
         val repository = FakePetRepository(Pet(vitals = Vitals(hydration = 50f, lastUpdatedTimestamp = start)))
-        val useCase = GetPetStateUseCase(repository, Clock { start }, refreshIntervalMillis = hour)
+        val useCase = GetPetStateUseCase(repository, utcClock { start }, refreshIntervalMillis = hour)
 
         val emissions = mutableListOf<PetWithMood>()
         backgroundScope.launch { useCase.execute().collect { emissions += it } }
@@ -56,6 +58,25 @@ class GetPetStateUseCaseTest {
 
         assertTrue(emissions.size >= 2)
         assertEquals(90f, emissions.last().pet.vitals.hydration, 0.01f)
+    }
+
+    @Test
+    fun `pet is shown sleeping during its night window`() = runTest {
+        val lateEvening = java.time.Instant.parse("2026-01-10T23:00:00Z").toEpochMilli()
+        val repository = FakePetRepository(Pet(vitals = Vitals(energy = 90f, lastUpdatedTimestamp = lateEvening)))
+        val useCase = GetPetStateUseCase(repository, utcClock { lateEvening }, refreshIntervalMillis = hour)
+
+        val emissions = mutableListOf<PetWithMood>()
+        backgroundScope.launch { useCase.execute().collect { emissions += it } }
+        runCurrent()
+
+        assertEquals(com.healthcompanion.core.model.Mood.SLEEPING, emissions.single().mood)
+    }
+
+    /** Deterministic clock in UTC; `start` (1970-01-12 13:46 UTC) is daytime, outside the night window. */
+    private fun utcClock(now: () -> Long) = object : Clock {
+        override fun nowMillis(): Long = now()
+        override fun zone(): ZoneId = ZoneOffset.UTC
     }
 
     private class FakePetRepository(initial: Pet) : PetRepository {

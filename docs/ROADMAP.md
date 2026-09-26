@@ -68,10 +68,11 @@ Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-r
 7. [x] **AR-5 — Repurpose or remove `PetDecayWorker`** 🟡
    - [x] Decided: remove it (DD-32). Tile refresh is handled by AR-4 and day rollover by AR-1. Critical-vital notifications (Phase 2) will get their own scheduled work when implemented.
    - [x] Removed the explicit `WAKE_LOCK` permission (WorkManager still merges it in). Cancel the legacy periodic job on upgrade.
-8. [ ] **AR-3 — Game-loop completeness** 🟠 *(depends on AR-8)*
-   - [ ] Energy restoration source (sleep heuristic, rest action, or Health Services sleep data).
-   - [ ] Pass `isNightTime` to `MoodCalculator` so `SLEEPING` works.
-   - [ ] `habit_events` table and consistency-based archetype selection (make `IRON_BEAST` reachable).
+8. [x] **AR-3 — Game-loop completeness** 🟠 *(depends on AR-8)*
+   - [x] Energy restoration source: night rest (+8 %/h, 22:00–07:00 local, `NightWindow`), computed per day/night segment (DD-33).
+   - [x] Pass `isNightTime` to `MoodCalculator`. The pet is `SLEEPING` throughout its night (DD-34).
+   - [x] `habit_events` table (schema v2, first real migration) and 7-day consistency-based archetype selection. `IRON_BEAST` is reachable via workouts or heart rate ≥ 100 bpm (DD-35, DD-36).
+   - [ ] Follow-ups: Health Services sleep detection (`UserActivityState` ASLEEP) as a real sleep signal, `ExerciseClient` workouts, and user-configurable bedtime.
 
 ---
 

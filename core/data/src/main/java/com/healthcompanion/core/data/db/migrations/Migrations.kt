@@ -16,5 +16,7 @@ import androidx.room.migration.Migration
  *
  * Schema version history:
  * - **1**: `pets` table (initial release schema).
+ * - **2**: adds `habit_events` (+ index on `timestampMillis`) via `@AutoMigration(from = 1, to = 2)` declared on
+ *   the `@Database` annotation (AR-3). Auto-migrations are not listed here; only hand-written ones are.
  */
 val ALL_MIGRATIONS: Array<Migration> = arrayOf()
