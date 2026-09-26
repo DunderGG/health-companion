@@ -12,6 +12,7 @@ import com.healthcompanion.core.domain.engine.EvolutionEngine
 import com.healthcompanion.core.domain.engine.PetDecayEngine
 import com.healthcompanion.core.domain.repository.PetRepository
 import com.healthcompanion.core.domain.time.Clock
+import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
 import com.healthcompanion.core.model.Vitals
@@ -143,6 +144,10 @@ class PetRepositoryImpl(
             pet
         }
     }
+
+    /** Rows whose habit can't be decoded (e.g. from a newer app version) are skipped, as in archetype selection. */
+    override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> =
+        habitEventDao.eventsSinceFlow(fromMillis).map { entities -> entities.mapNotNull { it.toDomain() } }
 
     /**
      * Loads the stored pet, or seeds and returns the default pet if none exists.

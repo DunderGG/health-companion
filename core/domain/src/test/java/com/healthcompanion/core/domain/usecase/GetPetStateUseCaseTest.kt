@@ -5,12 +5,14 @@ package com.healthcompanion.core.domain.usecase
 
 import com.healthcompanion.core.domain.repository.PetRepository
 import com.healthcompanion.core.domain.time.Clock
+import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
 import com.healthcompanion.core.model.Vitals
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -116,6 +118,7 @@ class GetPetStateUseCaseTest {
         override suspend fun getPet(): Pet = pet.value
         override suspend fun updatePet(transform: (Pet) -> Pet): Pet = transform(pet.value).also { pet.value = it }
         override suspend fun recordHabit(habit: HabitType): Pet = pet.value
+        override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> = flowOf(emptyList())
         override suspend fun recordHabits(habits: List<HabitType>): Pet = pet.value
     }
 }

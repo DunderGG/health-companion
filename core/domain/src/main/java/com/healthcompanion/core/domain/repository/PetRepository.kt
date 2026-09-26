@@ -3,6 +3,7 @@
 
 package com.healthcompanion.core.domain.repository
 
+import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
 import kotlinx.coroutines.flow.Flow
@@ -62,5 +63,14 @@ interface PetRepository {
      * @return The updated and evolved [Pet] state immediately after persistence.
      */
     suspend fun recordHabits(habits: List<HabitType>): Pet
+
+    /**
+     * Observes the habit history from [fromMillis] on, oldest first. Emits again after every write that
+     * records habits, e.g. to detect a daily focus goal being reached (DD-47).
+     *
+     * @param fromMillis Epoch milliseconds; older events are not included.
+     * @return A cold [Flow] of the matching events.
+     */
+    fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>>
 }
 

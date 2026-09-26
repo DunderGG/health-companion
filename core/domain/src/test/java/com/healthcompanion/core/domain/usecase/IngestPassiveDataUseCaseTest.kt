@@ -8,6 +8,7 @@ import com.healthcompanion.core.domain.engine.DailyTotalTracker
 import com.healthcompanion.core.domain.repository.PassiveSyncRepository
 import com.healthcompanion.core.domain.repository.PetRepository
 import com.healthcompanion.core.domain.time.Clock
+import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
 import kotlinx.coroutines.flow.Flow
@@ -96,6 +97,7 @@ class IngestPassiveDataUseCaseTest {
         override suspend fun getPet(): Pet = Pet()
         override suspend fun updatePet(transform: (Pet) -> Pet): Pet = transform(Pet())
         override suspend fun recordHabit(habit: HabitType): Pet = recordHabits(listOf(habit))
+        override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> = flowOf(emptyList())
         override suspend fun recordHabits(habits: List<HabitType>): Pet {
             recordedBatches += habits
             return Pet()

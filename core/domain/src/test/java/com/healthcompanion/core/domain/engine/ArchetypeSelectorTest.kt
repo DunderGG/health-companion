@@ -82,4 +82,30 @@ class ArchetypeSelectorTest {
         assertTrue(EvolutionEngine.reachesSpecialization(before = child, after = teen))
         assertFalse(EvolutionEngine.reachesSpecialization(before = teen, after = EvolutionEngine.checkEvolution(teen, 15)))
     }
+
+    @Test
+    fun `a single day can reach several focus goals, each at its threshold`() {
+        val day = listOf(
+            HabitType.Steps(4_000), HabitType.Steps(2_000),
+            HabitType.HeartRate(bpm = 120f),
+            HabitType.Hydration(1_000), HabitType.Hydration(500),
+            HabitType.Meal(isHealthy = true), HabitType.Meal(isHealthy = true)
+        ).map { HabitEvent(it, now) }
+
+        assertEquals(
+            setOf(PetArchetype.CARDIO_RUNNER, PetArchetype.IRON_BEAST, PetArchetype.ZEN_SAGE),
+            ArchetypeSelector.focusAreasReached(day)
+        )
+    }
+
+    @Test
+    fun `a focus goal just below its threshold is not reached`() {
+        val day = listOf(
+            HabitType.Steps(5_999),
+            HabitType.HeartRate(bpm = 99f),
+            HabitType.Hydration(1_500), HabitType.Meal(isHealthy = true), HabitType.Meal(isHealthy = false)
+        ).map { HabitEvent(it, now) }
+
+        assertEquals(emptySet<PetArchetype>(), ArchetypeSelector.focusAreasReached(day))
+    }
 }

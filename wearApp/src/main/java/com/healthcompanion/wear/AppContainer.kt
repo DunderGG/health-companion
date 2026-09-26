@@ -17,6 +17,7 @@ import com.healthcompanion.core.domain.usecase.CheckCriticalVitalsUseCase
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
+import com.healthcompanion.core.domain.usecase.ObserveDailyFocusUseCase
 import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.health.HealthServicesManager
 import com.healthcompanion.core.health.SensorLiveStepSource
@@ -74,6 +75,9 @@ class AppContainer(context: Context) {
     val observePetActivityUseCase: ObservePetActivityUseCase by lazy {
         ObservePetActivityUseCase(SensorLiveStepSource(appContext), clock)
     }
+
+    /** Today's reached focus goals, for the goal haptic (DD-47). */
+    val observeDailyFocusUseCase: ObserveDailyFocusUseCase by lazy { ObserveDailyFocusUseCase(petRepository, clock) }
 
     val checkCriticalVitalsUseCase: CheckCriticalVitalsUseCase by lazy {
         CheckCriticalVitalsUseCase(petRepository, VitalAlertStateRepositoryImpl.getInstance(appContext), clock)

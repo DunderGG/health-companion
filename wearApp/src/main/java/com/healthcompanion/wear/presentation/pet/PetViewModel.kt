@@ -8,19 +8,28 @@ import androidx.lifecycle.viewModelScope
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
+import com.healthcompanion.core.domain.usecase.ObserveDailyFocusUseCase
 import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Mood
 import com.healthcompanion.core.model.PetActivity
+import com.healthcompanion.wear.haptics.PetHapticEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -42,12 +51,14 @@ import kotlinx.coroutines.launch
  * @param getPetStateUseCase Domain use case observing pet vitals and calculated mood.
  * @param logHabitUseCase Domain use case dispatching health habits and interactions.
  * @param observePetActivityUseCase Live walking/running reaction to the user's steps.
+ * @param observeDailyFocusUseCase Today's reached focus goals, for the goal haptic (DD-47).
  * @param clock Source of "now" for the petting cooldown.
  */
 class PetViewModel(
     private val getPetStateUseCase: GetPetStateUseCase,
     private val logHabitUseCase: LogHabitUseCase,
     private val observePetActivityUseCase: ObservePetActivityUseCase,
+    private val observeDailyFocusUseCase: ObserveDailyFocusUseCase,
     private val clock: Clock
 ) : ViewModel() {
 
@@ -56,6 +67,7 @@ class PetViewModel(
 
     private val isAmbient = MutableStateFlow(false)
     private val ambientUpdates = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val pettingAccepted = MutableSharedFlow<PetHapticEvent>(extraBufferCapacity = 1)
 
     companion object {
         /** Minimum cooldown interval (10 seconds) required between touch petting interactions. */
@@ -91,6 +103,29 @@ class PetViewModel(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = PetUiState.Loading
+    )
+
+    /**
+     * Moments to play as vibration patterns (DD-47): an accepted pet, the pet evolving, and a daily focus
+     * goal being reached.
+     *
+     * Cold, and meant to be collected only while the pet UI is shown: each collection takes the current
+     * stage and goals as its baseline, so opening the app never replays something that happened while it
+     * was closed.
+     */
+    val hapticEvents: Flow<PetHapticEvent> = merge(
+        pettingAccepted,
+        uiState
+            .filterIsInstance<PetUiState.Success>()
+            .map { it.pet.stage }
+            .distinctUntilChanged()
+            .changes()
+            .filter { (before, after) -> after.level > before.level }
+            .map { PetHapticEvent.EVOLUTION },
+        observeDailyFocusUseCase.execute()
+            .changes()
+            .filter { (before, after) -> (after - before).isNotEmpty() }
+            .map { PetHapticEvent.GOAL_REACHED }
     )
 
     /**
@@ -145,6 +180,7 @@ class PetViewModel(
             return false
         }
         lastPetTimestamp = now
+        pettingAccepted.tryEmit(PetHapticEvent.PETTING)
         viewModelScope.launch {
             _isPetting.value = true
             logHabitUseCase.execute(HabitType.PettingInteraction(1.0f))
@@ -155,3 +191,16 @@ class PetViewModel(
     }
 }
 
+/**
+ * Consecutive pairs `(previous, current)`; the first value only becomes the baseline and is not emitted.
+ */
+private fun <T> Flow<T>.changes(): Flow<Pair<T, T>> = flow {
+    var previous: Any? = NoValue
+    collect { current ->
+        @Suppress("UNCHECKED_CAST")
+        if (previous !== NoValue) emit(previous as T to current)
+        previous = current
+    }
+}
+
+private object NoValue

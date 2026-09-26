@@ -8,10 +8,14 @@ import com.healthcompanion.core.domain.sensor.LiveStepSource
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
+import com.healthcompanion.core.domain.usecase.ObserveDailyFocusUseCase
 import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
+import com.healthcompanion.core.model.EvolutionStage
+import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
 import com.healthcompanion.core.model.Vitals
+import com.healthcompanion.wear.haptics.PetHapticEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
@@ -33,7 +37,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class PetViewModelAmbientTest {
+class PetViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
 
@@ -63,6 +67,8 @@ class PetViewModelAmbientTest {
 
     private val repository = object : PetRepository {
         val pet = MutableStateFlow(Pet(vitals = Vitals(hydration = 50f, lastUpdatedTimestamp = start)))
+        val history = MutableStateFlow<List<HabitEvent>>(emptyList())
+        override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> = history
         override fun getPetFlow(): Flow<Pet> = pet
         override suspend fun getPet(): Pet = pet.value
         override suspend fun updatePet(transform: (Pet) -> Pet): Pet = transform(pet.value).also { pet.value = it }
@@ -74,6 +80,7 @@ class PetViewModelAmbientTest {
         getPetStateUseCase = GetPetStateUseCase(repository, clock, refreshIntervalMillis = 24 * hour),
         logHabitUseCase = LogHabitUseCase(repository),
         observePetActivityUseCase = ObservePetActivityUseCase(stepSource, clock),
+        observeDailyFocusUseCase = ObserveDailyFocusUseCase(repository, clock),
         clock = clock
     )
 
@@ -119,5 +126,52 @@ class PetViewModelAmbientTest {
 
         val latest = states.last() as PetUiState.Success
         assertEquals(47f, latest.pet.vitals.hydration, 0.01f)
+    }
+
+    private fun TestScope.collectHaptics(viewModel: PetViewModel): MutableList<PetHapticEvent> {
+        val events = mutableListOf<PetHapticEvent>()
+        backgroundScope.launch { viewModel.hapticEvents.collect { events += it } }
+        runCurrent()
+        return events
+    }
+
+    @Test
+    fun `an accepted pet purrs, a pet in its cooldown does not`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val haptics = collectHaptics(viewModel)
+        now = start + PetViewModel.PET_COOLDOWN_MS
+
+        viewModel.petCompanion()
+        runCurrent()
+        viewModel.petCompanion() // still in the cooldown
+        runCurrent()
+
+        assertEquals(listOf(PetHapticEvent.PETTING), haptics)
+    }
+
+    @Test
+    fun `growing into the next stage plays the evolution pattern once`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val haptics = collectHaptics(viewModel)
+
+        repository.pet.value = repository.pet.value.copy(stage = EvolutionStage.CHILD)
+        runCurrent()
+        repository.pet.value = repository.pet.value.copy(experiencePoints = 10) // same stage
+        runCurrent()
+
+        assertEquals(listOf(PetHapticEvent.EVOLUTION), haptics)
+    }
+
+    @Test
+    fun `reaching a daily focus goal plays the goal pattern, but not goals already reached on opening`() = runTest(dispatcher) {
+        repository.history.value = listOf(HabitEvent(HabitType.Steps(7_000), start))
+        val viewModel = viewModel()
+        val haptics = collectHaptics(viewModel)
+        assertEquals(emptyList<PetHapticEvent>(), haptics)
+
+        repository.history.value += HabitEvent(HabitType.HeartRate(bpm = 130f), start)
+        runCurrent()
+
+        assertEquals(listOf(PetHapticEvent.GOAL_REACHED), haptics)
     }
 }

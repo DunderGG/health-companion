@@ -26,6 +26,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-39](#dd-39--walkrun-from-burst-cadence-with-hysteresis-a-sleeping-pet-does-not-react): live walk/run thresholds, and should moving wake a sleeping pet?
 > - [DD-41](#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night): alert threshold, reminders for long episodes, quiet hours, and a quick "+250 ml" action?
 > - [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress): overall health or step progress as the complication ring, and the short mood labels?
+> - [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only): how the purr, goal and evolution patterns feel on a real watch?
 
 > [!WARNING]
 > **🟠 Needs verification on an emulator or watch** (step-by-step instructions: [VERIFICATION.md](VERIFICATION.md))
@@ -38,6 +39,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-42](#dd-42--the-tile-logs-water-in-place-through-a-loadaction-deduplicated-by-a-per-render-click-id): one tap on the tile logs water exactly once and re-renders promptly.
 > - [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress): all three complication types render and tint correctly, and the ring updates after a write.
 > - [DD-44](#dd-44--the-pet-screen-stays-on-in-ambient-mode-as-a-static-outline-and-releases-the-step-sensor): ambient look and once-a-minute updates on a real always-on display, and sensor release.
+> - [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only): the three patterns on a real motor, the waveform fallback, and a live goal crossing.
 
 ---
 
@@ -91,6 +93,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-44](#dd-44--the-pet-screen-stays-on-in-ambient-mode-as-a-static-outline-and-releases-the-step-sensor) | The pet screen stays on in ambient mode as a static outline, and releases the step sensor | Surfaces / battery | Accepted · 🟠 verify on device |
 | [DD-45](#dd-45--the-crown-pages-between-the-pet-and-a-vitals-breakdown-petting-stays-a-tap) | The crown pages between the pet and a vitals breakdown; petting stays a tap | UI / input | Accepted |
 | [DD-46](#dd-46--percentages-are-rounded-not-truncated-on-every-surface) | Percentages are rounded, not truncated, on every surface | UI | Accepted |
+| [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only) | Three vibration patterns; goals are the daily focus goals; foreground only | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
 
 ---
 
@@ -675,3 +678,34 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Why**: Decay starts the moment a value is written. A vital just filled to 100 is 99.99 a few seconds later, and truncation showed 99 % right after the user topped it up (seen on the emulator, V10). Using one helper also means the surfaces can't disagree by 1.
 - **Alternatives**: Keep truncating and special-case values close to 100. That's more code for the same result.
 - **Consequences**: A value of 99.5 or more shows as 100 % although it isn't quite full. The ring and the bars still draw the exact fraction.
+
+---
+
+## Haptics (Phase 3)
+
+### DD-47 — Three vibration patterns; goals are the daily focus goals; foreground only
+- **Status**: Accepted (2026-09-26). The project owner chose the goal definition, and asked for a settings screen with user-set goals and a minor "vital filled up" pattern as roadmap items (Phase 3a).
+- **Decision**:
+  - **Patterns** (`PetHapticPatterns`), each composed from API 30 primitives, with a waveform fallback for motors that can't play them:
+    - **Petting**: a soft 4-tick purr, about 0.3 s. It replaces the generic long-press on the pet, and on API 33+ it is played as touch feedback, so the system's touch-vibration setting applies.
+    - **Goal reached**: a quick rise and two clicks, about 0.4 s.
+    - **Evolution**: a slow rise and three clicks, about 1 s.
+  - **Goal**: today first reaching a daily focus goal, using the same per-day rules as archetype selection (`ArchetypeSelector.focusAreasReached`): 6,000 steps (cardio), a workout or heart rate ≥ 100 (strength), or 1,500 ml + 2 healthy meals (nourishment). `ObserveDailyFocusUseCase` watches today's habit history through a new Room flow (`PetRepository.habitEventsSinceFlow`), and the set starts empty again after midnight.
+  - **Evolution**: the pet's stage level goes up.
+  - **When**: `PetViewModel.hapticEvents` is collected by `PetPager` only while the pet UI is started (`repeatOnLifecycle(STARTED)`), including in ambient mode. Each collection takes the current stage and goals as its baseline, so opening the app never replays something that happened while it was closed.
+  - **Overlaps**: `HapticArbiter` never lets a pattern cut off a more important one that is still playing, e.g. a goal reached by the same write that evolved the pet.
+- **Why**: The focus goals already exist and matter to the game (4 of 7 days decide the archetype), so reaching one is real progress. Distinct lengths and shapes let the three moments be told apart without looking. Foreground-only keeps the watch from buzzing unexplained while the app isn't open.
+- **Alternatives**:
+  - "A vital fills up" as the goal: visible on screen and simple. Kept for later as a minor pattern (Phase 3a).
+  - Vibrating from the background (e.g. when a sensor batch reaches the step goal): would need a notification to explain it, and competes with the critical-vital alerts (DD-41).
+  - `LocalHapticFeedback` constants only: can't express custom patterns.
+- **Consequences**:
+  - The goals aren't shown anywhere yet, so a goal vibration has no on-screen explanation. The Phase 3a roadmap adds visible goals and a settings screen for user-set goals.
+  - Evolution and goals that happen while the app is closed (usually through passive sensor batches) are never felt.
+  - The composed patterns were confirmed on the emulator for petting only (`dumpsys vibrator_manager`). Goal and evolution are covered by unit tests. How the patterns feel needs a real watch.
+
+> [!IMPORTANT]
+> **🟣 Your call: haptic feel.** Pattern shapes and strengths (purr ticks 0.3–0.6, goal and evolution clicks at full strength), once felt on a real watch.
+
+> [!WARNING]
+> **🟠 Verify on device:** the three patterns are distinguishable on the wrist, the waveform fallback works on a motor without primitives, and the goal pattern plays when a live sensor batch crosses 6,000 steps with the app open.

@@ -60,6 +60,20 @@ class PetRepositoryImplTest {
     }
 
     @Test
+    fun `the habit history flow includes newly recorded habits from the given time on`() = runBlocking {
+        val now = Instant.parse("2026-01-10T18:00:00Z").toEpochMilli()
+        val clockedRepository = PetRepositoryImpl(db, utcClock { now })
+        db.habitEventDao().insertAll(listOf(HabitEventEntity.fromDomain(HabitType.Steps(500), now - day)))
+
+        clockedRepository.recordHabit(HabitType.Hydration(250))
+
+        assertEquals(
+            listOf(HabitEvent(HabitType.Hydration(250), now)),
+            clockedRepository.habitEventsSinceFlow(now - 60_000).first()
+        )
+    }
+
+    @Test
     fun `reaching teen locks in the archetype from recent habit history`() = runBlocking {
         val now = Instant.parse("2026-01-10T18:00:00Z").toEpochMilli()
         val clockedRepository = PetRepositoryImpl(db, utcClock { now })

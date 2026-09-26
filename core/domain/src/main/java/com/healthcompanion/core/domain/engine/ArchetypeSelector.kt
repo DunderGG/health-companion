@@ -58,6 +58,19 @@ object ArchetypeSelector {
         return if (best.value >= MIN_CONSISTENT_DAYS && isUniqueBest) best.key else PetArchetype.BALANCED
     }
 
+    /**
+     * The focus areas one day's events qualify for: the daily focus goals (DD-47). Uses the same rules
+     * as [select], so a goal reached today is exactly a day that counts towards that archetype.
+     *
+     * @param dayEvents The events of a single local day.
+     * @return A subset of [PetArchetype.CARDIO_RUNNER], [PetArchetype.IRON_BEAST] and [PetArchetype.ZEN_SAGE].
+     */
+    fun focusAreasReached(dayEvents: List<HabitEvent>): Set<PetArchetype> = buildSet {
+        if (dayEvents.isCardioDay()) add(PetArchetype.CARDIO_RUNNER)
+        if (dayEvents.isStrengthDay()) add(PetArchetype.IRON_BEAST)
+        if (dayEvents.isZenDay()) add(PetArchetype.ZEN_SAGE)
+    }
+
     private fun List<HabitEvent>.isCardioDay(): Boolean =
         sumOf { (it.habit as? HabitType.Steps)?.stepCount ?: 0 } >= CARDIO_STEPS_PER_DAY
 

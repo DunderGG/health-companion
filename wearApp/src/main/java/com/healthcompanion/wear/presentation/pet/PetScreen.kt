@@ -26,8 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -142,8 +140,8 @@ fun PetScreen(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // Modern Animated Companion Sprite (Clickable for Petting)
-                        val haptic = LocalHapticFeedback.current
+                        // Modern Animated Companion Sprite (Clickable for Petting). An accepted pet plays
+                        // the purr pattern through PetViewModel.hapticEvents (DD-47).
                         val petInteractionSource = remember { MutableInteractionSource() }
                         Box(
                             modifier = Modifier
@@ -152,9 +150,7 @@ fun PetScreen(
                                     interactionSource = petInteractionSource,
                                     indication = null
                                 ) {
-                                    if (viewModel.petCompanion()) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    }
+                                    viewModel.petCompanion()
                                 },
                             contentAlignment = Alignment.Center
                         ) {

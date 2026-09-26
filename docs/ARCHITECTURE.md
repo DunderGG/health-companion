@@ -59,6 +59,7 @@ Vitals --> Complication : Updates Watch Dial
 | **UI Framework** | Jetpack Compose for Wear OS (`compose-material3`, `compose-foundation`) | Hardware-accelerated, declarative UI optimized for circular displays. |
 | **Ambient (Always-On)** | `androidx.wear:wear` (`AmbientLifecycleObserver`) | Keeps the pet screen visible when the watch dims, as a static grey outline with the time, a burn-in shift, and once-a-minute updates (DD-44). |
 | **Rotary Crown** | Wear Compose Material3 `VerticalPagerScaffold` | The crown snaps between the pet page and the vitals page, with haptics (DD-45). |
+| **Haptics** | `Vibrator` + `VibrationEffect.Composition` (API 30 primitives, waveform fallback) | Purr on petting, success pattern on reaching a daily focus goal, fanfare on evolution; only while the pet UI is open (DD-47). |
 | **Wear Utilities** | Horologist (`horologist-compose-layout`) | Volume/haptics. |
 | **Health & Sensors** | Health Services for Wear OS (`androidx.health:health-services-client`) | Capability-aware passive monitoring via `PassiveMonitoringClient`: steps, floors, and heart rate. |
 | **Glance Surfaces** | AndroidX Wear Tiles & ProtoLayout | Instant-access carousel card with 1-tap micro-interactions. |
@@ -184,6 +185,7 @@ health-companion/
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
 │       ├── presentation/pet/             # PetPager (pet + vitals pages), PetScreen, VitalsScreen, PetViewModel
 │       ├── presentation/ambient/         # AmbientState, BurnInShift (always-on mode)
+│       ├── haptics/                      # PetHaptics, PetHapticPatterns (petting, goal, evolution)
 │       ├── complications/                # PetMoodComplicationService, MoodPresentation
 │       ├── notifications/                # VitalAlertWorker, VitalAlertNotifier
 │       └── tiles/                        # PetStatusTileService (Carousel Tile), TileClickLedger
@@ -559,7 +561,7 @@ To keep the primary diagrams manageable and focused on the core runtime loop, th
    - User swipes to Tile on watch face $\rightarrow$ system invokes `TileService.onTileRequest()` $\rightarrow$ coroutine `future { }` query to `PetRepository` (no blocking) $\rightarrow$ ProtoLayout element tree assembly $\rightarrow$ 10-minute cache freshness declaration $\rightarrow$ `ListenableFuture<Tile>` delivery.
    - User taps **+250ml Water** $\rightarrow$ `LoadAction` $\rightarrow$ `onTileRequest()` with `lastClickableId = log_water:<render time>` $\rightarrow$ `TileClickLedger.claimWaterClick()` (an already-handled id is ignored) $\rightarrow$ `LogHabitUseCase` $\rightarrow$ re-render with the new hydration value (DD-42).
 4. **Milestone Evolution & Archetype Specialization**:
-   - Cumulative XP crosses stage threshold (e.g. 750 XP for `TEEN`) $\rightarrow$ `EvolutionEngine.checkEvolution()` inspects dominant vitals (e.g. `fitness > 80f`) $\rightarrow$ locks in specialized persona (`CARDIO_RUNNER`) $\rightarrow$ triggers celebratory haptic pattern and visual evolution feedback.
+   - Cumulative XP crosses stage threshold (e.g. 750 XP for `TEEN`) $\rightarrow$ `EvolutionEngine.checkEvolution()` inspects dominant vitals (e.g. `fitness > 80f`) $\rightarrow$ locks in specialized persona (`CARDIO_RUNNER`) $\rightarrow$ triggers the evolution vibration pattern while the pet UI is open (DD-47) and visual evolution feedback.
 5. **Sensor Capability Negotiation & Hardware Fallback**:
    - `HealthServicesManager.tryRegisterPassiveDataService()` queries `passiveMonitoringClient.getCapabilitiesAsync()` $\rightarrow$ computes intersection with `desiredDataTypes` $\rightarrow$ registers listener only for hardware-supported data types, gracefully skipping missing sensors (e.g. watches without PPG heart rate hardware).
 

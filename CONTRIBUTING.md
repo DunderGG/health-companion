@@ -97,7 +97,7 @@ All tests run on the JVM, with no emulator needed:
 - **`:core:domain`**: game engine (decay, night rest, mood, archetypes, daily-total deltas) and use cases, with fake repositories and clocks.
 - **`:core:data`**: Room and DataStore integration tests under Robolectric (concurrent writes, migrations, bad-row repair).
 - **`:core:health`**: sensor/permission planning rules.
-- **`:wearApp`**: the tile's click-deduplication rule, the ambient burn-in shift, the pet screen's ambient behaviour (sensor release, once-a-minute refresh), and the vitals breakdown.
+- **`:wearApp`**: the tile's click-deduplication rule, the ambient burn-in shift, the pet screen's ambient behaviour (sensor release, once-a-minute refresh), the vitals breakdown, and the haptic patterns, their priority rule and when the view model emits them.
 
 ### Changing the Database Schema
 

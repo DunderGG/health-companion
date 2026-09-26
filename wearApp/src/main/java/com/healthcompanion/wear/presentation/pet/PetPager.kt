@@ -4,9 +4,16 @@
 package com.healthcompanion.wear.presentation.pet
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.wear.compose.foundation.pager.rememberPagerState
 import androidx.wear.compose.material3.VerticalPagerScaffold
+import com.healthcompanion.wear.haptics.PetHaptics
 import com.healthcompanion.wear.presentation.ambient.AmbientState
 
 /** Pages of [PetPager], top to bottom. */
@@ -38,6 +45,17 @@ fun PetPager(
     ambientState: AmbientState = AmbientState.Interactive
 ) {
     val pagerState = rememberPagerState(initialPage = PAGE_PET) { PAGE_COUNT }
+
+    // Vibration patterns (DD-47), collected only while the pet UI is started, so nothing plays in the
+    // background and nothing that happened while the app was closed is replayed on opening it.
+    val context = LocalContext.current
+    val haptics = remember { PetHaptics(context) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(viewModel, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.hapticEvents.collect(haptics::play)
+        }
+    }
 
     if (ambientState.displayMode.isAmbient) {
         PetScreen(viewModel = viewModel, modifier = modifier, ambientState = ambientState)

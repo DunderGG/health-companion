@@ -152,7 +152,17 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 - [x] Watch Face Complication Provider (`PetMoodComplicationService`): pet mood face (short text / icon) and an overall-health ring on standard watch dials, refreshed from the same `NotifyingPetRepository` callback as the tile (DD-43). A step-progress ring needs a daily step goal first (DD-43, your call).
 - [x] Ambient Mode support: Low-power grayscale rendering for always-on displays. Static outline pet and ring, time shown, burn-in shift, step sensor released (DD-44).
 - [x] Rotary Crown Integration: the crown (or a swipe) pages between the pet and a new Vitals page with all five vitals. Zoom and crown petting were considered and dropped; petting stays a tap (DD-45).
-- [ ] Haptic Feedback: Custom vibration patterns on petting, evolution, and goal completion.
+- [x] Haptic Feedback: Custom vibration patterns on petting (purr), evolution (fanfare), and goal completion (success), where a goal is today first reaching a daily focus goal: 6,000 steps, a workout or heart rate ≥ 100, or 1,500 ml + 2 healthy meals (DD-47).
+
+---
+
+## Phase 3a: Settings & Daily Goals
+- [ ] **Settings screen**: a watch settings page, reached from the pet pager, where the user sets their own daily goals, amongst other things. The focus goals are currently fixed in `ArchetypeSelector` (DD-36, DD-47). Other candidates for the same screen:
+  - Configurable bedtime (Phase 2a follow-up, DD-33).
+  - Haptics on/off.
+- [ ] **Visible goals**: show today's progress towards each daily goal (e.g. on the Vitals page), so the goal-reached vibration always matches something on screen (DD-47).
+- [ ] **"Vital filled up" haptic**: a minor success pattern, lighter than the goal pattern, when a vital reaches 100 % from below while the pet screen is open (DD-47).
+- [ ] Optional: a step-progress complication ring once a daily step goal exists (DD-43).
 
 ---
 

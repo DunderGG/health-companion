@@ -7,6 +7,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import com.healthcompanion.core.data.db.entity.HabitEventEntity
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Data access for the `habit_events` history table.
@@ -21,6 +22,10 @@ interface HabitEventDao {
     /** Events at or after [fromMillis], oldest first. */
     @Query("SELECT * FROM habit_events WHERE timestampMillis >= :fromMillis ORDER BY timestampMillis")
     suspend fun eventsSince(fromMillis: Long): List<HabitEventEntity>
+
+    /** Observes events at or after [fromMillis], oldest first; Room re-emits whenever the table changes. */
+    @Query("SELECT * FROM habit_events WHERE timestampMillis >= :fromMillis ORDER BY timestampMillis")
+    fun eventsSinceFlow(fromMillis: Long): Flow<List<HabitEventEntity>>
 
     /** Deletes events older than [cutoffMillis] to keep the table small on the watch. */
     @Query("DELETE FROM habit_events WHERE timestampMillis < :cutoffMillis")

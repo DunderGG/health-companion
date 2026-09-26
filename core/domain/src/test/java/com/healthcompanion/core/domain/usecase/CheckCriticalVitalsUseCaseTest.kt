@@ -7,6 +7,7 @@ import com.healthcompanion.core.domain.engine.CriticalVital
 import com.healthcompanion.core.domain.repository.PetRepository
 import com.healthcompanion.core.domain.repository.VitalAlertStateRepository
 import com.healthcompanion.core.domain.time.Clock
+import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
 import com.healthcompanion.core.model.Vitals
@@ -69,6 +70,7 @@ class CheckCriticalVitalsUseCaseTest {
         override suspend fun getPet(): Pet = pet
         override suspend fun updatePet(transform: (Pet) -> Pet): Pet = error("check must not write")
         override suspend fun recordHabit(habit: HabitType): Pet = error("check must not write")
+        override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> = flowOf(emptyList())
         override suspend fun recordHabits(habits: List<HabitType>): Pet = error("check must not write")
     }
 }

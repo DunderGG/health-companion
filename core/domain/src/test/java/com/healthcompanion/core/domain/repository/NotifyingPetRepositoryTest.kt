@@ -3,6 +3,7 @@
 
 package com.healthcompanion.core.domain.repository
 
+import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
 import kotlinx.coroutines.flow.Flow
@@ -52,6 +53,7 @@ class NotifyingPetRepositoryTest {
         override suspend fun getPet(): Pet = Pet()
         override suspend fun updatePet(transform: (Pet) -> Pet): Pet = write { transform(Pet()) }
         override suspend fun recordHabit(habit: HabitType): Pet = write { Pet() }
+        override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> = flowOf(emptyList())
         override suspend fun recordHabits(habits: List<HabitType>): Pet = write { Pet() }
 
         private fun write(block: () -> Pet): Pet {

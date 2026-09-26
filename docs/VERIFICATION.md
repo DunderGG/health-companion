@@ -10,7 +10,7 @@ Manual checks that unit tests can't cover: behaviour on a Wear OS emulator or a 
 **Contents**
 - [0. Setup](#0-setup)
 - [1. Tools](#1-tools)
-- [2. Functional checks](#2-functional-checks) (V1–V10)
+- [2. Functional checks](#2-functional-checks) (V1–V11)
 - [3. Battery profiling](#3-battery-profiling) (B1–B6)
 - [Results log](#results-log)
 
@@ -204,6 +204,14 @@ On the emulator, use the rotary control in the extended controls (**⋯**), or `
 - [ ] The Vitals page shows all five vitals, fully inside the round display on the smallest supported screen, with values matching the tile.
 - [ ] Tapping the pet and the meal/water buttons still works on the pet page.
 
+### V11 — Haptics ([DD-47](DESIGN_DECISIONS.md#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only)) — physical watch for the feel
+`adb shell dumpsys vibrator_manager` lists every vibration with its primitives, so the emulator can confirm what was played. Only a watch shows how it feels.
+- [ ] Tapping the pet (outside its 10 s cooldown) plays the purr: four `TICK` primitives with `usage: TOUCH`. A tap during the cooldown plays nothing.
+- [ ] With the app open, crossing a daily focus goal plays the goal pattern once (`QUICK_RISE` + two `CLICK`s). The quickest way is on a fresh day, or after clearing app data: log 6 × 250 ml and 2 healthy meals. Goals already reached before the app was opened play nothing.
+- [ ] An evolution while the app is open plays the fanfare (`SLOW_RISE`, `QUICK_FALL`, three `CLICK`s), and a goal reached by the same write doesn't cut it off.
+- [ ] With the app closed, reaching a goal through a sensor batch doesn't vibrate.
+- [ ] On the wrist, the three patterns are easy to tell apart, and the purr feels soft.
+
 ---
 
 ## 3. Battery profiling
@@ -257,6 +265,7 @@ Force Doze (§1.5) with an alert check pending.
 
 | Date | Check | Device / image | Result | Notes |
 | :--- | :--- | :--- | :--- | :--- |
+| 2026-09-26 | V11 (partial), V10 haptics | Wear_OS_Large_Round, API 37 | Pass | Petting played the composed purr (4 × `TICK`, `usage: TOUCH`) per `dumpsys vibrator_manager`. Crown paging produced rotary `CLICK` feedback. The goal pattern could not be triggered: synthetic walking had already reached every goal that day, so no pattern was correct. |
 | 2026-09-26 | DD-46 | Wear_OS_Large_Round, API 37 | Pass | After logging water, hydration shows 100% (was 99%). "100%" fits the Vitals rows. |
 | 2026-09-26 | V10 (partial) | Wear_OS_Large_Round, API 37 | Pass | Crown (`rotaryencoder scroll --axis SCROLL,±1`) and swipe both snap between the pet and Vitals pages. The Vitals page fits the large round screen. Tapping water on the pet page still logs (hydration capped at 100, shown as 99% because values are truncated). Haptics and small screens not checked. |
 | 2026-09-26 | V9 (partial) | Wear_OS_Large_Round, API 37 | Pass | `KEYCODE_SLEEP` enters the ambient look (time, name, outline pet, thin ring), also from the Vitals page. Found and fixed: Material `TimeText` drew a filled pill behind the time. Minute updates, burn-in shift and sensor release not checked. |
