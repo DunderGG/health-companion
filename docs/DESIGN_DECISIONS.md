@@ -27,7 +27,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-41](#dd-41--one-alert-per-critical-episode-at-the-mood-threshold-never-at-night): alert threshold, reminders for long episodes, quiet hours, and a quick "+250 ml" action?
 
 > [!WARNING]
-> **🟠 Needs verification on an emulator or watch**
+> **🟠 Needs verification on an emulator or watch** (step-by-step instructions: [VERIFICATION.md](VERIFICATION.md))
 > - [DD-17](#dd-17--a-daily-reading-belongs-to-the-day-of-its-interval-end-minus-1-ms): which day a daily total is counted in at midnight, and after time-zone changes.
 > - [DD-23](#dd-23--heart-rate-is-registered-only-with-background-access): permission dialogs on Wear OS 6 and API 33–35, and background heart-rate delivery.
 > - [DD-24](#dd-24--idempotent-registration-keyed-on-permitted-sensors--boot-count): whether the passive registration survives app updates.
@@ -233,7 +233,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Code**: `core/health/.../PassiveDataService.kt` (`latestDailyTotal`).
 
 > [!WARNING]
-> **🟠 Verify on device.** Confirm how Health Services timestamps the intervals around the daily reset, and how time-zone changes behave. Use an emulator with synthetic data (`adb shell am broadcast -a "androidx.health.services.client.action.SIMULATE_DATA"`) or a physical watch.
+> **🟠 Verify on device.** Confirm how Health Services timestamps the intervals around the daily reset, and how time-zone changes behave. Steps: [VERIFICATION.md V6](VERIFICATION.md#v6--midnight-and-time-zones-dd-17).
 
 ---
 

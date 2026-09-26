@@ -82,11 +82,8 @@ Execute the test suite covering mathematical decay, habit logging, and mood calc
 .\gradlew.bat test
 ```
 
-### 5. Simulating Sensor Steps on Emulator
-Because emulators do not physically walk, use ADB to broadcast synthetic Wear OS Health Services sensor events:
-```bash
-adb shell am broadcast -a "androidx.health.services.client.action.SIMULATE_DATA"
-```
+### 5. Simulating Sensors & Verifying on a Watch
+Emulators don't walk, so Health Services sensor data has to be simulated. The [Verification Guide](docs/VERIFICATION.md) explains how to do that, and lists the emulator, device and battery checks.
 
 ---
 
@@ -95,9 +92,10 @@ adb shell am broadcast -a "androidx.health.services.client.action.SIMULATE_DATA"
 Detailed architectural specifications and development plans are maintained in the [`docs/`](docs/) directory:
 
 - 📖 **[System Architecture](docs/ARCHITECTURE.md)** — PlantUML system flows, module responsibilities, mathematical decay formulas, and source tree.
+- ✅ **[Verification Guide](docs/VERIFICATION.md)** — Emulator and watch checks, sensor simulation, and battery profiling.
 - 🧭 **[Design Decisions](docs/DESIGN_DECISIONS.md)** — Why the system works the way it does: alternatives, trade-offs, and open questions (highlighted).
 - 🔍 **[Reviews](docs/reviews/README.md)** — Dated architecture reviews and their findings (e.g. AR-1 … AR-8).
-- 🗺️ **[Project Roadmap](docs/ROADMAP.md)** — 5-phase development roadmap, emulator synthetic sensor guide, and the **Phase 2b** community naming survey (*Resona*, *Symbio*, *Vitalkin*, *Paravita*, *Vitecho*, *AuraSync*).
+- 🗺️ **[Project Roadmap](docs/ROADMAP.md)** — 5-phase development roadmap and the **Phase 2b** community naming survey (*Resona*, *Symbio*, *Vitalkin*, *Paravita*, *Vitecho*, *AuraSync*).
 - 🤝 **[Contributing Guidelines](CONTRIBUTING.md)** — Environment setup, code style, required license headers, and PR workflow.
 
 ---

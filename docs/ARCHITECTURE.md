@@ -170,7 +170,8 @@ health-companion/
 │   ├── ARCHITECTURE.md                   # System architecture & PlantUML diagrams
 │   ├── DESIGN_DECISIONS.md               # Decision log (DD-xx): rationale, trade-offs, open questions
 │   ├── reviews/                         # Dated point-in-time reviews (findings AR-x, …)
-│   └── ROADMAP.md                        # Phased timeline & testing guide
+│   ├── ROADMAP.md                        # Phased timeline
+│   └── VERIFICATION.md                   # Emulator/watch checks & battery profiling
 │
 ├── wearApp/                              # Wear OS Application Module
 │   ├── src/main/AndroidManifest.xml      # Standalone watch app configuration

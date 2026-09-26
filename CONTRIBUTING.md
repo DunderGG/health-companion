@@ -110,11 +110,7 @@ See the checklist in [docs/ARCHITECTURE.md §5.3](docs/ARCHITECTURE.md#4-schema-
 
 ### Simulating Sensor Data on the Emulator
 
-To test passive step count tracking on the Wear OS emulator without physical movement:
-
-```bash
-adb shell am broadcast -a "androidx.health.services.client.action.SIMULATE_DATA"
-```
+To test passive tracking on the Wear OS emulator without physical movement, simulate Health Services data as described in [docs/VERIFICATION.md §1.1](docs/VERIFICATION.md#11-synthetic-health-services-data). The same guide lists the manual checks to run on an emulator or watch, and how to profile battery use.
 
 ---
 
