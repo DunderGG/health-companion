@@ -29,10 +29,10 @@ class VitalsBreakdownTest {
     }
 
     @Test
-    fun `values are truncated to whole percentages, like the tile and complication`() {
-        assertEquals(listOf(72, 64, 41, 80, 100), vitalsBreakdown(vitals).map { it.percent })
+    fun `values are rounded to whole percentages, like the tile and complication`() {
+        assertEquals(listOf(73, 64, 42, 80, 100), vitalsBreakdown(vitals).map { it.percent })
         // (72.9 + 64 + 41.5 + 80 + 100) / 5 = 71.68
-        assertEquals(71, overallPercent(vitals))
+        assertEquals(72, overallPercent(vitals))
     }
 
     @Test

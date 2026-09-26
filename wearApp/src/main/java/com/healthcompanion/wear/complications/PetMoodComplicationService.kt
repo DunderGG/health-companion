@@ -23,6 +23,7 @@ import com.healthcompanion.core.model.Mood
 import com.healthcompanion.wear.HealthCompanionApp
 import com.healthcompanion.wear.MainActivity
 import com.healthcompanion.wear.R
+import com.healthcompanion.wear.toDisplayPercent
 
 /**
  * Watch face complication showing the pet's mood, and its overall health as a ring.
@@ -57,7 +58,7 @@ class PetMoodComplicationService : SuspendingComplicationDataSourceService() {
     private fun build(type: ComplicationType, petName: String, mood: Mood, health: Float): ComplicationData? {
         val presentation = MoodPresentation.of(mood)
         val label = getString(presentation.labelRes)
-        val healthPercent = health.toInt().coerceIn(0, 100)
+        val healthPercent = health.toDisplayPercent()
         val image = MonochromaticImage.Builder(Icon.createWithResource(this, presentation.iconRes)).build()
         val description = text(getString(R.string.complication_description, petName, label, healthPercent))
 

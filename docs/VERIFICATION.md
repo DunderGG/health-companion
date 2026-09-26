@@ -257,6 +257,7 @@ Force Doze (§1.5) with an alert check pending.
 
 | Date | Check | Device / image | Result | Notes |
 | :--- | :--- | :--- | :--- | :--- |
+| 2026-09-26 | DD-46 | Wear_OS_Large_Round, API 37 | Pass | After logging water, hydration shows 100% (was 99%). "100%" fits the Vitals rows. |
 | 2026-09-26 | V10 (partial) | Wear_OS_Large_Round, API 37 | Pass | Crown (`rotaryencoder scroll --axis SCROLL,±1`) and swipe both snap between the pet and Vitals pages. The Vitals page fits the large round screen. Tapping water on the pet page still logs (hydration capped at 100, shown as 99% because values are truncated). Haptics and small screens not checked. |
 | 2026-09-26 | V9 (partial) | Wear_OS_Large_Round, API 37 | Pass | `KEYCODE_SLEEP` enters the ambient look (time, name, outline pet, thin ring), also from the Vitals page. Found and fixed: Material `TimeText` drew a filled pill behind the time. Minute updates, burn-in shift and sensor release not checked. |
 | | | | | |

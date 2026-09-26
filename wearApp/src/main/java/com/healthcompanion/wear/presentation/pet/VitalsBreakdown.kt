@@ -12,6 +12,7 @@ import com.healthcompanion.core.ui.theme.HealthyGreen
 import com.healthcompanion.core.ui.theme.SoftPink
 import com.healthcompanion.core.ui.theme.SunsetOrange
 import com.healthcompanion.wear.R
+import com.healthcompanion.wear.toDisplayPercent
 
 /**
  * One row of the Vitals page.
@@ -28,17 +29,15 @@ data class VitalLine(
 
 /**
  * All five vitals in display order, including happiness, which has no arc on the ring (DD-45).
- * Percentages are truncated like on the tile and complication, so all surfaces show the same number.
+ * Percentages are rounded the same way as on the tile and complication ([toDisplayPercent]), so all surfaces agree.
  */
 fun vitalsBreakdown(vitals: Vitals): List<VitalLine> = listOf(
-    VitalLine(R.string.vital_energy, vitals.energy.asPercent(), ElectricPurple),
-    VitalLine(R.string.vital_hunger, vitals.hunger.asPercent(), SunsetOrange),
-    VitalLine(R.string.vital_hydration, vitals.hydration.asPercent(), BrightAqua),
-    VitalLine(R.string.vital_fitness, vitals.fitness.asPercent(), HealthyGreen),
-    VitalLine(R.string.vital_happiness, vitals.happiness.asPercent(), SoftPink)
+    VitalLine(R.string.vital_energy, vitals.energy.toDisplayPercent(), ElectricPurple),
+    VitalLine(R.string.vital_hunger, vitals.hunger.toDisplayPercent(), SunsetOrange),
+    VitalLine(R.string.vital_hydration, vitals.hydration.toDisplayPercent(), BrightAqua),
+    VitalLine(R.string.vital_fitness, vitals.fitness.toDisplayPercent(), HealthyGreen),
+    VitalLine(R.string.vital_happiness, vitals.happiness.toDisplayPercent(), SoftPink)
 )
 
 /** Overall health as a whole percentage, as on the tile and complication. */
-fun overallPercent(vitals: Vitals): Int = vitals.overallHealth.asPercent()
-
-private fun Float.asPercent(): Int = toInt().coerceIn(0, 100)
+fun overallPercent(vitals: Vitals): Int = vitals.overallHealth.toDisplayPercent()

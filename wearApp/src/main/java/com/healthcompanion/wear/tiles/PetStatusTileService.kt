@@ -23,6 +23,7 @@ import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.wear.HealthCompanionApp
 import com.healthcompanion.wear.MainActivity
 import com.healthcompanion.wear.R
+import com.healthcompanion.wear.toDisplayPercent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -106,13 +107,13 @@ class PetStatusTileService : TileService() {
         val vitals = LayoutElementBuilders.Column.Builder()
             .setModifiers(ModifiersBuilders.Modifiers.Builder().setClickable(openApp).build())
             .addContent(
-                Text.Builder(this, "Health ${decayedVitals.overallHealth.toInt()}%")
+                Text.Builder(this, "Health ${decayedVitals.overallHealth.toDisplayPercent()}%")
                     .setTypography(Typography.TYPOGRAPHY_TITLE2)
                     .setColor(argb(HEALTH_COLOR))
                     .build()
             )
             .addContent(
-                Text.Builder(this, "Hydration ${decayedVitals.hydration.toInt()}%")
+                Text.Builder(this, "Hydration ${decayedVitals.hydration.toDisplayPercent()}%")
                     .setTypography(Typography.TYPOGRAPHY_CAPTION1)
                     .setColor(argb(WATER_COLOR))
                     .build()

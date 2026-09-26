@@ -90,6 +90,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-43](#dd-43--the-complication-shows-mood-and-overall-health-not-step-progress) | The complication shows mood and overall health, not step progress | Surfaces | Accepted · 🟠 verify on device · 🟣 your call |
 | [DD-44](#dd-44--the-pet-screen-stays-on-in-ambient-mode-as-a-static-outline-and-releases-the-step-sensor) | The pet screen stays on in ambient mode as a static outline, and releases the step sensor | Surfaces / battery | Accepted · 🟠 verify on device |
 | [DD-45](#dd-45--the-crown-pages-between-the-pet-and-a-vitals-breakdown-petting-stays-a-tap) | The crown pages between the pet and a vitals breakdown; petting stays a tap | UI / input | Accepted |
+| [DD-46](#dd-46--percentages-are-rounded-not-truncated-on-every-surface) | Percentages are rounded, not truncated, on every surface | UI | Accepted |
 
 ---
 
@@ -663,3 +664,14 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Consequences**:
   - Zooming and crown petting are dropped from the roadmap item. Petting stays a tap on the pet.
   - The vitals rows are sized for the 5-row layout. A sixth row (e.g. XP or level) would need a scrolling list, and with it a rotary scroll inside the page.
+
+---
+
+## Display details
+
+### DD-46 — Percentages are rounded, not truncated, on every surface
+- **Status**: Accepted (2026-09-26).
+- **Decision**: The app's Vitals page, the tile and the complication all show vitals and overall health through one helper, `Float.toDisplayPercent()` (in `:wearApp`). It rounds to the nearest whole number, clamps to `0..100`, and shows `NaN` as 0.
+- **Why**: Decay starts the moment a value is written. A vital just filled to 100 is 99.99 a few seconds later, and truncation showed 99 % right after the user topped it up (seen on the emulator, V10). Using one helper also means the surfaces can't disagree by 1.
+- **Alternatives**: Keep truncating and special-case values close to 100. That's more code for the same result.
+- **Consequences**: A value of 99.5 or more shows as 100 % although it isn't quite full. The ring and the bars still draw the exact fraction.
