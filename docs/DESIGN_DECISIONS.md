@@ -97,6 +97,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-46](#dd-46--percentages-are-rounded-not-truncated-on-every-surface) | Percentages are rounded, not truncated, on every surface | UI | Accepted |
 | [DD-47](#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only) | Three vibration patterns; goals are the daily focus goals; foreground only | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
 | [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype) | A settings screen for daily goals, bedtime and haptics; goals don't change the archetype | UI / game design | Accepted · 🟠 verify on device · 🟣 your call |
+| [DD-49](#dd-49--a-goals-page-between-the-vitals-and-the-settings-one-calculation-for-page-vibration-and-archetype) | A goals page between the vitals and the settings; one calculation for page, vibration and archetype | UI | Accepted |
 
 ---
 
@@ -717,7 +718,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 ## Settings (Phase 3a)
 
 ### DD-48 — A settings screen for daily goals, bedtime and haptics; goals don't change the archetype
-- **Status**: Accepted (2026-09-26). The project owner chose that user-set goals affect only the daily goal, not the archetype, and chose the three settings and the stepper editing.
+- **Status**: Accepted (2026-09-26). The project owner chose that user-set goals affect only the daily goal, not the archetype, and chose the three settings and the stepper editing. The Settings page moved one page down, below the new goals page (DD-49).
 - **Decision**:
   - **Settings** (`UserSettings`, in `:core:domain`):
     - **Daily goals** (`DailyGoals`): steps 1,000–20,000 in steps of 500; water 500–4,000 ml in steps of 250 ml (one tile tap); healthy meals 1–5. The defaults are the archetype thresholds (6,000 / 1,500 ml / 2). The strength goal (a workout or heart rate ≥ 100) stays fixed. It is a threshold, not a personal target.
@@ -756,3 +757,25 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!WARNING]
 > **🟠 Verify on device:** one crown detent should move the stepper by about one value (on the emulator, one scroll event of 2 moved it by four). Check that the list and steppers fit a small round screen, and that switching vibration off silences the purr.
+
+### DD-49 — A goals page between the vitals and the settings; one calculation for page, vibration and archetype
+- **Status**: Accepted (2026-09-26). The project owner chose a separate fourth page over merging goals into the settings page.
+- **Decision**:
+  - The pager now has four pages: Pet → Vitals → **Goals** → Settings.
+  - The goals page is a fixed column like the Vitals page. Its title counts the reached goals ("Goals · 2/3"). It has four rows with bars:
+    - Steps: "4,200 / 6,000".
+    - Water: "750 / 1,500 ml".
+    - Healthy meals: "1 / 2".
+    - Workout (a workout or heart rate ≥ 100): "Not yet" or "✓ Done".
+  - A reached row shows a full bar and only today's total ("✓ 8,250 ml"), which keeps rows short on small screens.
+  - Water and healthy meals are shown as two rows, although together they make one goal (nourishment). The title counts them as one.
+  - `DailyProgress` (`:core:domain`) holds one day's totals and derives which goals are reached. The goals page, the goal vibration (`ObserveDailyProgressUseCase`, renamed from `ObserveDailyFocusUseCase`) and archetype selection (`ArchetypeSelector`, with its fixed thresholds) all use it.
+  - The Vitals and Goals rows share one `ProgressRow` composable.
+- **Why**: The goal vibration (DD-47) had nothing on screen to explain it. A single calculation means a full row, the vibration and the archetype rules can't drift apart.
+- **Alternatives**:
+  - Goals on the Vitals page: no room left.
+  - Goals on the settings page, above a smaller Settings button: one page fewer, but it mixes status with configuration. Not chosen by the owner.
+  - One combined "Nourishment" row: shorter, but "1,000 ml, 1 meal" doesn't read as a single progress bar.
+- **Consequences**:
+  - Settings are one crown turn further away.
+  - The goals page and the goal vibration each collect today's history (two Room flows while the pager is shown), so a new collection of the vibration stream always starts from a fresh baseline (DD-47).

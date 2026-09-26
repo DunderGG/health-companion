@@ -10,7 +10,7 @@ Manual checks that unit tests can't cover: behaviour on a Wear OS emulator or a 
 **Contents**
 - [0. Setup](#0-setup)
 - [1. Tools](#1-tools)
-- [2. Functional checks](#2-functional-checks) (V1–V12)
+- [2. Functional checks](#2-functional-checks) (V1–V13)
 - [3. Battery profiling](#3-battery-profiling) (B1–B6)
 - [Results log](#results-log)
 
@@ -199,7 +199,7 @@ Enable **Settings → Display → Always-on screen**, open the pet screen, then 
 
 ### V10 — Rotary crown ([DD-45](DESIGN_DECISIONS.md#dd-45--the-crown-pages-between-the-pet-and-a-vitals-breakdown-petting-stays-a-tap))
 On the emulator, use the rotary control in the extended controls (**⋯**), or `adb shell input rotaryencoder scroll --axis SCROLL,-1` (repeat a few times; positive values scroll back up).
-- [ ] Turning the crown one way snaps from the pet to the Vitals page and then the Settings page, and the other way snaps back. The page indicator follows. On a watch, each snap gives a haptic tick.
+- [ ] Turning the crown one way snaps from the pet to the Vitals, Goals and Settings pages, and the other way snaps back. The page indicator follows. On a watch, each snap gives a haptic tick.
 - [ ] Swiping up and down does the same.
 - [ ] The Vitals page shows all five vitals, fully inside the round display on the smallest supported screen, with values matching the tile.
 - [ ] Tapping the pet and the meal/water buttons still works on the pet page.
@@ -213,7 +213,7 @@ On the emulator, use the rotary control in the extended controls (**⋯**), or `
 - [ ] On the wrist, the three patterns are easy to tell apart, and the purr feels soft.
 
 ### V12 — Settings ([DD-48](DESIGN_DECISIONS.md#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype))
-Open the third pager page and tap **Settings**. On the emulator, turn the crown with `adb shell input rotaryencoder scroll --axis SCROLL,-1` (V10).
+Open the last pager page and tap **Settings**. On the emulator, turn the crown with `adb shell input rotaryencoder scroll --axis SCROLL,-1` (V10).
 - [ ] The list shows Steps 6,000, Water 1,500 ml, Healthy meals 2, Sleeps at 22:00, Wakes at 07:00 and Vibration on, in the watch's 12- or 24-hour format. The crown scrolls it, and everything fits on the smallest supported round screen.
 - [ ] Tapping a number opens its stepper. + and − change it by one step, the crown does too (clockwise increases), and one crown detent on a watch moves about one step. The value is saved at once, and swiping right returns to the list showing it.
 - [ ] Sleeps at steps from 23:00 to 00:00 and stops at 18:00 and 03:00. Wakes at stops at 04:00 and 12:00.
@@ -222,6 +222,13 @@ Open the third pager page and tap **Settings**. On the emulator, turn the crown 
 - [ ] With Vibration off, petting, a goal and an evolution play nothing (`dumpsys vibrator_manager`).
 - [ ] Entering ambient mode on a settings screen shows the ambient pet. Waking returns to the same settings screen.
 - [ ] Settings survive force-stopping the app and a reboot.
+
+### V13 — Goals page ([DD-49](DESIGN_DECISIONS.md#dd-49--a-goals-page-between-the-vitals-and-the-settings-one-calculation-for-page-vibration-and-archetype))
+The third pager page. Easiest on a fresh day, or after clearing app data.
+- [ ] The rows show today's steps, water and healthy meals against the goals from Settings, and "Not yet" for Workout. Logging water or a meal updates them at once.
+- [ ] A goal reached with the app open fills its row, shows "✓" and today's total, raises the title count, and plays the goal vibration at the same moment (V11). Water alone doesn't raise the count; water and meals together do.
+- [ ] A heart rate of 100+ (synthetic data, §1.1) or a workout shows "✓ Done" for Workout.
+- [ ] After midnight the page starts empty, and the rows fit on the smallest supported round screen.
 
 ---
 

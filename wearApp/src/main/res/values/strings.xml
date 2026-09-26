@@ -41,7 +41,26 @@
     <string name="vital_alert_hungry_title">%1$s is hungry</string>
     <string name="vital_alert_hungry_text">Log a meal before they get grumpy.</string>
 
-    <!-- Settings (third page of the pet pager, DD-48) -->
+    <!-- Goals page (third page of the pet pager, DD-49) -->
+    <!-- %1$d goals reached, %2$d goals in total -->
+    <string name="goals_title">Goals · %1$d/%2$d</string>
+    <string name="goal_steps">Steps</string>
+    <string name="goal_water">Water</string>
+    <string name="goal_healthy_meals">Healthy meals</string>
+    <!-- A workout, or a heart rate of at least 100 bpm -->
+    <string name="goal_strength">Workout</string>
+    <!-- %1$s today's total, %2$s goal -->
+    <string name="goal_progress">%1$s / %2$s</string>
+    <string name="goal_progress_ml">%1$s / %2$s ml</string>
+    <!-- A reached goal shows only today's total, to stay short: %1$s today's total -->
+    <string name="goal_reached">✓ %1$s</string>
+    <string name="goal_reached_ml">✓ %1$s ml</string>
+    <string name="goal_done">✓ Done</string>
+    <string name="goal_not_yet">Not yet</string>
+    <!-- %1$s goal name, %2$s progress -->
+    <string name="goal_row_description">%1$s: %2$s</string>
+
+    <!-- Settings (last page of the pet pager, DD-48) -->
     <string name="settings_title">Settings</string>
     <string name="settings_daily_goals">Daily goals</string>
     <string name="settings_goal_steps">Steps</string>

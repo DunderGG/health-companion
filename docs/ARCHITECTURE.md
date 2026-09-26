@@ -121,7 +121,8 @@ coreDomain --> coreModel : Evaluates Game Rules
 1. **[`:wearApp`](../wearApp)**:
    - Standalone Wear OS application entry point (`com.google.android.wearable.standalone = true`).
    - UI orchestration, Wear Navigation, ViewModel bindings.
-   - Settings (DD-48): a third pager page opens `CompanionNavHost`'s settings list and one stepper screen per number (daily goals, bedtime), plus the vibration switch.
+   - Goals page (DD-49): third pager page, today's progress towards each daily goal.
+   - Settings (DD-48): the last pager page opens `CompanionNavHost`'s settings list and one stepper screen per number (daily goals, bedtime), plus the vibration switch.
    - Composition root: `AppContainer` builds the single dependency graph (clock, database, repositories, use cases, `HealthServicesManager`). `HealthCompanionApp` owns it and implements `PassiveDataDependencies` for `:core:health`.
    - Wear OS surfaces: `PetStatusTileService` (Carousel Tile) and `PetMoodComplicationService` (Watch Face Complication).
    - Critical-vital notifications: `VitalAlertWorker` (scheduling) and `VitalAlertNotifier` (channel, posting, clearing).
@@ -140,12 +141,13 @@ coreDomain --> coreModel : Evaluates Game Rules
    - `MoodCalculator`: Evaluates mood states dynamically based on vitals.
    - `EvolutionEngine`: Experience thresholds and archetype branching.
    - `DailyTotalTracker`: Converts cumulative daily sensor totals into apply-once deltas.
+   - `DailyProgress`: One day's goal totals and the goals they reach; shared by the goals page, the goal vibration and archetype selection (DD-49).
    - `NightWindow`: The pet's local-time night (the user's bedtime, 22:00–07:00 by default): energy recovery, the `SLEEPING` mood and the alerts' quiet hours.
    - `ArchetypeSelector`: Picks the archetype from 7-day habit consistency when the pet reaches `TEEN`. Its per-day rules, with the user's own targets, are also the daily focus goals.
    - `UserSettings` / `DailyGoals`: What the user can set on the watch, with the selectable ranges (DD-48).
    - `VitalAlertPlanner`: Predicts when hydration/hunger cross their critical threshold and which alerts to post or clear.
    - `StepCadence`: Turns live step timestamps into `IDLE` / `WALKING` / `RUNNING` (burst cadence with hysteresis).
-   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`, `ObservePetActivityUseCase`, `ObserveDailyFocusUseCase`, `CheckCriticalVitalsUseCase`.
+   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`, `ObservePetActivityUseCase`, `ObserveDailyProgressUseCase`, `CheckCriticalVitalsUseCase`.
    - Repository interfaces: `PetRepository`, `PassiveSyncRepository`, `VitalAlertStateRepository`, `SettingsRepository` (with the `NotifyingSettingsRepository` decorator and an in-memory implementation for tests). Sensor interface: `LiveStepSource`.
 
 4. **[`:core:data`](../core/data)**:
@@ -187,7 +189,7 @@ health-companion/
 │       ├── AppContainer.kt               # Composition root (manual DI)
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
 │       ├── presentation/                 # CompanionNavHost: pet pager and settings screens
-│       ├── presentation/pet/             # PetPager (pet, vitals, settings pages), PetScreen, VitalsScreen, PetViewModel
+│       ├── presentation/pet/             # PetPager (pet, vitals, goals, settings pages), PetScreen, VitalsScreen, GoalsScreen, PetViewModel
 │       ├── presentation/settings/        # SettingsScreen, SettingStepperScreen, SettingField, SettingsViewModel
 │       ├── presentation/ambient/         # AmbientState, BurnInShift (always-on mode)
 │       ├── haptics/                      # PetHaptics, PetHapticPatterns (petting, goal, evolution)

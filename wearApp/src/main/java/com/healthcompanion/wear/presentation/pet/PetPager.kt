@@ -28,11 +28,13 @@ import com.healthcompanion.wear.presentation.ambient.AmbientState
 /** Pages of [PetPager], top to bottom. */
 private const val PAGE_PET = 0
 private const val PAGE_VITALS = 1
-private const val PAGE_SETTINGS = 2
-private const val PAGE_COUNT = 3
+private const val PAGE_GOALS = 2
+private const val PAGE_SETTINGS = 3
+private const val PAGE_COUNT = 4
 
 /**
- * The pet screen, the vitals breakdown and a way into the settings as a vertical pager (DD-45, DD-48).
+ * The pet screen, the vitals breakdown, today's goals and a way into the settings as a vertical pager
+ * (DD-45, DD-48, DD-49).
  *
  * Turning the crown snaps between the pages, with haptic ticks: `VerticalPagerScaffold`'s default rotary
  * behaviour is a pager snap. Swiping up or down does the same. A vertical page indicator shows where the
@@ -82,6 +84,7 @@ fun PetPager(
                 onSensorChipClick = onSensorChipClick
             )
             PAGE_VITALS -> VitalsScreen(viewModel = viewModel)
+            PAGE_GOALS -> GoalsScreen(viewModel = viewModel)
             PAGE_SETTINGS -> SettingsEntryPage(onOpenSettings = onOpenSettings)
         }
     }

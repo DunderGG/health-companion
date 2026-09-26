@@ -158,7 +158,7 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 
 ## Phase 3a: Settings & Daily Goals
 - [x] **Settings screen**: a Settings button on a third pager page opens a settings list: daily goals for steps, water and healthy meals (steppers, crown too), bedtime (18:00–03:00 to 04:00–12:00, whole hours) and a vibration switch. The goals only drive the daily goal vibration; the archetype keeps its fixed thresholds (DD-48).
-- [ ] **Visible goals**: show today's progress towards each daily goal (e.g. on the Vitals page), so the goal-reached vibration always matches something on screen (DD-47).
+- [x] **Visible goals**: a Goals page between Vitals and Settings shows today's steps, water, healthy meals and workout against the user's goals, with bars and ✓ marks, from the same calculation as the goal vibration (DD-49).
 - [ ] **"Vital filled up" haptic**: a minor success pattern, lighter than the goal pattern, when a vital reaches 100 % from below while the pet screen is open (DD-47).
 - [ ] Optional: a step-progress complication ring once a daily step goal exists (DD-43).
 

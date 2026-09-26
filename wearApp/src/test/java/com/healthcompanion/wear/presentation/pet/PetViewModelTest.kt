@@ -3,18 +3,21 @@
 
 package com.healthcompanion.wear.presentation.pet
 
+import com.healthcompanion.core.domain.engine.DailyProgress
 import com.healthcompanion.core.domain.repository.InMemorySettingsRepository
 import com.healthcompanion.core.domain.repository.PetRepository
 import com.healthcompanion.core.domain.sensor.LiveStepSource
+import com.healthcompanion.core.domain.settings.DailyGoals
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
-import com.healthcompanion.core.domain.usecase.ObserveDailyFocusUseCase
+import com.healthcompanion.core.domain.usecase.ObserveDailyProgressUseCase
 import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.model.EvolutionStage
 import com.healthcompanion.core.model.HabitEvent
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
+import com.healthcompanion.core.model.PetArchetype
 import com.healthcompanion.core.model.Vitals
 import com.healthcompanion.wear.haptics.PetHapticEvent
 import kotlinx.coroutines.Dispatchers
@@ -83,7 +86,7 @@ class PetViewModelTest {
         getPetStateUseCase = GetPetStateUseCase(repository, settings, clock, refreshIntervalMillis = 24 * hour),
         logHabitUseCase = LogHabitUseCase(repository),
         observePetActivityUseCase = ObservePetActivityUseCase(stepSource, clock),
-        observeDailyFocusUseCase = ObserveDailyFocusUseCase(repository, settings, clock),
+        observeDailyProgressUseCase = ObserveDailyProgressUseCase(repository, settings, clock),
         settingsRepository = settings,
         clock = clock
     )
@@ -177,6 +180,22 @@ class PetViewModelTest {
         runCurrent()
 
         assertEquals(listOf(PetHapticEvent.GOAL_REACHED), haptics)
+    }
+
+    @Test
+    fun `today's goal progress follows the habit history and the user's goals`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val progress = mutableListOf<DailyProgress?>()
+        backgroundScope.launch { viewModel.dailyProgress.collect { progress += it } }
+        runCurrent()
+
+        repository.history.value = listOf(HabitEvent(HabitType.Steps(4_000), start))
+        runCurrent()
+        settings.updateSettings { it.copy(dailyGoals = DailyGoals(steps = 4_000)) }
+        runCurrent()
+
+        assertEquals(4_000, progress.last()?.steps)
+        assertEquals(setOf(PetArchetype.CARDIO_RUNNER), progress.last()?.reached)
     }
 
     @Test

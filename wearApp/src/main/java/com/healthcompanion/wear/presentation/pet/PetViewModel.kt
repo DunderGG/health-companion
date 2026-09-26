@@ -5,11 +5,12 @@ package com.healthcompanion.wear.presentation.pet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.healthcompanion.core.domain.engine.DailyProgress
 import com.healthcompanion.core.domain.repository.SettingsRepository
 import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
-import com.healthcompanion.core.domain.usecase.ObserveDailyFocusUseCase
+import com.healthcompanion.core.domain.usecase.ObserveDailyProgressUseCase
 import com.healthcompanion.core.domain.usecase.ObservePetActivityUseCase
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Mood
@@ -52,7 +53,7 @@ import kotlinx.coroutines.launch
  * @param getPetStateUseCase Domain use case observing pet vitals and calculated mood.
  * @param logHabitUseCase Domain use case dispatching health habits and interactions.
  * @param observePetActivityUseCase Live walking/running reaction to the user's steps.
- * @param observeDailyFocusUseCase Today's reached focus goals, for the goal haptic (DD-47).
+ * @param observeDailyProgressUseCase Today's goal progress, for the goals page and the goal haptic (DD-47, DD-49).
  * @param settingsRepository Whether haptics are switched on (DD-48).
  * @param clock Source of "now" for the petting cooldown.
  */
@@ -60,7 +61,7 @@ class PetViewModel(
     private val getPetStateUseCase: GetPetStateUseCase,
     private val logHabitUseCase: LogHabitUseCase,
     private val observePetActivityUseCase: ObservePetActivityUseCase,
-    private val observeDailyFocusUseCase: ObserveDailyFocusUseCase,
+    private val observeDailyProgressUseCase: ObserveDailyProgressUseCase,
     private val settingsRepository: SettingsRepository,
     private val clock: Clock
 ) : ViewModel() {
@@ -109,6 +110,15 @@ class PetViewModel(
     )
 
     /**
+     * Today's progress towards the daily goals, for the goals page (DD-49); `null` until first read.
+     */
+    val dailyProgress: StateFlow<DailyProgress?> = observeDailyProgressUseCase.execute().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
+    /**
      * Moments to play as vibration patterns (DD-47): an accepted pet, the pet evolving, and a daily focus
      * goal being reached.
      *
@@ -125,7 +135,9 @@ class PetViewModel(
             .changes()
             .filter { (before, after) -> after.level > before.level }
             .map { PetHapticEvent.EVOLUTION },
-        observeDailyFocusUseCase.execute()
+        observeDailyProgressUseCase.execute()
+            .map { it.reached }
+            .distinctUntilChanged()
             .changes()
             .filter { (before, after) -> (after - before).isNotEmpty() }
             .map { PetHapticEvent.GOAL_REACHED }
