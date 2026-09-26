@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Project roadmap
+    url: https://github.com/DunderGG/health-companion/blob/main/docs/ROADMAP.md
+    about: See what is already planned before suggesting a feature.

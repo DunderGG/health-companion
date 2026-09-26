@@ -1,0 +1,87 @@
+name: Bug report
+description: Something on the watch doesn't work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! The more detail you give, the easier it is to reproduce.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where did it happen?
+      options:
+        - Pet screen
+        - Vitals or Goals page
+        - Settings
+        - Tile
+        - Watch face complication
+        - Notifications
+        - Step, floor or heart-rate tracking
+        - Haptics
+        - Always-on (ambient) mode
+        - Building or running the project
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug. Screenshots or a short video help a lot.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the app
+        2. Tap ...
+        3. See ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device-type
+    attributes:
+      label: Device
+      options:
+        - Physical watch
+        - Emulator
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Watch model and Wear OS version
+      description: For an emulator, give the system image, e.g. "Wear OS Large Round, API 34".
+      placeholder: Pixel Watch 2, Wear OS 5
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: The commit you built from (`git rev-parse --short HEAD`).
+      placeholder: 9e6fbb1
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant `adb logcat` output, if you have it. It is formatted as code automatically.
+      render: shell

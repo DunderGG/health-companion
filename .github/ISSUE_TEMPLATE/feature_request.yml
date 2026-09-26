@@ -1,0 +1,44 @@
+name: Feature idea
+description: Suggest something new for the pet or the app.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Please check the [roadmap](https://github.com/DunderGG/health-companion/blob/main/docs/ROADMAP.md) first, as it may already be planned.
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What would you like the app or the pet to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why?
+      description: What habit, problem or moment would this help with?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Pet behaviour, mood or evolution
+        - Health tracking
+        - Watch surfaces (tile, complications, always-on)
+        - Settings and goals
+        - Notifications and haptics
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other ways you considered, or how you work around it today.

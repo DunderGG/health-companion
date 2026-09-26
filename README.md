@@ -1,20 +1,61 @@
 # Health Companion (Wear OS)
 
 [![CI](https://github.com/DunderGG/health-companion/actions/workflows/ci.yml/badge.svg)](https://github.com/DunderGG/health-companion/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+![Wear OS](https://img.shields.io/badge/Wear%20OS-3.0%2B%20(API%2030%2B)-4285F4?logo=wearos&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 
 A health-mirroring virtual pet companion for Wear OS smartwatches, inspired by the classic Tamagotchi toy. Your companion's vitals (Energy, Hydration, Nutrition, Fitness, and Happiness) directly reflect your real-world habits.
+
+> [!NOTE]
+> **Status: early development.** The core game, passive health sync, and Wear OS surfaces (tile, complications, always-on) are working, while the final name and pet graphics are still open. See the [roadmap](docs/ROADMAP.md). The app is not on the Play Store yet, so you build and install it yourself (see [Getting Started](#-getting-started)).
+> *Health Companion* is a working title. The final name will be chosen in roadmap Phase 2b.
+
+---
+
+## 🐾 How It Works
+
+Your pet's vitals slowly drop over time. Healthy habits fill them back up:
+
+| You… | Your pet… |
+|---|---|
+| 🚶 Walk and climb stairs (tracked passively) | gains **Fitness**, **Happiness** and evolution XP, and walks or runs alongside you on screen |
+| 💧 Drink water (1 tap on the watch or the tile) | restores **Hydration** |
+| 🥗 Log a meal, healthy or not | restores **Nutrition**. Healthy meals also lift **Happiness** |
+| 🏃 Get your heart rate up (optional heart-rate sensor) | gains **Fitness** |
+| 😴 Keep to a bedtime | sleeps through its night and recovers **Energy** |
+| 👆 Tap the pet | purrs, and gains **Happiness** |
+
+Neglect shows too. If hydration or hunger gets critically low, the pet loses happiness faster and a notification reminds you. The pet's mood, evolution stage and archetype all follow from how consistently you look after yourself.
 
 ---
 
 ## ✨ Key Features
-- **Health-Mirroring Game Mechanics**: Taking steps boosts the pet's fitness and evolution XP; drinking water restores hydration; logging meals keeps hunger at bay.
-- **Battery-Friendly Time-Delta Decay**: Employs mathematical timestamp-delta decay rather than continuous CPU wakeups.
-- **Wear OS Health Services**: Passively monitors daily step counts and workout goals via `PassiveMonitoringClient`.
-- **Modern Vector-Native Companion**: Hardware-accelerated dynamic vector rendering with breathing bounce, blinking eyes, blushing cheeks, and mood expressions.
-- **Circular Wear OS UI**: Circular multi-vital progress ring (`VitalsRing`) and micro-interaction buttons optimized for round smartwatches.
-- **Wear OS Carousel Tile**: Swipe from your watch face to instantly glance at your companion's status, and log a glass of water with one tap.
-- **Watch Face Complication**: Keep your companion's mood and overall health on your watch face.
+- **Health-Mirroring Game Mechanics**: Steps, floors, heart rate, water and meals feed five vitals, evolution XP and a mood.
+- **Battery-Friendly Time-Delta Decay**: Vitals are calculated from timestamps when needed, rather than by continuous CPU wakeups.
+- **Wear OS Health Services**: Passively monitors daily steps, floors and heart rate via `PassiveMonitoringClient`.
+- **Live Step Reactions**: While the pet screen is open, the pet walks or runs in step with you.
+- **Modern Vector-Native Companion**: Dynamic vector rendering with breathing bounce, blinking eyes, blushing cheeks, and mood expressions. The pet sleeps during its night.
+- **Round-Screen UI**: A circular multi-vital progress ring (`VitalsRing`), with the rotary crown paging between the pet, a vitals breakdown, today's goals and settings.
+- **Daily Goals & Settings**: Set your own goals for steps, water and healthy meals, pick the pet's bedtime, turn vibration on or off, or start over with a new pet.
+- **Haptic Feedback**: A purr when petted, a success buzz when you reach a daily goal, a fanfare on evolution, and a tick when a vital fills up.
+- **Wear OS Carousel Tile**: Swipe from your watch face to glance at your companion's status, and log a glass of water with one tap.
+- **Watch Face Complications**: *Pet Mood* shows the pet's mood and overall health. *Pet Steps* shows today's steps towards your step goal.
+- **Critical-Vital Notifications**: A reminder when hydration or hunger gets critically low, never during the pet's night.
 - **Always-On**: The pet screen stays visible in a low-power ambient look when your wrist drops.
+
+---
+
+## 🔒 Privacy & Permissions
+
+Everything stays on your watch. The app has no internet permission, no account, and no analytics or ads.
+
+| Permission | Why |
+|---|---|
+| Physical activity (`ACTIVITY_RECOGNITION`) | Steps and floors |
+| Heart rate (`BODY_SENSORS`, or `health.READ_HEART_RATE` on API 36+) | Optional workout signal. The app works without it |
+| Notifications (`POST_NOTIFICATIONS`) | Critical-vital reminders |
+| Vibration, run at startup | Haptics, and resuming passive tracking after the watch restarts |
 
 ---
 
@@ -98,7 +139,6 @@ Detailed architectural specifications and development plans are maintained in th
 - 🧭 **[Design Decisions](docs/DESIGN_DECISIONS.md)** — Why the system works the way it does: alternatives, trade-offs, and open questions (highlighted).
 - 🔍 **[Reviews](docs/reviews/README.md)** — Dated architecture reviews and their findings (e.g. AR-1 … AR-8).
 - 🗺️ **[Project Roadmap](docs/ROADMAP.md)** — 5-phase development roadmap and the **Phase 2b** community naming survey (*Resona*, *Symbio*, *Vitalkin*, *Paravita*, *Vitecho*, *AuraSync*).
-- 🤝 **[Contributing Guidelines](CONTRIBUTING.md)** — Environment setup, code style, required license headers, and PR workflow.
 
 ---
 
@@ -110,24 +150,10 @@ Contributions, bug reports, and ideas are welcome! Please review [CONTRIBUTING.m
 
 ## 👤 Author
 
-**David Bennehag** - [@DunderGG](https://github.com/DunderGG) - [dunder.gg](https://dunder.gg)
+Health Companion • By David Bennehag ([dunder.gg](https://dunder.gg) / [@DunderGG](https://github.com/DunderGG)) • Built with ❤️, 🤖 and ☕
 
 ---
 
 ## 📄 License
 
-Copyright 2026 DunderGG
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-See [LICENSE](LICENSE) for the full license terms and [NOTICE](NOTICE) for project attributions.
+Copyright 2026 DunderGG. Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE) for project attributions.
