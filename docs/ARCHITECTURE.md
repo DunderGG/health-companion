@@ -64,7 +64,7 @@ Vitals --> Complication : Updates Watch Dial
 | **Architecture Pattern** | Clean Architecture + MVI (UDF) | Unidirectional Data Flow with immutable `StateFlow<PetUiState>`. |
 | **Persistence** | Jetpack Room SQLite Database | Offline-first local storage for pet vitals, health logs, and history. |
 | **Preferences** | Jetpack DataStore Preferences | *(planned — dependency declared, not yet used)* Lightweight key-value storage for user settings and daily goals. |
-| **Background Processing**| Jetpack WorkManager (`work-runtime-ktx`) | 2-hour periodic decay snapshot (see AR-5). Midnight daily reset *(planned)*. |
+| **Background Processing**| Jetpack WorkManager (`work-runtime-ktx`) | One-time re-registration of passive monitoring after boot (`PassiveRegistrationWorker`). No periodic work: decay is computed on read (AR-5). |
 
 ---
 
@@ -133,14 +133,13 @@ coreDomain --> coreModel : Evaluates Game Rules
    - `MoodCalculator`: Evaluates mood states dynamically based on vitals.
    - `EvolutionEngine`: Experience thresholds and archetype branching.
    - `DailyTotalTracker`: Converts cumulative daily sensor totals into apply-once deltas.
-   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `CalculateDecayUseCase`, `IngestPassiveDataUseCase`.
+   - Use cases: `GetPetStateUseCase`, `LogHabitUseCase`, `IngestPassiveDataUseCase`.
    - Repository interfaces: `PetRepository`, `PassiveSyncRepository`.
 
 4. **[`:core:data`](../core/data)**:
    - Offline-first persistence via Jetpack Room (`CompanionDatabase`, `PetDao`, `PetEntity`).
    - `PetRepositoryImpl`: Coordinates between SQLite database and domain engine.
    - `PassiveSyncRepositoryImpl`: DataStore-backed bookkeeping of consumed sensor totals and heart-rate award timing.
-   - `PetDecayWorker`: Background WorkManager worker for periodic health maintenance.
 
 5. **[`:core:health`](../core/health)**:
    - Wraps Wear OS **Health Services API** (`androidx.health:health-services-client`).
@@ -182,7 +181,6 @@ health-companion/
 │   ├── data/                             # Persistence & Repository layer
 │   │   ├── db/CompanionDatabase.kt       # Room Database
 │   │   ├── repository/PetRepositoryImpl.kt
-│   │   └── workers/PetDecayWorker.kt     # Periodic background maintenance
 │   ├── health/                           # Wear OS Health Services integration
 │   │   ├── HealthServicesManager.kt      # PassiveMonitoringClient wrapper
 │   │   └── PassiveDataService.kt         # PassiveListenerService: parses sensor batches
@@ -376,7 +374,7 @@ deactivate UI
   1. `PetRepositoryImpl.recordHabit()` first calls `PetDecayEngine.applyHabit()`, which brings vitals up to the current millisecond before applying the habit boost (clamping between `0.0` and `100.0`) and computing earned XP.
   2. `EvolutionEngine.checkEvolution()` checks whether the new XP total crosses stage milestones (e.g., Egg $\rightarrow$ Hatchling $\rightarrow$ Child $\rightarrow$ Teen) and determines archetype specializations (e.g., `Swift Strider`, `Zen Ascetic`).
   3. The evolved pet is flattened into a `PetEntity` and persisted via `PetDao.insertOrUpdate()` with `OnConflictStrategy.REPLACE`.
-  - **Atomicity**: `recordHabit()` delegates to `PetRepository.updatePet { transform }`, which runs the read, the engine evaluation, and the write inside a single Room `withTransaction { }`. Concurrent writers (UI taps, `PassiveDataService`, `PetDecayWorker`) are serialized and never overwrite each other's updates.
+  - **Atomicity**: `recordHabit()` delegates to `PetRepository.updatePet { transform }`, which runs the read, the engine evaluation, and the write inside a single Room `withTransaction { }`. Concurrent writers (UI taps, `PassiveDataService`) are serialized and never overwrite each other's updates.
 - **Automatic Reactive Loop Closure**: The write operation does not require manual event dispatching to the UI. Instead, Room's built-in SQLite table invalidation mechanism triggers `PetDao.getPetFlow()`. The fresh entity is automatically emitted through `GetPetStateUseCase`, transformed into a new `PetUiState.Success`, and rendered on the watch face with updated vitals and expressions.
 
 ---
@@ -489,8 +487,8 @@ To keep the primary diagrams manageable and focused on the core runtime loop, th
 
 1. **Runtime Permission Flow & Graceful Degradation**:
    - `MainActivity` $\rightarrow$ `PermissionViewModel.checkPermissions()` $\rightarrow$ `PermissionScreen` onboarding $\rightarrow$ system permission dialog $\rightarrow$ user denial $\rightarrow$ `PermissionState.Denied` $\rightarrow$ degraded `PetScreen` displaying the `⚠ Enable sensors` chip $\rightarrow$ deep-linking to system Settings and recovery on `ON_RESUME`.
-2. **Periodic Background Maintenance (`PetDecayWorker`)**:
-   - Android WorkManager 2-hour periodic trigger $\rightarrow$ `PetDecayWorker.doWork()` background execution $\rightarrow$ `CompanionDatabase` singleton access $\rightarrow$ `PetDecayEngine.calculateDecay()` $\rightarrow$ SQLite update $\rightarrow$ `Result.success()` without acquiring wake locks.
+2. **Boot Re-registration (`PassiveRegistrationWorker`)**:
+   - `BOOT_COMPLETED` $ightarrow$ `BootCompletedReceiver` $ightarrow$ unique one-time `PassiveRegistrationWorker` $ightarrow$ `HealthServicesManager.ensureRegistered(force = true)` $ightarrow$ `Result.retry()` on failure.
 3. **Carousel Tile Request & Rendering (`PetStatusTileService`)**:
    - User swipes to Tile on watch face $\rightarrow$ system invokes `TileService.onTileRequest()` $\rightarrow$ coroutine `future { }` query to `PetRepository` (no blocking) $\rightarrow$ ProtoLayout element tree assembly $\rightarrow$ 10-minute cache freshness declaration $\rightarrow$ `ListenableFuture<Tile>` delivery.
 4. **Milestone Evolution & Archetype Specialization**:
@@ -770,7 +768,7 @@ Runtime permissions are resolved per API level in [`HealthPermissions.kt`](../co
 | `health.READ_HEART_RATE` | ≥ 36 (Wear OS 6) | **Dangerous** | `HEART_RATE_BPM` (foreground) | Optional. Replaces `BODY_SENSORS` for apps targeting API 36 |
 | `BODY_SENSORS_BACKGROUND` | 33–35 (`maxSdkVersion`) | **Dangerous** | Passive heart rate in the background | Optional. Requested separately after the foreground grant |
 | `health.READ_HEALTH_DATA_IN_BACKGROUND` | ≥ 36 | **Dangerous** | Passive heart rate in the background | Optional. Requested separately after the foreground grant |
-| `WAKE_LOCK` | all | Normal | Used by WorkManager internally. Likely removable from the app manifest (see AR-5) | — |
+| `WAKE_LOCK` | all | Normal | Not declared by the app. Merged in from WorkManager's own manifest (used for boot re-registration) | — |
 | `RECEIVE_BOOT_COMPLETED` | all | Normal | `BootCompletedReceiver` re-registers passive monitoring after reboot | — |
 | `VIBRATE` | all | Normal | Haptic feedback on petting, evolution, and goal completion | — |
 
@@ -855,7 +853,7 @@ A review of the implementation against this document. The overall structure is s
 | AR-2 | ✅ Resolved | Pet updates are non-atomic read-modify-write (lost updates) |
 | AR-3 | 🟠 High | Some vitals cannot recover; sleep, night mood, and consistency-based archetypes are unimplemented |
 | AR-4 | ✅ Resolved | Tiles, complications, and the open screen do not update reactively |
-| AR-5 | 🟡 Medium | `PetDecayWorker` is redundant under decay-on-read |
+| AR-5 | ✅ Resolved | `PetDecayWorker` is redundant under decay-on-read |
 | AR-6 | ✅ Resolved | Permission degradation is all-or-nothing; API 36 permission model; implicit boot re-registration |
 | AR-7 | ✅ Resolved | Layering violation (`:core:health` → `:core:data`) and fragmented dependency wiring |
 | AR-8 | ✅ Resolved | Destructive migrations can delete the pet; invalid rows crash the app |
@@ -904,8 +902,9 @@ A review of the implementation against this document. The overall structure is s
   - Replace `runBlocking` with a coroutine-based tile service (e.g. Horologist `SuspendingTileService`).
   - Combine the pet Flow with a subscription-scoped ticker (~60 s) so decay advances while the screen is visible.
 
-### AR-5 — `PetDecayWorker` is redundant
-- **Where**: [`PetDecayWorker.kt`](../core/data/src/main/java/com/healthcompanion/core/data/workers/PetDecayWorker.kt), `HealthCompanionApp.schedulePeriodicDecay()`.
+### AR-5 — `PetDecayWorker` is redundant ✅ Resolved
+- **Resolution**: Removed `PetDecayWorker` and `CalculateDecayUseCase` (used only by the worker), plus the `:core:data` WorkManager dependency and the explicit `WAKE_LOCK` permission. Its would-be jobs are covered elsewhere: decay-on-read (DD-02), tile refresh on write (AR-4), lazy day rollover (AR-1). `HealthCompanionApp` cancels the legacy `PetPeriodicDecayWork` job on upgraded installs. Critical-vital notifications (Phase 2) remain open and would need their own scheduled work. See DD-32.
+- **Where**: `PetDecayWorker.kt` (now removed), `HealthCompanionApp.schedulePeriodicDecay()`.
 - **Problem**: Under decay-on-read, persisting a decayed snapshot every 2 hours changes no user-visible result. It only adds another writer (safe since AR-2, but pointless) and triggers an extra Room invalidation.
 - **Target design**: Give it a real job or remove it. Useful jobs: refreshing tiles and complications (AR-4), pruning stale sensor baselines (AR-1 handles day rollover lazily on the next reading), and critical-vital notifications (Phase 2). If it is removed, drop the explicit `WAKE_LOCK` permission as well.
 

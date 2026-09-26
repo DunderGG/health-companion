@@ -65,9 +65,9 @@ Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-r
    - [x] Replace `runBlocking` in `PetStatusTileService` with `serviceScope.future { }` (also fixes the `ResolvableFuture` lint errors).
    - [x] Add a subscription-scoped 60 s ticker to `GetPetStateUseCase` so decay advances on an open screen.
    - [ ] Complication provider: still planned (Phase 3). It should hook into the same refresh callback.
-7. [ ] **AR-5 — Repurpose or remove `PetDecayWorker`** 🟡
-   - [ ] Decide: repurpose for tile/complication refresh, day rollover, and critical-vital notifications, or delete it.
-   - [ ] Remove the explicit `WAKE_LOCK` permission if it is no longer needed.
+7. [x] **AR-5 — Repurpose or remove `PetDecayWorker`** 🟡
+   - [x] Decided: remove it (DD-32). Tile refresh is handled by AR-4 and day rollover by AR-1. Critical-vital notifications (Phase 2) will get their own scheduled work when implemented.
+   - [x] Removed the explicit `WAKE_LOCK` permission (WorkManager still merges it in). Cancel the legacy periodic job on upgrade.
 8. [ ] **AR-3 — Game-loop completeness** 🟠 *(depends on AR-8)*
    - [ ] Energy restoration source (sleep heuristic, rest action, or Health Services sleep data).
    - [ ] Pass `isNightTime` to `MoodCalculator` so `SLEEPING` works.

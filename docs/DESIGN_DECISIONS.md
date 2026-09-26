@@ -45,6 +45,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-29](#dd-29--surfaces-are-refreshed-by-a-repository-decorator) | Surfaces are refreshed by a repository decorator | Surfaces | Accepted (AR-4) |
 | [DD-30](#dd-30--60-second-decay-ticker-only-while-collected) | 60-second decay ticker, only while collected | Game engine / UI | Accepted (AR-4) |
 | [DD-31](#dd-31--tile-futures-via-kotlinx-coroutines-guava-not-horologist) | Tile futures via kotlinx-coroutines-guava, not Horologist | Surfaces | Accepted (AR-4) |
+| [DD-32](#dd-32--no-periodic-background-work) | No periodic background work | Background / battery | Accepted (AR-5) |
 
 ---
 
@@ -319,3 +320,20 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Decision**: `PetStatusTileService` returns `serviceScope.future { ... }` (`kotlinx.coroutines.guava.future`) from `onTileRequest` and `onTileResourcesRequest`. The scope is cancelled in `onDestroy`.
 - **Why**: It removes `runBlocking` (which blocked the binder thread) and the restricted `ResolvableFuture` API (6 lint errors). The library is already in the version catalog, and no new dependency family is needed.
 - **Alternatives**: Horologist `SuspendingTileService`. It is cleaner if more tiles or Horologist layouts are adopted later, but it adds a dependency today.
+
+---
+
+## Background work (AR-5)
+
+### DD-32 — No periodic background work
+- **Status**: Accepted (AR-5, 2026-09-26).
+- **Decision**:
+  - Removed `PetDecayWorker` (2-hour periodic decay snapshot) and `CalculateDecayUseCase`, which only it used.
+  - `HealthCompanionApp` calls `WorkManager.cancelUniqueWork("PetPeriodicDecayWork")` on every start, so upgraded installs drop the persisted job instead of failing to instantiate a deleted class.
+  - The only remaining WorkManager use is the one-time boot re-registration (DD-25).
+- **Why**: Under decay-on-read (DD-02), a stored snapshot changes nothing the user sees. The jobs the worker could have taken on are handled better elsewhere: tile refresh on every write (DD-29), day rollover on the next sensor reading (DD-08). Every periodic wake-up costs battery.
+- **Alternatives**: Repurpose the worker for tile refresh, baseline pruning, or notifications. Tile refresh and pruning aren't needed, and notifications are a separate feature.
+- **Consequences**:
+  - Critical-vital notifications (ROADMAP Phase 2) will need their own scheduling. Consider exact alarms or a worker that runs only when a vital is predicted to cross a threshold, computed from the decay rates.
+  - The `cancelUniqueWork` call can be removed once no installs from before AR-5 remain.
+  - `WAKE_LOCK` is no longer declared by the app, but WorkManager's manifest still merges it in.

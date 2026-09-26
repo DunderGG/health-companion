@@ -5,17 +5,13 @@ package com.healthcompanion.wear
 
 import android.app.Application
 import android.util.Log
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.healthcompanion.core.data.workers.PetDecayWorker
 import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
 import com.healthcompanion.core.health.PassiveDataDependencies
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 /**
  * Wear OS Application class owning the app's single dependency graph ([AppContainer]).
@@ -43,15 +39,14 @@ class HealthCompanionApp : Application(), PassiveDataDependencies {
         get() = container.ingestPassiveDataUseCase
 
     /**
-     * Builds the dependency graph, schedules periodic background decay checks,
+     * Builds the dependency graph, removes obsolete background work,
      * and syncs passive sensor tracking via Health Services.
      */
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
 
-        // Schedule periodic battery-efficient decay check (every 2 hours)
-        schedulePeriodicDecay()
+        cancelLegacyDecayWork()
 
         // Sync the passive Health Services registration with the current permissions.
         // Cheap no-op when nothing changed; re-registers after a reboot or permission change.
@@ -65,21 +60,16 @@ class HealthCompanionApp : Application(), PassiveDataDependencies {
     }
 
     /**
-     * Enqueues a unique periodic WorkManager task running [PetDecayWorker] every 2 hours.
-     * Uses [ExistingPeriodicWorkPolicy.KEEP] so existing scheduled jobs are preserved across app launches.
+     * Earlier versions scheduled a 2-hour periodic `PetDecayWorker`. Decay is computed on read, so that
+     * worker was removed (AR-5); cancel the job persisted by WorkManager on upgraded installs so it never
+     * tries to instantiate the deleted worker class. Cheap and idempotent.
      */
-    private fun schedulePeriodicDecay() {
-        val decayRequest = PeriodicWorkRequestBuilder<PetDecayWorker>(2, TimeUnit.HOURS)
-            .build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "PetPeriodicDecayWork",
-            ExistingPeriodicWorkPolicy.KEEP,
-            decayRequest
-        )
+    private fun cancelLegacyDecayWork() {
+        WorkManager.getInstance(this).cancelUniqueWork(LEGACY_DECAY_WORK_NAME)
     }
 
     private companion object {
         const val TAG = "HealthCompanionApp"
+        const val LEGACY_DECAY_WORK_NAME = "PetPeriodicDecayWork"
     }
 }

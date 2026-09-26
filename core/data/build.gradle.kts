@@ -49,9 +49,6 @@ dependencies {
     api(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // WorkManager
-    implementation(libs.androidx.work.runtime.ktx)
-
     // DataStore Preferences
     implementation(libs.androidx.datastore.preferences)
 
