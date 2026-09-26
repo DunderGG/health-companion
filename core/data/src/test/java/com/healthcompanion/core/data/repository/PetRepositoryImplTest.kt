@@ -7,6 +7,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.healthcompanion.core.data.db.CompanionDatabase
+import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.HabitType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -36,7 +37,7 @@ class PetRepositoryImplTest {
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, CompanionDatabase::class.java).build()
-        repository = PetRepositoryImpl(db)
+        repository = PetRepositoryImpl(db, Clock.SYSTEM)
     }
 
     @After
@@ -81,6 +82,20 @@ class PetRepositoryImplTest {
 
         assertEquals(logged.experiencePoints, observed.experiencePoints)
         assertEquals(logged.vitals, observed.vitals)
+    }
+
+    @Test
+    fun `seeded pet and habit timestamps come from the injected clock`() = runBlocking {
+        var nowMillis = 5_000_000L
+        val clockedRepository = PetRepositoryImpl(db, Clock { nowMillis })
+
+        val seeded = clockedRepository.getPet()
+        assertEquals(5_000_000L, seeded.bornTimestamp)
+        assertEquals(5_000_000L, seeded.vitals.lastUpdatedTimestamp)
+
+        nowMillis = 5_060_000L
+        val logged = clockedRepository.recordHabit(HabitType.Hydration(250))
+        assertEquals(5_060_000L, logged.vitals.lastUpdatedTimestamp)
     }
 
     @Test

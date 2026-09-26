@@ -39,6 +39,9 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-23](#dd-23--heart-rate-is-registered-only-with-background-access) | Heart rate is registered only with background access | Permissions | Accepted (AR-6), unverified ⚠ |
 | [DD-24](#dd-24--idempotent-registration-keyed-on-permitted-sensors--boot-count) | Idempotent registration keyed on permitted sensors + boot count | Sensors | Accepted (AR-6) ⚠ |
 | [DD-25](#dd-25--boot-re-registration-via-a-non-exported-receiver-and-workmanager) | Boot re-registration via a non-exported receiver and WorkManager | Sensors | Accepted (AR-6), unverified ⚠ |
+| [DD-26](#dd-26--manual-appcontainer-instead-of-a-di-framework) | Manual `AppContainer` instead of a DI framework | Architecture | Accepted (AR-7) |
+| [DD-27](#dd-27--library-services-get-dependencies-through-an-application-implemented-interface) | Library services get dependencies through an Application-implemented interface | Architecture | Accepted (AR-7) |
+| [DD-28](#dd-28--injected-clock-now-is-read-inside-the-transaction) | Injected `Clock`; "now" is read inside the transaction | Architecture | Accepted (AR-7) |
 
 ---
 
@@ -257,3 +260,30 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Decision**: `BootCompletedReceiver` (`exported="false"`) enqueues a unique one-time `PassiveRegistrationWorker`, which calls `ensureRegistered(force = true)` and retries on failure.
 - **Why**: This follows the [Health Services background monitoring guidance](https://developer.android.com/health-and-fitness/guides/health-services/monitor-background): registrations don't persist across reboots, and at boot Health Services may take over 10 s to respond, which exceeds a receiver's execution limit. The receiver is not exported because only the system sends `BOOT_COMPLETED`.
 - ⚠ **Open**: Verify on an emulator or watch that the non-exported receiver actually receives `BOOT_COMPLETED` and that the passive data arrives afterwards.
+
+---
+
+## Layering & dependency wiring (AR-7)
+
+### DD-26 — Manual `AppContainer` instead of a DI framework
+- **Status**: Accepted (AR-7, 2026-09-26).
+- **Decision**: A hand-written `AppContainer` in `:wearApp`, owned by `HealthCompanionApp`, builds the whole graph with `by lazy` members. There is no Hilt or Koin.
+- **Why**: The graph is small (about ten objects), and adding Hilt would bring a Gradle plugin, annotation processing and build time. Lazy members keep cold starts cheap when the process is only woken to deliver a sensor batch or render a tile.
+- **Alternatives**: Hilt (worth adopting if the graph grows or needs per-screen scopes). Koin.
+- **Consequences**: New dependencies are added by hand in one place. `PetDecayWorker` still constructs its own graph (removed in AR-5).
+
+### DD-27 — Library services get dependencies through an Application-implemented interface
+- **Status**: Accepted (AR-7).
+- **Decision**: `:core:health` declares `PassiveDataDependencies`, which the app's `Application` implements. `PassiveDataService` casts `application` to that interface to get `IngestPassiveDataUseCase`.
+- **Why**: The service is instantiated by the Android system, so there is no constructor injection. Declaring the interface in the library lets `:core:health` depend only on the domain layer, without knowing about `:wearApp` or `:core:data`.
+- **Consequences**: A host `Application` that doesn't implement the interface crashes when a batch is delivered. That failure is loud, and the batch is dropped and logged.
+
+### DD-28 — Injected `Clock`; "now" is read inside the transaction
+- **Status**: Accepted (AR-7).
+- **Decision**:
+  - A domain `fun interface Clock` (with `Clock.SYSTEM`) is injected into `PetRepositoryImpl`, the use cases and `PetViewModel`.
+  - `PetDecayEngine` functions take an explicit timestamp and no longer default to `System.currentTimeMillis()`.
+  - Repository mutations read the clock *inside* the transaction.
+  - The `Pet` and `Vitals` model constructors keep their wall-clock defaults, for convenience in tests and previews. Production code passes explicit times.
+- **Why**: Tests become deterministic, and there is a single source of time. Reading the time before waiting for the transaction could produce a timestamp older than one a concurrent writer just stored, which would re-apply a few milliseconds of decay.
+- **Consequences**: Wall-clock changes (manual time or time-zone changes) still affect decay. That is inherent to decay-on-read (DD-02).

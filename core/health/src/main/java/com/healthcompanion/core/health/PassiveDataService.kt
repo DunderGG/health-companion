@@ -9,9 +9,6 @@ import androidx.health.services.client.PassiveListenerService
 import androidx.health.services.client.data.DataPointContainer
 import androidx.health.services.client.data.DataType
 import androidx.health.services.client.data.IntervalDataPoint
-import com.healthcompanion.core.data.db.CompanionDatabase
-import com.healthcompanion.core.data.repository.PassiveSyncRepositoryImpl
-import com.healthcompanion.core.data.repository.PetRepositoryImpl
 import com.healthcompanion.core.domain.usecase.DailyTotalReading
 import com.healthcompanion.core.domain.usecase.IngestPassiveDataUseCase
 import com.healthcompanion.core.domain.usecase.PassiveDataBatch
@@ -55,10 +52,7 @@ class PassiveDataService : PassiveListenerService() {
     override fun onNewDataPointsReceived(dataPoints: DataPointContainer) {
         serviceScope.launch {
             try {
-                val ingest = IngestPassiveDataUseCase(
-                    petRepository = PetRepositoryImpl(CompanionDatabase.getInstance(applicationContext)),
-                    syncRepository = PassiveSyncRepositoryImpl.getInstance(applicationContext)
-                )
+                val ingest = (application as PassiveDataDependencies).ingestPassiveDataUseCase
                 val batch = toPassiveDataBatch(dataPoints)
                 Log.d(TAG, "Passive batch received: $batch")
                 ingest.execute(batch)

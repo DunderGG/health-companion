@@ -52,11 +52,11 @@ object PetDecayEngine {
      * In addition, a neglect penalty of 1.5x is applied to happiness if hydration or hunger drop below 20%.
      *
      * @param vitals The base companion vitals before applying time decay.
-     * @param currentTimeMillis The current epoch timestamp in milliseconds (defaults to `System.currentTimeMillis()`).
+     * @param currentTimeMillis The current epoch timestamp in milliseconds (from an injected [com.healthcompanion.core.domain.time.Clock]).
      * @return A new [Vitals] instance with degraded stats clamped to `[0.0, 100.0]` and updated timestamp.
      *         Returns the unchanged [vitals] if [currentTimeMillis] <= [vitals.lastUpdatedTimestamp].
      */
-    fun calculateDecay(vitals: Vitals, currentTimeMillis: Long = System.currentTimeMillis()): Vitals {
+    fun calculateDecay(vitals: Vitals, currentTimeMillis: Long): Vitals {
         if (currentTimeMillis <= vitals.lastUpdatedTimestamp) {
             return vitals
         }
@@ -94,14 +94,14 @@ object PetDecayEngine {
      *
      * @param vitals Current base vitals before applying habit.
      * @param habit The health event being recorded ([HabitType]).
-     * @param currentTimeMillis Current epoch timestamp in milliseconds (defaults to `System.currentTimeMillis()`).
+     * @param currentTimeMillis Current epoch timestamp in milliseconds (from an injected [com.healthcompanion.core.domain.time.Clock]).
      * @return A [Pair] containing the updated [Vitals] (first) and the experience points awarded (second),
      *         analogous to `std::pair<Vitals, int>` in C++.
      */
     fun applyHabit(
         vitals: Vitals,
         habit: HabitType,
-        currentTimeMillis: Long = System.currentTimeMillis()
+        currentTimeMillis: Long
     ): Pair<Vitals, Int> {
         val decayed = calculateDecay(vitals, currentTimeMillis)
         var xpEarned = 10

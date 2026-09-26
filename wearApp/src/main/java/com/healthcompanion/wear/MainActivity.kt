@@ -47,10 +47,11 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val app = HealthCompanionApp.instance
+                val container = (application as HealthCompanionApp).container
                 return PetViewModel(
-                    getPetStateUseCase = app.getPetStateUseCase,
-                    logHabitUseCase = app.logHabitUseCase
+                    getPetStateUseCase = container.getPetStateUseCase,
+                    logHabitUseCase = container.logHabitUseCase,
+                    clock = container.clock
                 ) as T
             }
         }
@@ -63,10 +64,10 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val app = HealthCompanionApp.instance
+                val app = application as HealthCompanionApp
                 return PermissionViewModel(
                     application = app,
-                    healthServicesManager = app.healthServicesManager
+                    healthServicesManager = app.container.healthServicesManager
                 ) as T
             }
         }

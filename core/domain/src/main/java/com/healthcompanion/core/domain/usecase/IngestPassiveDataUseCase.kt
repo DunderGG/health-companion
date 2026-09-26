@@ -5,6 +5,7 @@ package com.healthcompanion.core.domain.usecase
 
 import com.healthcompanion.core.domain.repository.PassiveSyncRepository
 import com.healthcompanion.core.domain.repository.PetRepository
+import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
 
@@ -41,18 +42,20 @@ data class PassiveDataBatch(
  *
  * @property petRepository Repository applying the resulting habits.
  * @property syncRepository Bookkeeping of what has already been consumed.
+ * @property clock Source of "now", used for heart-rate rate limiting.
  */
 class IngestPassiveDataUseCase(
     private val petRepository: PetRepository,
-    private val syncRepository: PassiveSyncRepository
+    private val syncRepository: PassiveSyncRepository,
+    private val clock: Clock
 ) {
 
     /**
      * @param batch The sensor batch to ingest.
-     * @param currentTimeMillis Current epoch time, used for heart-rate rate limiting.
      * @return The updated [Pet], or `null` if the batch contained nothing new to apply.
      */
-    suspend fun execute(batch: PassiveDataBatch, currentTimeMillis: Long = System.currentTimeMillis()): Pet? {
+    suspend fun execute(batch: PassiveDataBatch): Pet? {
+        val currentTimeMillis = clock.nowMillis()
         val habits = buildList {
             batch.steps?.let { reading ->
                 val steps = syncRepository.consumeDailyTotal(

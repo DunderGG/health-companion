@@ -5,6 +5,7 @@ package com.healthcompanion.core.domain.usecase
 
 import com.healthcompanion.core.domain.engine.PetDecayEngine
 import com.healthcompanion.core.domain.repository.PetRepository
+import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.Pet
 
 /**
@@ -14,22 +15,22 @@ import com.healthcompanion.core.model.Pet
  * or when preparing for long idle periods.
  *
  * @property repository The [PetRepository] for reading and persisting companion state.
+ * @property clock Source of "now" to decay up to.
  */
 class CalculateDecayUseCase(
-    private val repository: PetRepository
+    private val repository: PetRepository,
+    private val clock: Clock
 ) {
 
     /**
-     * Executes an atomic read-modify-write operation: applies decay up to [currentTimeMillis]
+     * Executes an atomic read-modify-write operation: applies decay up to the current time
      * to the stored pet, persists it, and returns the updated pet.
      *
-     * @param currentTimeMillis The epoch timestamp to compute decay up to (defaults to `System.currentTimeMillis()`).
      * @return The updated [Pet] instance with persisted decayed vitals.
      */
-    suspend fun execute(currentTimeMillis: Long = System.currentTimeMillis()): Pet {
+    suspend fun execute(): Pet {
         return repository.updatePet { pet ->
-            pet.copy(vitals = PetDecayEngine.calculateDecay(pet.vitals, currentTimeMillis))
+            pet.copy(vitals = PetDecayEngine.calculateDecay(pet.vitals, clock.nowMillis()))
         }
     }
 }
-

@@ -9,8 +9,10 @@ import com.healthcompanion.core.data.db.entity.PetEntity
 import com.healthcompanion.core.domain.engine.EvolutionEngine
 import com.healthcompanion.core.domain.engine.PetDecayEngine
 import com.healthcompanion.core.domain.repository.PetRepository
+import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
+import com.healthcompanion.core.model.Vitals
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -33,9 +35,11 @@ import kotlinx.coroutines.flow.onEach
  *   pair, but without blocking the underlying thread while waiting.
  *
  * @property database Room database providing the DAO and transaction scope.
+ * @property clock Source of "now" for decay, habit timestamps and the default pet's birth time.
  */
 class PetRepositoryImpl(
-    private val database: CompanionDatabase
+    private val database: CompanionDatabase,
+    private val clock: Clock
 ) : PetRepository {
 
     private val petDao = database.petDao()
@@ -102,10 +106,13 @@ class PetRepositoryImpl(
      */
     override suspend fun recordHabits(habits: List<HabitType>): Pet {
         return updatePet { startPet ->
+            // Read "now" inside the transaction so it is never older than a concurrently stored timestamp.
+            val now = clock.nowMillis()
             habits.fold(startPet) { currentPet, habit ->
                 val (updatedVitals, xpGained) = PetDecayEngine.applyHabit(
                     vitals = currentPet.vitals,
-                    habit = habit
+                    habit = habit,
+                    currentTimeMillis = now
                 )
                 EvolutionEngine.checkEvolution(
                     pet = currentPet.copy(vitals = updatedVitals),
@@ -133,9 +140,12 @@ class PetRepositoryImpl(
      * @return Fresh starting [Pet] domain instance.
      */
     private fun createDefaultPet(): Pet {
+        val now = clock.nowMillis()
         return Pet(
             id = "companion_primary",
-            name = "Aura"
+            name = "Aura",
+            vitals = Vitals(lastUpdatedTimestamp = now),
+            bornTimestamp = now
         )
     }
 }

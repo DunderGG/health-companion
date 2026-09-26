@@ -14,10 +14,9 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
-import com.healthcompanion.core.data.db.CompanionDatabase
-import com.healthcompanion.core.data.repository.PetRepositoryImpl
 import com.healthcompanion.core.domain.engine.MoodCalculator
 import com.healthcompanion.core.domain.engine.PetDecayEngine
+import com.healthcompanion.wear.HealthCompanionApp
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -47,11 +46,10 @@ class PetStatusTileService : TileService() {
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
         val future = ResolvableFuture.create<TileBuilders.Tile>()
 
-        val db = CompanionDatabase.getInstance(applicationContext)
-        val repository = PetRepositoryImpl(db)
+        val container = (application as HealthCompanionApp).container
 
-        val pet = runBlocking { repository.getPet() }
-        val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals)
+        val pet = runBlocking { container.petRepository.getPet() }
+        val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals, container.clock.nowMillis())
         val mood = MoodCalculator.calculateMood(decayedVitals)
 
         val rootLayout = LayoutElementBuilders.Column.Builder()

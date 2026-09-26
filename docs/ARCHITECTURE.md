@@ -103,8 +103,7 @@ wearApp --> coreData : Database & Background Workers
 wearApp --> coreModel : Domain Entities
 
 coreUi --> coreModel : Renders Vitals & Mood
-coreHealth --> coreDomain : Dispatches Habit Events
-coreHealth --> coreData : Records Sensor Updates
+coreHealth --> coreDomain : IngestPassiveDataUseCase
 coreHealth --> coreModel : Model Types
 
 coreData --> coreDomain : Implements Repositories
@@ -119,6 +118,7 @@ coreDomain --> coreModel : Evaluates Game Rules
 1. **[`:wearApp`](../wearApp)**:
    - Standalone Wear OS application entry point (`com.google.android.wearable.standalone = true`).
    - UI orchestration, Wear Navigation, ViewModel bindings.
+   - Composition root: `AppContainer` builds the single dependency graph (clock, database, repositories, use cases, `HealthServicesManager`). `HealthCompanionApp` owns it and implements `PassiveDataDependencies` for `:core:health`.
    - Wear OS surfaces: `PetStatusTileService` (Carousel Tile) and Watch Face Complications *(planned)*.
 
 2. **[`:core:ui`](../core/ui)**:
@@ -146,7 +146,7 @@ coreDomain --> coreModel : Evaluates Game Rules
    - Wraps Wear OS **Health Services API** (`androidx.health:health-services-client`).
    - `HealthServicesManager`: Queries device capabilities via `getCapabilitiesAsync()` and registers a `PassiveListenerService` for the intersection of desired and supported data types (`STEPS_DAILY`, `FLOORS_DAILY`, `HEART_RATE_BPM`). Gracefully skips unsupported sensors.
    - `PassiveDataService`: Receives OS-batched sensor data, extracts the latest daily totals (`IntervalDataType`, tagged with their local day) and the latest heart-rate sample (`SampleDataType`) into a `PassiveDataBatch`, and hands it to `IngestPassiveDataUseCase`.
-   - ⚠ Constructs `PetRepositoryImpl` / `PassiveSyncRepositoryImpl` directly, so it depends on `:core:data` (**AR-7**).
+   - Depends only on `:core:domain`. `PassiveDataService` obtains `IngestPassiveDataUseCase` through the `PassiveDataDependencies` interface, which the `Application` implements.
 
 6. **[`:core:model`](../core/model)**:
    - Pure domain models (`Pet`, `Vitals`, `Mood`, `HabitType`, `EvolutionStage`, `PetArchetype`). Zero Android UI dependencies.
@@ -167,7 +167,8 @@ health-companion/
 ├── wearApp/                              # Wear OS Application Module
 │   ├── src/main/AndroidManifest.xml      # Standalone watch app configuration
 │   └── src/main/java/com/healthcompanion/wear/
-│       ├── HealthCompanionApp.kt         # Application setup & WorkManager scheduling
+│       ├── HealthCompanionApp.kt         # Application: owns AppContainer, WorkManager scheduling
+│       ├── AppContainer.kt               # Composition root (manual DI)
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
 │       ├── presentation/pet/             # PetScreen, PetViewModel, PetUiState
 │       └── tiles/PetStatusTileService.kt # Wear OS Carousel Tile
@@ -856,7 +857,7 @@ A review of the implementation against this document. The overall structure is s
 | AR-4 | 🟠 High | Tiles, complications, and the open screen do not update reactively |
 | AR-5 | 🟡 Medium | `PetDecayWorker` is redundant under decay-on-read |
 | AR-6 | ✅ Resolved | Permission degradation is all-or-nothing; API 36 permission model; implicit boot re-registration |
-| AR-7 | 🟡 Medium | Layering violation (`:core:health` → `:core:data`) and fragmented dependency wiring |
+| AR-7 | ✅ Resolved | Layering violation (`:core:health` → `:core:data`) and fragmented dependency wiring |
 | AR-8 | ✅ Resolved | Destructive migrations can delete the pet; invalid rows crash the app |
 
 ### AR-1 — Cumulative daily totals treated as deltas ✅ Resolved
@@ -925,7 +926,8 @@ A review of the implementation against this document. The overall structure is s
   - Adopt the API 36 health permissions and verify the passive heart-rate requirements on a Wear OS 6 image.
   - Move registration into an explicit, idempotent path: on permission grant, on boot (via a receiver or WorkManager), and on app start only if not already registered.
 
-### AR-7 — Layering and dependency wiring
+### AR-7 — Layering and dependency wiring ✅ Resolved
+- **Resolution**: `:core:health` now depends only on `:core:domain` and `:core:model`, and gets its use case via `PassiveDataDependencies`. `AppContainer` (manual DI, lazy members) is the single graph used by the activity, view models, tile and service; the static `HealthCompanionApp.instance` is removed. A domain `Clock` is injected into `PetRepositoryImpl`, the use cases and `PetViewModel`, and the engines no longer default to the system time. See DD-26 to DD-28.
 - **Where**: `:core:health` build file, `PassiveDataService`, `PetDecayWorker`, `PetStatusTileService`, `HealthCompanionApp`.
 - **Problems**:
   - `:core:health` depends on `:core:data` and instantiates `PetRepositoryImpl` directly, bypassing the domain layer.

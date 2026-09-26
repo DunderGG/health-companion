@@ -56,10 +56,10 @@ Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-r
    - [x] Adopt API 36 granular health permissions (`health.READ_HEART_RATE`, `health.READ_HEALTH_DATA_IN_BACKGROUND`) plus an optional background heart-rate request.
    - [ ] **Manual verification (needs emulator/watch)**: permission dialogs on Wear OS 6 and on API 33–35, passive heart-rate delivery, and re-registration after reboot.
    - [x] Explicit, idempotent registration on grant and on boot (`BootCompletedReceiver` → `PassiveRegistrationWorker`). Process starts only re-register when the permission set or the boot count changed.
-5. [ ] **AR-7 — Layering & dependency wiring** 🟡
-   - [ ] Remove the `:core:health` → `:core:data` dependency. Use `PetRepository` / `LogHabitUseCase`.
-   - [ ] Single shared dependency graph (`AppContainer` or Hilt) for the activity, services, tile, and workers.
-   - [ ] Inject a `Clock` into the engines and use cases.
+5. [x] **AR-7 — Layering & dependency wiring** 🟡
+   - [x] Remove the `:core:health` → `:core:data` dependency (`PassiveDataDependencies` provider interface).
+   - [x] Single shared dependency graph (manual `AppContainer`) for the activity, view models, service and tile. `PetDecayWorker` is left as-is for AR-5.
+   - [x] Inject a `Clock` into the repository, use cases and `PetViewModel`. Engines take explicit timestamps.
 6. [ ] **AR-4 — Reactive surfaces** 🟠
    - [ ] Request a tile update after every committed write.
    - [ ] Replace `runBlocking` in `PetStatusTileService` with a suspending tile service.

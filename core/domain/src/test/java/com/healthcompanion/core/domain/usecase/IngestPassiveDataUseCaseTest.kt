@@ -7,6 +7,7 @@ import com.healthcompanion.core.domain.engine.DailyTotalBaseline
 import com.healthcompanion.core.domain.engine.DailyTotalTracker
 import com.healthcompanion.core.domain.repository.PassiveSyncRepository
 import com.healthcompanion.core.domain.repository.PetRepository
+import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Pet
 import kotlinx.coroutines.flow.Flow
@@ -20,16 +21,22 @@ class IngestPassiveDataUseCaseTest {
 
     private val day = 20_000L
     private val now = 1_000_000_000L
+    private var clockMillis = now
 
     private val petRepository = RecordingPetRepository()
-    private val useCase = IngestPassiveDataUseCase(petRepository, InMemoryPassiveSyncRepository())
+    private val useCase = IngestPassiveDataUseCase(petRepository, InMemoryPassiveSyncRepository(), Clock { clockMillis })
+
+    private suspend fun ingest(batch: PassiveDataBatch, atMillis: Long): Pet? {
+        clockMillis = atMillis
+        return useCase.execute(batch)
+    }
 
     @Test
     fun `re-delivered daily step total is applied only once`() = runTest {
         val batch = PassiveDataBatch(steps = DailyTotalReading(day, 8_000.0))
 
-        useCase.execute(batch, now)
-        val second = useCase.execute(batch, now + 60_000)
+        ingest(batch, now)
+        val second = ingest(batch, now + 60_000)
 
         assertEquals(listOf(listOf<HabitType>(HabitType.Steps(8_000))), petRepository.recordedBatches)
         assertNull(second)
@@ -37,8 +44,8 @@ class IngestPassiveDataUseCaseTest {
 
     @Test
     fun `growing daily totals apply only the increase`() = runTest {
-        useCase.execute(PassiveDataBatch(steps = DailyTotalReading(day, 1_000.0)), now)
-        useCase.execute(PassiveDataBatch(steps = DailyTotalReading(day, 1_450.0)), now + 60_000)
+        ingest(PassiveDataBatch(steps = DailyTotalReading(day, 1_000.0)), now)
+        ingest(PassiveDataBatch(steps = DailyTotalReading(day, 1_450.0)), now + 60_000)
 
         assertEquals(
             listOf(listOf(HabitType.Steps(1_000)), listOf(HabitType.Steps(400))),
@@ -54,7 +61,7 @@ class IngestPassiveDataUseCaseTest {
             latestHeartRateBpm = 72.0
         )
 
-        useCase.execute(batch, now)
+        ingest(batch, now)
 
         assertEquals(
             listOf(listOf(HabitType.Steps(600), HabitType.Steps(200), HabitType.HeartRate(72f))),
@@ -67,16 +74,16 @@ class IngestPassiveDataUseCaseTest {
         val interval = IngestPassiveDataUseCase.HEART_RATE_AWARD_INTERVAL_MS
         val batch = PassiveDataBatch(latestHeartRateBpm = 65.0)
 
-        useCase.execute(batch, now)
-        useCase.execute(batch, now + interval - 1)
-        useCase.execute(batch, now + interval)
+        ingest(batch, now)
+        ingest(batch, now + interval - 1)
+        ingest(batch, now + interval)
 
         assertEquals(2, petRepository.recordedBatches.size)
     }
 
     @Test
     fun `batch with nothing new does not touch the pet`() = runTest {
-        val result = useCase.execute(PassiveDataBatch(steps = DailyTotalReading(day, 150.0)), now)
+        val result = ingest(PassiveDataBatch(steps = DailyTotalReading(day, 150.0)), now)
 
         assertNull(result)
         assertEquals(emptyList<List<HabitType>>(), petRepository.recordedBatches)

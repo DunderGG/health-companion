@@ -6,6 +6,7 @@ package com.healthcompanion.core.domain.usecase
 import com.healthcompanion.core.domain.engine.MoodCalculator
 import com.healthcompanion.core.domain.engine.PetDecayEngine
 import com.healthcompanion.core.domain.repository.PetRepository
+import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.model.Mood
 import com.healthcompanion.core.model.Pet
 import kotlinx.coroutines.flow.Flow
@@ -31,9 +32,11 @@ data class PetWithMood(
  * current vitals without requiring background battery-draining timer writes.
  *
  * @property repository The [PetRepository] providing access to companion persistence.
+ * @property clock Source of "now" for decay evaluation.
  */
 class GetPetStateUseCase(
-    private val repository: PetRepository
+    private val repository: PetRepository,
+    private val clock: Clock
 ) {
 
     /**
@@ -47,7 +50,7 @@ class GetPetStateUseCase(
      */
     fun execute(): Flow<PetWithMood> {
         return repository.getPetFlow().map { pet ->
-            val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals)
+            val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals, clock.nowMillis())
             val updatedPet = pet.copy(vitals = decayedVitals)
             val mood = MoodCalculator.calculateMood(decayedVitals)
             PetWithMood(updatedPet, mood)

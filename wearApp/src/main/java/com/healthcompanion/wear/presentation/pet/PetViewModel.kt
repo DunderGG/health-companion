@@ -5,6 +5,7 @@ package com.healthcompanion.wear.presentation.pet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.domain.usecase.GetPetStateUseCase
 import com.healthcompanion.core.domain.usecase.LogHabitUseCase
 import com.healthcompanion.core.model.HabitType
@@ -32,10 +33,12 @@ import kotlinx.coroutines.launch
  *
  * @param getPetStateUseCase Domain use case observing pet vitals and calculated mood.
  * @param logHabitUseCase Domain use case dispatching health habits and interactions.
+ * @param clock Source of "now" for the petting cooldown.
  */
 class PetViewModel(
     private val getPetStateUseCase: GetPetStateUseCase,
-    private val logHabitUseCase: LogHabitUseCase
+    private val logHabitUseCase: LogHabitUseCase,
+    private val clock: Clock
 ) : ViewModel() {
 
     private val _isPetting = MutableStateFlow(false)
@@ -98,7 +101,7 @@ class PetViewModel(
      * @return `true` if petting was accepted; `false` if rejected due to active cooldown.
      */
     fun petCompanion(): Boolean {
-        val now = System.currentTimeMillis()
+        val now = clock.nowMillis()
         if (now - lastPetTimestamp < PET_COOLDOWN_MS || _isPetting.value) {
             return false
         }

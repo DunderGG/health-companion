@@ -8,6 +8,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.healthcompanion.core.data.db.CompanionDatabase
 import com.healthcompanion.core.data.repository.PetRepositoryImpl
+import com.healthcompanion.core.domain.time.Clock
 import com.healthcompanion.core.domain.usecase.CalculateDecayUseCase
 
 /**
@@ -38,7 +39,7 @@ class PetDecayWorker(
     override suspend fun doWork(): Result {
         return try {
             val db = CompanionDatabase.getInstance(applicationContext)
-            CalculateDecayUseCase(PetRepositoryImpl(db)).execute()
+            CalculateDecayUseCase(PetRepositoryImpl(db, Clock.SYSTEM), Clock.SYSTEM).execute()
 
             Result.success()
         } catch (e: Exception) {
