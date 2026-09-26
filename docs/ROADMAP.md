@@ -88,7 +88,7 @@ Open work that came out of the review. None of it blocks merging the remediation
 - [ ] **Design calls**: settle the 🟣 "Needs your decision" items at the top of [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md) (balance values, night rules, archetype thresholds, heart-rate dialogs).
 - [ ] **Real sleep signal**: Health Services sleep detection (`UserActivityState.USER_ACTIVITY_ASLEEP`) layered on the night rest (DD-33).
 - [ ] **Workouts**: `ExerciseClient` sessions as `HabitType.Workout`, which also strengthens the `IRON_BEAST` path (DD-36).
-- [ ] **Configurable bedtime** instead of the fixed 22:00–07:00 `NightWindow` (DD-33).
+- [x] **Configurable bedtime** instead of the fixed 22:00–07:00 `NightWindow` (DD-33). *Done in Phase 3a (DD-48).*
 
 ---
 
@@ -149,7 +149,7 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 
 ## Phase 3: Wear OS Native Surfaces & Micro-Interactions
 - [x] Interactive Wear OS Carousel Tile with direct 1-tap "+250ml Water" action button via ProtoLayout. Each tap logs once, tapping the vitals opens the app (DD-42).
-- [x] Watch Face Complication Provider (`PetMoodComplicationService`): pet mood face (short text / icon) and an overall-health ring on standard watch dials, refreshed from the same `NotifyingPetRepository` callback as the tile (DD-43). A step-progress ring needs a daily step goal first (DD-43, your call).
+- [x] Watch Face Complication Provider (`PetMoodComplicationService`): pet mood face (short text / icon) and an overall-health ring on standard watch dials, refreshed from the same `NotifyingPetRepository` callback as the tile (DD-43). The step-progress ring came later as the separate "Pet Steps" complication (Phase 3a, DD-51).
 - [x] Ambient Mode support: Low-power grayscale rendering for always-on displays. Static outline pet and ring, time shown, burn-in shift, step sensor released (DD-44).
 - [x] Rotary Crown Integration: the crown (or a swipe) pages between the pet and a new Vitals page with all five vitals. Zoom and crown petting were considered and dropped; petting stays a tap (DD-45).
 - [x] Haptic Feedback: Custom vibration patterns on petting (purr), evolution (fanfare), and goal completion (success), where a goal is today first reaching a daily focus goal: 6,000 steps, a workout or heart rate ≥ 100, or 1,500 ml + 2 healthy meals (DD-47).
@@ -185,3 +185,69 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 
 - **Unit tests**: `./gradlew test` (Windows: `.\gradlew.bat test`).
 - **Emulator, device and battery checks**: see [VERIFICATION.md](VERIFICATION.md), including how to simulate Health Services sensor data on the emulator.
+
+---
+
+## General Improvements
+Ideas that aren't tied to a phase, grouped by theme. Some of the rewards and personality items could move into Phase 4 once that phase is planned in detail.
+
+**Priority** (same colors as Phase 2a):
+- 🔴 **High**: fixes a fairness, data-loss or core-loop gap, or is cheap and makes the pet feel owned. Do these first.
+- 🟠 **Medium**: noticeably improves the Tamagotchi feel or daily use. Do these after the high items.
+- 🟡 **Low**: nice to have, large effort, or depends on other work.
+- 🟣 **Needs a decision**: a game-design call to settle before implementation.
+
+**Suggested first batch** (🔴): rate-limit the care buttons, name your pet, evolution ceremony, decide what happens after long neglect, rest / sick-day mode, local backup, battery usage.
+
+### Care Balance & Anti-Spam
+- [ ] 🔴 **Rate-limit the care buttons**: water and food should not be spammable. Add a per-action cooldown or diminishing returns (e.g. each extra glass of water within an hour counts less).
+- [ ] 🟠 **A full pet refuses**: when a vital is already full, the pet turns the food or water away (head shake) instead of the tap being logged silently. This is the classic Tamagotchi overfeeding feedback.
+- [ ] 🟠 **Undo the last log**: a short undo window (snackbar or confirmation) for accidental taps on the tile or the pet screen.
+- [ ] 🟡 **Treats vs. meals**: make unhealthy meals a "treat" with a real trade-off (a happiness boost but a small energy cost, overeating makes the pet sluggish) instead of just a less effective meal.
+- [ ] 🟡 🟣 **Clock-change cheating**: decide how to handle the user moving the device clock forward or backward ("time travel"). Options are to ignore it, clamp negative or huge deltas, or detect it using elapsed realtime.
+
+### Pet Life Cycle
+- [ ] 🟠 **Hatching from an egg**: new pets currently start as `HATCHLING` with 100 XP, so `EvolutionStage.EGG` is never used. Start as an egg that hatches after the first steps or the first day, with a hatching animation.
+- [ ] 🔴 **Name your pet**: a naming step when the pet hatches, plus a rename option in Settings. The name is currently always `"Aura"`.
+- [ ] 🟡 **Age and birthdays**: show the pet's age in days (from `bornTimestamp`), and celebrate milestones such as 7, 30 and 100 days and yearly birthdays.
+- [ ] 🔴 **Evolution ceremony**: a full-screen moment (animation, haptic fanfare, "Aura evolved into a Teen!") instead of a silent stage change, including an archetype reveal at `TEEN`.
+- [ ] 🟠 🟣 **Sickness from neglect**: a vital stuck at 0 for several hours makes the pet sick (a visual state plus slower recovery), and it takes sustained care to recover, not a single tap. It has to stay gentle for a health app.
+- [ ] 🔴 🟣 **What happens after long neglect**: the classic answer is that the pet dies. The alternatives are that it goes dormant or hibernates, runs away and comes back once the user is active again, or never reaches a failure state at all. This should be settled before sickness is built.
+- [ ] 🟡 **Legacy and generations**: an `ANCIENT_SAGE` can "retire", and the next egg inherits a trait or color from it. A **memorial / hall of fame** lists past pets (name, age, archetype, lifetime steps), which also gives "Start over" (DD-52) something to keep.
+
+### Personality & Expression
+- [ ] 🟠 **Idle behaviors**: random small animations while the screen is open (yawning, stretching, looking around, chasing a particle), so the pet feels alive between interactions.
+- [ ] 🟡 **Tap zones and gestures**: different reactions to tapping the head, the belly or a long press (tickle, giggle, sleepy grumble if it is woken at night).
+- [ ] 🟠 **Speech and thought bubbles**: short hints for what the pet wants ("💧?", "so sleepy…", "let's walk!"), which make low vitals readable without opening the Vitals page.
+- [ ] 🟡 **Bond / affection**: a slow-growing relationship stat, separate from happiness, earned through consistent daily care over weeks. It unlocks small behaviors (the pet greets you, follows your finger).
+- [ ] 🟡 **Daily rituals**: a morning greeting the first time the pet is seen after the night window, and a yawn and goodnight around bedtime.
+- [ ] 🟡 **Time-of-day ambience**: background tint or sky that follows morning, day, evening and night, in line with the configurable bedtime.
+
+### Rewards & Collection
+- [ ] 🟠 **Streaks**: a streak counter for days with a goal met, with forgiving "freeze" days so a single missed day doesn't reset weeks of progress.
+- [ ] 🟡 **Achievements / badges**: e.g. first 10k-step day, 7-day hydration streak, first evolution, 100 pets. Shown on a trophy page.
+- [ ] 🟡 **Items and inventory**: toys, food varieties and backgrounds, earned through activity (e.g. a coin per 1,000 steps). A toy gives a happiness bonus and plays its own animation.
+- [ ] 🟡 **Surprise moments**: an occasional random event (the pet finds a gift, a butterfly visits) to reward opening the app without making it a slot machine.
+- [ ] 🟡 **Pet journal**: a daily line from the pet's perspective ("We walked 8,214 steps together today!") and a weekly recap, which is simpler on the watch than the Phase 5 charts.
+
+### Notifications & Surfaces
+- [ ] 🟡 **Attention calls**: besides critical-vital alerts, the pet occasionally "calls" (at most a few times a day, never at night) when it wants to play or go for a walk. The Tamagotchi call, but rate-limited.
+- [ ] 🟠 **Richer tile**: show the pet's most urgent need as an icon, and add a quick "feed" action next to "+250 ml Water".
+- [ ] 🟡 **Pet watch face** (Watch Face Format): the pet lives on the watch face itself, with the time and the vitals ring. It is the most direct way to have it "always with you".
+- [ ] 🟡 **Notification sound and vibration identity**: a consistent sound and vibration signature per alert type, so the user knows what the pet wants without looking.
+
+### Wellbeing & Fairness
+- [ ] 🔴 **Rest / sick-day mode**: pause or slow decay for a day or more when the user is ill or on holiday, so the app never punishes real-life rest.
+- [ ] 🟠 🟣 **Off-wrist and charging**: decide whether decay should slow while the watch is charging or off the wrist (overnight charging currently overlaps with the night window).
+- [ ] 🟠 **No guilt-tripping**: review notification and mood copy to make sure it encourages rather than shames, especially for sickness and neglect states.
+- [ ] 🟠 **Timezone travel**: make the day rollover, night window and goals behave sensibly when the user crosses timezones (no double day, no missed night).
+
+### Accessibility & Localization
+- [ ] 🟠 **TalkBack**: content descriptions for the pet's mood, vitals and goal progress on every screen, the tile and the complications.
+- [ ] 🟡 **Color-blind-safe vitals**: don't rely on ring colors alone. Add icons or patterns for each vital.
+- [ ] 🟡 **Localization**: move the remaining hardcoded strings (e.g. `PetArchetype` titles and descriptions) to string resources, and add at least one more language.
+
+### Performance, Reliability & Tooling
+- [ ] 🔴 **Battery usage**: make sure background services and sensors are managed efficiently to minimize battery drain (see B1–B6 in [VERIFICATION.md](VERIFICATION.md)).
+- [ ] 🔴 **Local backup**: Android Auto Backup rules so the pet survives a reinstall or a new watch before the Phase 5 cloud backup exists.
+- [ ] 🟠 **Debug menu** (debug builds only): set vitals, XP, stage and a fake clock offset to test evolution, sickness and night behavior quickly. Also a place to show the silent row repairs from DD-20.
