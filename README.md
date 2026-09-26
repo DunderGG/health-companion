@@ -7,6 +7,10 @@
 
 A health-mirroring virtual pet companion for Wear OS smartwatches, inspired by the classic Tamagotchi toy. Your companion's vitals (Energy, Hydration, Nutrition, Fitness, and Happiness) directly reflect your real-world habits.
 
+<p align="center">
+  <img src="docs/images/pet.gif" alt="The pet on a round Wear OS watch, surrounded by its vitals ring, with buttons to log a meal or water" width="300">
+</p>
+
 > [!NOTE]
 > **Status: early development.** The core game, passive health sync, and Wear OS surfaces (tile, complications, always-on) are working, while the final name and pet graphics are still open. See the [roadmap](docs/ROADMAP.md). The app is not on the Play Store yet, so you build and install it yourself (see [Getting Started](#-getting-started)).
 > *Health Companion* is a working title. The final name will be chosen in roadmap Phase 2b.
