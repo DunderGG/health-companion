@@ -33,7 +33,7 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
 ---
 
 ## Phase 2a: Architecture Review Remediation
-Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-review-findings-2026-09-26). The steps are listed in the recommended order, and each one is sized to land as its own PR. Tick a finding off here, then remove or update its ⚠ notes in ARCHITECTURE.md.
+Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-review-findings-2026-09-26). The steps are listed in the recommended order, and each one is sized to land as its own PR. Tick a finding off here, then remove or update its ⚠ notes in ARCHITECTURE.md, and record any non-trivial choices made along the way in [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md).
 
 1. [x] **AR-2 — Atomic pet updates** 🔴
    - [x] Wrap `recordHabit()` read-modify-write in `withTransaction { }` (via `PetRepository.updatePet { transform }`).

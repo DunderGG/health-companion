@@ -3,7 +3,7 @@
 ## Overview
 **Health Companion** is a standalone Wear OS virtual pet app inspired by the classic Tamagotchi toy, reimagined for modern smartwatches. The companion's growth, energy, and happiness directly mirror the user's real-world health habits—including physical activity, step goals, hydration, nutrition, and rest.
 
-> **Document status (2026-09-26):** This document describes both the implemented system and the target design. Items marked *(planned)* do not exist in code yet. Known deviations between the design and the current implementation are tracked as numbered review findings (**AR-1 … AR-8**) in [§9 Architecture Review Findings](#9-architecture-review-findings-2026-09-26) and scheduled in [ROADMAP.md → Phase 2a](ROADMAP.md#phase-2a-architecture-review-remediation).
+> **Document status (2026-09-26):** This document describes both the implemented system and the target design. Items marked *(planned)* do not exist in code yet. Known deviations between the design and the current implementation are tracked as numbered review findings (**AR-1 … AR-8**) in [§9 Architecture Review Findings](#9-architecture-review-findings-2026-09-26) and scheduled in [ROADMAP.md → Phase 2a](ROADMAP.md#phase-2a-architecture-review-remediation). The reasoning behind non-trivial design choices, their trade-offs and open questions is logged separately in [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md) (**DD-xx**).
 
 ---
 
@@ -161,6 +161,7 @@ health-companion/
 │
 ├── docs/                                 # Project documentation & design specs
 │   ├── ARCHITECTURE.md                   # System architecture & PlantUML diagrams
+│   ├── DESIGN_DECISIONS.md               # Decision log (DD-xx): rationale, trade-offs, open questions
 │   └── ROADMAP.md                        # Phased timeline & testing guide
 │
 ├── wearApp/                              # Wear OS Application Module
