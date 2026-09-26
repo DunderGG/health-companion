@@ -8,7 +8,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.healthcompanion.core.data.db.CompanionDatabase
 import com.healthcompanion.core.data.repository.PetRepositoryImpl
-import com.healthcompanion.core.domain.engine.PetDecayEngine
+import com.healthcompanion.core.domain.usecase.CalculateDecayUseCase
 
 /**
  * Background worker executing battery-efficient periodic decay computation via Android WorkManager.
@@ -30,21 +30,15 @@ class PetDecayWorker(
 
     /**
      * Executes the background decay calculation:
-     * 1. Acquires database instance and repository.
-     * 2. Retrieves current pet snapshot.
-     * 3. Calculates elapsed time decay.
-     * 4. Persists the decayed state back to SQLite.
+     * applies elapsed time decay to the stored pet and persists it atomically
+     * via [CalculateDecayUseCase].
      *
      * @return [Result.success] if the decay write succeeded; [Result.retry] if an exception occurred.
      */
     override suspend fun doWork(): Result {
         return try {
             val db = CompanionDatabase.getInstance(applicationContext)
-            val repository = PetRepositoryImpl(db.petDao())
-            val pet = repository.getPet()
-
-            val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals)
-            repository.updatePet(pet.copy(vitals = decayedVitals))
+            CalculateDecayUseCase(PetRepositoryImpl(db)).execute()
 
             Result.success()
         } catch (e: Exception) {

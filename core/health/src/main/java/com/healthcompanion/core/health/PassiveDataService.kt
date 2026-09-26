@@ -49,7 +49,7 @@ class PassiveDataService : PassiveListenerService() {
     override fun onNewDataPointsReceived(dataPoints: DataPointContainer) {
         serviceScope.launch {
             val db = CompanionDatabase.getInstance(applicationContext)
-            val repository = PetRepositoryImpl(db.petDao())
+            val repository = PetRepositoryImpl(db)
 
             processSteps(dataPoints, repository)
             processHeartRate(dataPoints, repository)

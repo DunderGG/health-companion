@@ -56,6 +56,16 @@ interface PetDao {
     suspend fun insertOrUpdate(pet: PetEntity): Long
 
     /**
+     * Inserts a companion record only if no record with the same primary key exists.
+     * Used for seeding the default pet without ever overwriting an existing one.
+     *
+     * @param pet The entity to insert.
+     * @return The SQLite `rowid` of the inserted record, or `-1` if a record already existed.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(pet: PetEntity): Long
+
+    /**
      * Updates an existing companion record matching the entity's primary key.
      *
      * @param pet The entity with updated fields.

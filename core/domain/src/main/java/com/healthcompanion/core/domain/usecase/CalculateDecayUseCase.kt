@@ -20,18 +20,16 @@ class CalculateDecayUseCase(
 ) {
 
     /**
-     * Executes a read-modify-write operation: fetches the pet, applies decay up to [currentTimeMillis],
-     * writes the decayed pet back to the database, and returns the updated pet.
+     * Executes an atomic read-modify-write operation: applies decay up to [currentTimeMillis]
+     * to the stored pet, persists it, and returns the updated pet.
      *
      * @param currentTimeMillis The epoch timestamp to compute decay up to (defaults to `System.currentTimeMillis()`).
      * @return The updated [Pet] instance with persisted decayed vitals.
      */
     suspend fun execute(currentTimeMillis: Long = System.currentTimeMillis()): Pet {
-        val currentPet = repository.getPet()
-        val decayedVitals = PetDecayEngine.calculateDecay(currentPet.vitals, currentTimeMillis)
-        val updatedPet = currentPet.copy(vitals = decayedVitals)
-        repository.updatePet(updatedPet)
-        return updatedPet
+        return repository.updatePet { pet ->
+            pet.copy(vitals = PetDecayEngine.calculateDecay(pet.vitals, currentTimeMillis))
+        }
     }
 }
 

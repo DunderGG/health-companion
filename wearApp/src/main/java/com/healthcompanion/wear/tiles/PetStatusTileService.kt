@@ -48,7 +48,7 @@ class PetStatusTileService : TileService() {
         val future = ResolvableFuture.create<TileBuilders.Tile>()
 
         val db = CompanionDatabase.getInstance(applicationContext)
-        val repository = PetRepositoryImpl(db.petDao())
+        val repository = PetRepositoryImpl(db)
 
         val pet = runBlocking { repository.getPet() }
         val decayedVitals = PetDecayEngine.calculateDecay(pet.vitals)

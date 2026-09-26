@@ -67,7 +67,7 @@ class HealthCompanionApp : Application() {
 
         // Initialize Room Database & Repositories
         database = CompanionDatabase.getInstance(this)
-        petRepository = PetRepositoryImpl(database.petDao())
+        petRepository = PetRepositoryImpl(database)
         getPetStateUseCase = GetPetStateUseCase(petRepository)
         logHabitUseCase = LogHabitUseCase(petRepository)
         healthServicesManager = HealthServicesManager(this)

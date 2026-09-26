@@ -371,7 +371,7 @@ deactivate UI
   1. `PetRepositoryImpl.recordHabit()` first calls `PetDecayEngine.applyHabit()`, which brings vitals up to the current millisecond before applying the habit boost (clamping between `0.0` and `100.0`) and computing earned XP.
   2. `EvolutionEngine.checkEvolution()` checks whether the new XP total crosses stage milestones (e.g., Egg $\rightarrow$ Hatchling $\rightarrow$ Child $\rightarrow$ Teen) and determines archetype specializations (e.g., `Swift Strider`, `Zen Ascetic`).
   3. The evolved pet is flattened into a `PetEntity` and persisted via `PetDao.insertOrUpdate()` with `OnConflictStrategy.REPLACE`.
-  - ⚠ **Known gap (AR-2)**: Steps 1–3 are *not* currently atomic. The read → compute → write sequence runs outside a database transaction, so concurrent writers (UI taps, `PassiveDataService`, `PetDecayWorker`) can silently overwrite each other's updates.
+  - **Atomicity**: `recordHabit()` delegates to `PetRepository.updatePet { transform }`, which runs the read, the engine evaluation, and the write inside a single Room `withTransaction { }`. Concurrent writers (UI taps, `PassiveDataService`, `PetDecayWorker`) are serialized and never overwrite each other's updates.
 - **Automatic Reactive Loop Closure**: The write operation does not require manual event dispatching to the UI. Instead, Room's built-in SQLite table invalidation mechanism triggers `PetDao.getPetFlow()`. The fresh entity is automatically emitted through `GetPetStateUseCase`, transformed into a new `PetUiState.Success`, and rendered on the watch face with updated vitals and expressions.
 
 ---
@@ -539,6 +539,7 @@ package "Persistence Layer (:core:data)" {
         +getPetFlow(petId): Flow<PetEntity?>
         +getPet(petId): PetEntity?
         +insertOrUpdate(entity): Long
+        +insertIfAbsent(entity): Long
         +update(entity): Int
     }
     class PetEntity <<@Entity(tableName = "pets")>> {
@@ -568,6 +569,7 @@ database "SQLite Flash Storage\n(health_companion.db)" as SQLite
 
 PetRepository <|.. PetRepositoryImpl : implements
 PetRepositoryImpl --> PetDao : queries / writes
+PetRepositoryImpl --> CompanionDatabase : withTransaction { }
 PetRepositoryImpl ..> PetEntity : maps to/from domain
 PetRepositoryImpl --> Pet : streams Flow<Pet>
 PetDao ..> PetEntity : returns / receives
@@ -605,6 +607,14 @@ The `@Dao` interface declares SQL operations:
   suspend fun insertOrUpdate(pet: PetEntity): Long
   ```
   Executes an atomic SQLite `INSERT OR REPLACE INTO pets` statement, returning the inserted row ID.
+- **Seed Mutation (`insertIfAbsent`)**:
+  ```kotlin
+  @Insert(onConflict = OnConflictStrategy.IGNORE)
+  suspend fun insertIfAbsent(pet: PetEntity): Long
+  ```
+  Used only to seed the default companion. `INSERT OR IGNORE` guarantees seeding can never overwrite an existing pet.
+
+> **Transactions**: DAO calls are individually atomic, but a read followed by a write is not. `PetRepositoryImpl` therefore performs every mutation through `updatePet { transform }`, which wraps the read → transform → write sequence in `CompanionDatabase.withTransaction { }`. Never read the pet and write it back outside that method.
 
 #### 3. The Database Provider: [`CompanionDatabase.kt`](../core/data/src/main/java/com/healthcompanion/core/data/db/CompanionDatabase.kt)
 Extends `RoomDatabase`, serving as the connection pool manager and factory for DAOs:
@@ -787,7 +797,7 @@ A review of the implementation against this document. The overall structure is s
 | ID | Severity | Summary |
 | :--- | :--- | :--- |
 | AR-1 | 🔴 Critical | Cumulative daily sensor totals are applied as deltas |
-| AR-2 | 🔴 Critical | Pet updates are non-atomic read-modify-write (lost updates) |
+| AR-2 | ✅ Resolved | Pet updates are non-atomic read-modify-write (lost updates) |
 | AR-3 | 🟠 High | Some vitals cannot recover; sleep, night mood, and consistency-based archetypes are unimplemented |
 | AR-4 | 🟠 High | Tiles, complications, and the open screen do not update reactively |
 | AR-5 | 🟡 Medium | `PetDecayWorker` is redundant under decay-on-read |
@@ -807,7 +817,8 @@ A review of the implementation against this document. The overall structure is s
   - Rate-limit or cap the heart-rate XP awarded per hour.
 - **Tests**: unit tests for delta computation, midnight reset, out-of-order batches, and a total that decreases.
 
-### AR-2 — Non-atomic pet updates
+### AR-2 — Non-atomic pet updates ✅ Resolved
+- **Resolution**: `PetRepository.updatePet(pet)` (blind overwrite) was replaced by `updatePet { transform }`, which runs inside `withTransaction { }`. `recordHabit()`, `CalculateDecayUseCase`, and `PetDecayWorker` all go through it. Default-pet seeding uses `insertIfAbsent` (`INSERT OR IGNORE`). `PetRepositoryImplTest` (Robolectric, in-memory Room) covers concurrent writers. Before the fix, 50 concurrent hydration logs persisted only 2.
 - **Where**: `PetRepositoryImpl.recordHabit()`, `PetRepositoryImpl.getPetFlow()` (default-pet insert), `PetDecayWorker.doWork()`, `CalculateDecayUseCase`.
 - **Problem**: Each writer does `getPet()` → compute → `insertOrUpdate()` with no transaction around it. Writers run concurrently: UI taps, one coroutine per sensor batch (up to 5 sequential writes each), and the worker. Each entry point builds its own `PetRepositoryImpl`, so an in-memory `Mutex` would not protect them either.
 - **Impact**: Updates are silently lost (e.g. a water tap is overwritten by a concurrent step batch).
@@ -838,7 +849,7 @@ A review of the implementation against this document. The overall structure is s
 
 ### AR-5 — `PetDecayWorker` is redundant
 - **Where**: [`PetDecayWorker.kt`](../core/data/src/main/java/com/healthcompanion/core/data/workers/PetDecayWorker.kt), `HealthCompanionApp.schedulePeriodicDecay()`.
-- **Problem**: Under decay-on-read, persisting a decayed snapshot every 2 hours changes no user-visible result. It only adds another concurrent writer (AR-2) and triggers an extra Room invalidation.
+- **Problem**: Under decay-on-read, persisting a decayed snapshot every 2 hours changes no user-visible result. It only adds another writer (safe since AR-2, but pointless) and triggers an extra Room invalidation.
 - **Target design**: Give it a real job or remove it. Useful jobs: refreshing tiles and complications (AR-4), the day-rollover reset of sensor baselines (AR-1), and critical-vital notifications (Phase 2). If it is removed, drop the explicit `WAKE_LOCK` permission as well.
 
 ### AR-6 — Permissions and Health Services registration

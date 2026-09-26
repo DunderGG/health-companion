@@ -35,10 +35,10 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
 ## Phase 2a: Architecture Review Remediation
 Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-review-findings-2026-09-26). The steps are listed in the recommended order, and each one is sized to land as its own PR. Tick a finding off here, then remove or update its ⚠ notes in ARCHITECTURE.md.
 
-1. [ ] **AR-2 — Atomic pet updates** 🔴
-   - [ ] Wrap `recordHabit()` read-modify-write in `withTransaction { }` (or a `@Transaction` DAO method).
-   - [ ] Apply the same to `PetDecayWorker`, `CalculateDecayUseCase`, and the default-pet insert in `getPetFlow()`.
-   - [ ] Instrumented test: concurrent `recordHabit()` calls lose no updates.
+1. [x] **AR-2 — Atomic pet updates** 🔴
+   - [x] Wrap `recordHabit()` read-modify-write in `withTransaction { }` (via `PetRepository.updatePet { transform }`).
+   - [x] Apply the same to `PetDecayWorker`, `CalculateDecayUseCase`, and the default-pet insert in `getPetFlow()` (now `insertIfAbsent`).
+   - [x] Integration test (Robolectric + in-memory Room, runs in `./gradlew test`): concurrent `recordHabit()` calls lose no updates.
 2. [ ] **AR-1 — Daily totals → deltas** 🔴
    - [ ] Persist the last-seen total and its day per `*_DAILY` data type (new table or DataStore).
    - [ ] Apply only positive deltas. Reset the baseline on day rollover.
