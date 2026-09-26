@@ -4,8 +4,17 @@
     <uses-feature android:name="android.hardware.type.watch" />
 
     <!-- Health & Sensor Permissions -->
+    <!-- Core: steps and floors. -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
-    <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <!-- Optional heart rate: legacy body-sensor permissions up to API 35, granular health permissions from API 36 (Wear OS 6). -->
+    <uses-permission
+        android:name="android.permission.BODY_SENSORS"
+        android:maxSdkVersion="35" />
+    <uses-permission
+        android:name="android.permission.BODY_SENSORS_BACKGROUND"
+        android:maxSdkVersion="35" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -40,6 +49,15 @@
             android:name="com.healthcompanion.core.health.PassiveDataService"
             android:permission="com.google.android.wearable.healthservices.permission.PASSIVE_DATA_BINDING"
             android:exported="true" />
+
+        <!-- Passive registrations do not survive reboot: re-register via WorkManager on boot. -->
+        <receiver
+            android:name="com.healthcompanion.core.health.BootCompletedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Wear OS Quick Carousel Tile -->
         <service

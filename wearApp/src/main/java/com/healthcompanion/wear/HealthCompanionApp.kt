@@ -4,6 +4,7 @@
 package com.healthcompanion.wear
 
 import android.app.Application
+import android.util.Log
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -75,9 +76,14 @@ class HealthCompanionApp : Application() {
         // Schedule periodic battery-efficient decay check (every 2 hours)
         schedulePeriodicDecay()
 
-        // Register passive step tracking via Health Services
+        // Sync the passive Health Services registration with the current permissions.
+        // Cheap no-op when nothing changed; re-registers after a reboot or permission change.
         appScope.launch {
-            healthServicesManager.registerPassiveDataService()
+            try {
+                healthServicesManager.ensureRegistered()
+            } catch (e: Exception) {
+                Log.w("HealthCompanionApp", "Passive registration failed", e)
+            }
         }
     }
 

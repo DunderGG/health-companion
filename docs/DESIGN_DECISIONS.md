@@ -35,6 +35,10 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-19](#dd-19--committed-schemas-guarded-by-ci-rather-than-by-a-test) | Committed schemas guarded by CI rather than by a test | Persistence / CI | Accepted (AR-8) |
 | [DD-20](#dd-20--bad-rows-are-repaired-on-load-not-rejected) | Bad rows are repaired on load, not rejected | Persistence | Accepted (AR-8) ⚠ |
 | [DD-21](#dd-21--one-shared-clamp-for-vital-values-nan-maps-to-0) | One shared clamp for vital values; `NaN` maps to 0 | Game engine | Accepted (AR-8) |
+| [DD-22](#dd-22--only-activity-recognition-is-core-heart-rate-is-optional) | Only activity recognition is core; heart rate is optional | Permissions | Accepted (AR-6) |
+| [DD-23](#dd-23--heart-rate-is-registered-only-with-background-access) | Heart rate is registered only with background access | Permissions | Accepted (AR-6), unverified ⚠ |
+| [DD-24](#dd-24--idempotent-registration-keyed-on-permitted-sensors--boot-count) | Idempotent registration keyed on permitted sensors + boot count | Sensors | Accepted (AR-6) ⚠ |
+| [DD-25](#dd-25--boot-re-registration-via-a-non-exported-receiver-and-workmanager) | Boot re-registration via a non-exported receiver and WorkManager | Sensors | Accepted (AR-6), unverified ⚠ |
 
 ---
 
@@ -214,3 +218,42 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Decision**: `Float.toVitalRange()` in `:core:model` clamps to `[0, 100]` and maps `NaN` to 0. It is used for every computed or loaded vital: all `applyHabit` results and all of `toDomain()`.
 - **Why**: Previously boosts were clamped only at the top. A negative habit amount could go below 0 and trip the `Vitals` invariant. A single helper keeps the rule in one place.
 - **Consequences**: Nonsensical inputs (e.g. negative millilitres) are absorbed silently rather than rejected. Validating inputs at the boundary (UI, sensor parsing) remains the caller's job.
+
+---
+
+## Permissions & registration (AR-6)
+
+### DD-22 — Only activity recognition is core; heart rate is optional
+- **Status**: Accepted (AR-6, 2026-09-26).
+- **Decision**: `ACTIVITY_RECOGNITION` alone decides between full mode and degraded mode (the "Enable sensors" chip). Heart-rate permissions are optional. Missing them never shows the chip, and each permission unlocks only its own sensors.
+- **Why**: Steps drive the core loop, while heart rate is a small bonus (DD-15). A permanent warning chip for a declined optional permission would nag users who made a deliberate privacy choice. Before AR-6, denying heart rate also disabled step tracking.
+- **Alternatives**: Treat every permission as required (the old behaviour). Add a separate "partial" state with its own UI (more UI for little gain).
+
+### DD-23 — Heart rate is registered only with background access
+- **Status**: Accepted (AR-6). ⚠ Unverified on hardware.
+- **Decision**: Heart rate is registered only if both permissions are granted:
+  - the foreground permission: `BODY_SENSORS` ≤ API 35, `health.READ_HEART_RATE` ≥ 36;
+  - the background permission: `BODY_SENSORS_BACKGROUND` on API 33–35, `health.READ_HEALTH_DATA_IN_BACKGROUND` on ≥ 36.
+
+  The background permission is requested in a separate, second dialog right after the foreground grant, at most once per session.
+- **Why**: Per the [Health Services permissions docs](https://developer.android.com/health-and-fitness/health-services/permissions), apps targeting API 36 must use the granular health permissions. `PassiveMonitoringClient` access to body sensors in the background needs the background permission, and Android requires background permissions to be requested after the foreground one.
+- **Alternatives**:
+  - Drop passive heart rate entirely (simplest, most privacy-friendly).
+  - Register with the foreground permission only. Rejected: the data likely wouldn't be delivered in the background.
+- ⚠ **Open**:
+  - Verify the dialog behaviour on Wear OS 6 and API 33–35.
+  - Play Store health-permission declarations will be needed before release.
+  - Reconsider whether heart rate is worth two dialogs.
+
+### DD-24 — Idempotent registration keyed on permitted sensors + boot count
+- **Status**: Accepted (AR-6). ⚠ Assumption about Health Services state.
+- **Decision**: `ensureRegistered()` stores a key of *permitted sensors + `Settings.Global.BOOT_COUNT`* after each successful registration. It skips Health Services entirely while the key is unchanged. Calls are serialized by a process-wide `Mutex`.
+- **Why**: `Application.onCreate` runs on every process start, including each time Health Services wakes the app to deliver a batch. Re-registering each time costs an IPC round-trip. Including the boot count keeps the check correct across reboots even if the boot receiver never runs.
+- **Consequences**: The key is based on *permitted* sensors, not the capability-filtered set. Capabilities don't change at runtime, so this saves a capability query on every start.
+- ⚠ **Assumption**: The registration survives app updates and is only lost on reboot. It is also lost if the user clears app data, but that clears the stored key too, so the next start re-registers. If Health Services turns out to drop registrations on app update, add the app version code to the key.
+
+### DD-25 — Boot re-registration via a non-exported receiver and WorkManager
+- **Status**: Accepted (AR-6). ⚠ Unverified on hardware.
+- **Decision**: `BootCompletedReceiver` (`exported="false"`) enqueues a unique one-time `PassiveRegistrationWorker`, which calls `ensureRegistered(force = true)` and retries on failure.
+- **Why**: This follows the [Health Services background monitoring guidance](https://developer.android.com/health-and-fitness/guides/health-services/monitor-background): registrations don't persist across reboots, and at boot Health Services may take over 10 s to respond, which exceeds a receiver's execution limit. The receiver is not exported because only the system sends `BOOT_COMPLETED`.
+- ⚠ **Open**: Verify on an emulator or watch that the non-exported receiver actually receives `BOOT_COMPLETED` and that the passive data arrives afterwards.

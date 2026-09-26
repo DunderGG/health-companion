@@ -91,10 +91,21 @@ class MainActivity : ComponentActivity() {
             HealthCompanionTheme {
                 val permState by permissionViewModel.permissionState.collectAsState()
 
+                // Optional second step: background heart-rate access must be requested separately,
+                // after the foreground heart-rate permission has been granted.
+                val backgroundHeartRateLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) {
+                    permissionViewModel.onBackgroundHeartRateResult()
+                }
+
                 val permissionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestMultiplePermissions()
                 ) { grants ->
                     permissionViewModel.onPermissionResult(grants)
+                    permissionViewModel.consumeBackgroundHeartRateRequest()?.let { permission ->
+                        backgroundHeartRateLauncher.launch(permission)
+                    }
                 }
 
                 when (permState) {
@@ -105,7 +116,7 @@ class MainActivity : ComponentActivity() {
                     is PermissionState.Required -> {
                         PermissionScreen(
                             onRequestPermission = {
-                                permissionLauncher.launch(HealthPermissions.REQUIRED_PERMISSIONS)
+                                permissionLauncher.launch(HealthPermissions.foregroundPermissions)
                             }
                         )
                     }

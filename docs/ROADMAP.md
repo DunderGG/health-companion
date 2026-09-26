@@ -18,7 +18,7 @@ A phased development roadmap guiding the evolution of the Wear OS health-mirrori
 ---
 
 ## Phase 2: Sensor Calibration & Passive Health Sync
-- [x] Runtime permission flow on watch for `BODY_SENSORS` and `ACTIVITY_RECOGNITION`.
+- [x] Runtime permission flow on watch for `BODY_SENSORS` and `ACTIVITY_RECOGNITION`. *(Reworked in AR-6: API 36 health permissions, optional background heart rate.)*
 - [x] Connect `HealthServicesManager` to live watch hardware sensors.
   - [x] Query device capabilities via `getCapabilitiesAsync()` to discover supported passive data types.
   - [x] Subscribe to all available passive sensors: `HEART_RATE_BPM`, `CALORIES_DAILY`, `DISTANCE_DAILY`, `FLOORS_DAILY` (in addition to existing `STEPS_DAILY`).
@@ -51,10 +51,11 @@ Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-r
    - [x] `exportSchema = true`. Commit the schema JSON. No destructive fallback on upgrade. Debuggable builds keep it for downgrades only.
    - [x] Clamp both bounds in `applyHabit` and make `PetEntity.toDomain()` tolerant of out-of-range values and unknown enum names.
    - [x] Migration test harness from schema v1 (Robolectric + `MigrationTestHelper`) and a CI check for uncommitted schema changes.
-4. [ ] **AR-6 — Permissions & registration** 🟠
-   - [ ] Register passive data types per granted permission (partial degradation).
-   - [ ] Adopt API 36 granular health permissions and verify passive heart rate on a Wear OS 6 image.
-   - [ ] Explicit, idempotent registration on grant and on boot. Stop re-registering on every process start.
+4. [x] **AR-6 — Permissions & registration** 🟠
+   - [x] Register passive data types per granted permission (partial degradation).
+   - [x] Adopt API 36 granular health permissions (`health.READ_HEART_RATE`, `health.READ_HEALTH_DATA_IN_BACKGROUND`) plus an optional background heart-rate request.
+   - [ ] **Manual verification (needs emulator/watch)**: permission dialogs on Wear OS 6 and on API 33–35, passive heart-rate delivery, and re-registration after reboot.
+   - [x] Explicit, idempotent registration on grant and on boot (`BootCompletedReceiver` → `PassiveRegistrationWorker`). Process starts only re-register when the permission set or the boot count changed.
 5. [ ] **AR-7 — Layering & dependency wiring** 🟡
    - [ ] Remove the `:core:health` → `:core:data` dependency. Use `PetRepository` / `LogHabitUseCase`.
    - [ ] Single shared dependency graph (`AppContainer` or Hilt) for the activity, services, tile, and workers.

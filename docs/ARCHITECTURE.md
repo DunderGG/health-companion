@@ -760,15 +760,20 @@ $$\text{decay} = \frac{\text{currentTime} - \text{lastUpdatedTimestamp}}{3600000
 
 ### Required Permissions
 
-The app declares two **dangerous** (runtime) permissions in the Wear OS manifest, plus several **normal** (auto-granted) permissions:
+Runtime permissions are resolved per API level in [`HealthPermissions.kt`](../core/health/src/main/java/com/healthcompanion/core/health/HealthPermissions.kt). Only `ACTIVITY_RECOGNITION` is *core*; heart rate is optional.
 
-| Permission | Protection Level | Purpose | Module |
-| :--- | :--- | :--- | :--- |
-| `BODY_SENSORS` | **Dangerous** | Access heart-rate sensor and other on-body biometrics via Health Services | `:core:health` |
-| `ACTIVITY_RECOGNITION` | **Dangerous** | Detect step counts, walking, and workout activity via `PassiveMonitoringClient` | `:core:health` |
-| `WAKE_LOCK` | Normal | Used by WorkManager internally. Likely removable from the app manifest (see AR-5) | `:core:data` |
-| `RECEIVE_BOOT_COMPLETED` | Normal | Lets WorkManager reschedule jobs after reboot. There is no boot receiver of our own; passive listener re-registration currently happens only implicitly (see AR-6) | `:wearApp` |
-| `VIBRATE` | Normal | Haptic feedback on petting, evolution, and goal completion | `:wearApp` |
+| Permission | API levels | Protection Level | Unlocks | Role |
+| :--- | :--- | :--- | :--- | :--- |
+| `ACTIVITY_RECOGNITION` | all | **Dangerous** | `STEPS_DAILY`, `FLOORS_DAILY` | **Core**. Without it the app runs in degraded mode |
+| `BODY_SENSORS` | ≤ 35 (`maxSdkVersion`) | **Dangerous** | `HEART_RATE_BPM` (foreground) | Optional |
+| `health.READ_HEART_RATE` | ≥ 36 (Wear OS 6) | **Dangerous** | `HEART_RATE_BPM` (foreground) | Optional. Replaces `BODY_SENSORS` for apps targeting API 36 |
+| `BODY_SENSORS_BACKGROUND` | 33–35 (`maxSdkVersion`) | **Dangerous** | Passive heart rate in the background | Optional. Requested separately after the foreground grant |
+| `health.READ_HEALTH_DATA_IN_BACKGROUND` | ≥ 36 | **Dangerous** | Passive heart rate in the background | Optional. Requested separately after the foreground grant |
+| `WAKE_LOCK` | all | Normal | Used by WorkManager internally. Likely removable from the app manifest (see AR-5) | — |
+| `RECEIVE_BOOT_COMPLETED` | all | Normal | `BootCompletedReceiver` re-registers passive monitoring after reboot | — |
+| `VIBRATE` | all | Normal | Haptic feedback on petting, evolution, and goal completion | — |
+
+Heart rate is registered only when **both** its foreground and (API 33+) background permission are granted, because passive delivery happens in the background.
 
 ### Why Runtime Permissions Are Needed
 
@@ -783,35 +788,51 @@ On Wear OS specifically:
 
 The app follows a **degraded mode** strategy rather than blocking the user behind a permission wall:
 
-1. **First launch**: A lightweight `PermissionScreen` explains why sensor access is needed and presents an "Allow" button. This is the only time the app proactively interrupts the user.
-2. **Permission granted**: The app enters **full mode** — passive step tracking registers via `HealthServicesManager`, and the companion's fitness vital reflects real-world activity.
-3. **Permission denied**: The app enters **degraded mode** — `PetScreen` renders normally with all manual features functional (water, meals, petting), but a subtle `⚠ Enable sensors` chip appears above the companion name. Tapping the chip opens the system's app permission settings. Step tracking remains inactive.
-4. **Permission re-granted** (via Settings): When the user returns from Settings, `MainActivity` re-checks permissions on `ON_RESUME` and silently transitions to full mode, registering the passive listener.
+1. **First launch**: A lightweight `PermissionScreen` explains why sensor access is needed and presents an "Allow" button. It requests `ACTIVITY_RECOGNITION` and the foreground heart-rate permission together. If heart rate was granted on API 33+, a second system dialog asks for background heart-rate access, once per session. These are the only times the app proactively interrupts the user.
+2. **Activity permission granted**: The app enters **full mode**. Steps and floors are registered. Heart rate is registered too if it is fully permitted, but it is optional and missing heart rate never shows the chip.
+3. **Activity permission denied**: The app enters **degraded mode**. `PetScreen` renders normally with all manual features working (water, meals, petting), but a subtle `⚠ Enable sensors` chip appears above the companion name. Tapping it opens the app's system settings. Heart rate can still be registered on its own if granted.
+4. **Permissions changed in Settings**: On `ON_RESUME`, `MainActivity` re-checks permissions and re-syncs the registration, which is a no-op if nothing changed.
 
 This ensures the app is **always usable** — the virtual pet can still be fed, hydrated, and petted without sensor data. Sensor permissions enhance the experience but are not a hard gate.
 
-> ⚠ **Known gaps (AR-6)**: Degradation is currently all-or-nothing. If `ACTIVITY_RECOGNITION` is granted but `BODY_SENSORS` is denied, no passive data types are registered, not even steps. The target design registers every data type whose permission is granted. In addition, apps targeting API 36 (Wear OS 6 / Android 16) must move from `BODY_SENSORS` to the granular health permissions (e.g. `android.permission.health.READ_HEART_RATE`). The exact passive/background requirements still need to be verified.
+### Passive Registration Lifecycle
+
+Health Services **forgets passive registrations on reboot**, and registering is an IPC call that may be slow at boot. `HealthServicesManager.ensureRegistered()` is therefore the single, idempotent entry point:
+
+- **What is registered**: `PassiveSensorPlanner.permittedSensors()` (from the current grants), intersected with device capabilities. If nothing is permitted, the listener is cleared.
+- **Idempotency**: the last successful registration is stored (`passive_registration` SharedPreferences) as a key made of the permitted sensors plus `Settings.Global.BOOT_COUNT`. If the key is unchanged, the call returns immediately without contacting Health Services. A new boot or a permission change yields a new key. A process-wide `Mutex` serializes concurrent callers.
+- **Callers**:
+  - `HealthCompanionApp.onCreate()` on every process start (cheap).
+  - `PermissionViewModel` after permission results and on resume.
+  - `BootCompletedReceiver` → `PassiveRegistrationWorker` (WorkManager, `force = true`), as the Health Services docs recommend, because registration at boot can exceed a receiver's time limit.
 
 ### Implementation Architecture
 
 ```
 MainActivity (ON_RESUME)
   └── PermissionViewModel
-        ├── checkPermissions() ←── HealthPermissions.hasPermissions(context)
-        ├── onPermissionResult(grants, shouldShowRationale)
-        │     ├── all granted → PermissionState.Granted → registerPassiveDataService()
-        │     └── any denied  → PermissionState.Denied  → degraded mode
+        ├── checkPermissions() ←── HealthPermissions.hasCorePermission(context)
+        ├── onPermissionResult(grants)
+        │     ├── activity granted → PermissionState.Granted
+        │     └── activity denied  → PermissionState.Denied (degraded mode)
+        ├── consumeBackgroundHeartRateRequest() → optional 2nd dialog (API 33+)
+        ├── every check/result → HealthServicesManager.ensureRegistered()
         └── permissionState: StateFlow<PermissionState>
               └── observed by MainActivity setContent { when(permState) { ... } }
+
+BOOT_COMPLETED → BootCompletedReceiver → PassiveRegistrationWorker → ensureRegistered(force = true)
 ```
 
 | File | Responsibility |
 | :--- | :--- |
-| [`HealthPermissions.kt`](../core/health/src/main/java/com/healthcompanion/core/health/HealthPermissions.kt) | Defines `REQUIRED_PERMISSIONS` array and `hasPermissions(context)` check |
+| [`HealthPermissions.kt`](../core/health/src/main/java/com/healthcompanion/core/health/HealthPermissions.kt) | Per-API-level permission names, core/heart-rate checks, permitted sensors |
+| [`PassiveSensor.kt`](../core/health/src/main/java/com/healthcompanion/core/health/PassiveSensor.kt) | Pure sensor ↔ permission rules and registration key (`PassiveSensorPlanner`) |
+| [`HealthServicesManager.kt`](../core/health/src/main/java/com/healthcompanion/core/health/HealthServicesManager.kt) | Idempotent `ensureRegistered()` against Health Services |
+| [`PassiveRegistrationWorker.kt`](../core/health/src/main/java/com/healthcompanion/core/health/PassiveRegistrationWorker.kt) | Boot receiver and WorkManager re-registration job |
 | [`PermissionState.kt`](../wearApp/src/main/java/com/healthcompanion/wear/presentation/permission/PermissionState.kt) | Sealed interface: `Checking`, `Required`, `Granted`, `Denied` |
 | [`PermissionViewModel.kt`](../wearApp/src/main/java/com/healthcompanion/wear/presentation/permission/PermissionViewModel.kt) | Orchestrates permission checks, result callbacks, and Health Services registration |
 | [`PermissionScreen.kt`](../wearApp/src/main/java/com/healthcompanion/wear/presentation/permission/PermissionScreen.kt) | Compact onboarding UI with sensor icon, explanation, and "Allow" button |
-| [`MainActivity.kt`](../wearApp/src/main/java/com/healthcompanion/wear/MainActivity.kt) | Hosts `RequestMultiplePermissions` launcher and routes between screens |
+| [`MainActivity.kt`](../wearApp/src/main/java/com/healthcompanion/wear/MainActivity.kt) | Hosts the foreground (`RequestMultiplePermissions`) and background heart-rate (`RequestPermission`) launchers, and routes between screens |
 
 ---
 
@@ -834,7 +855,7 @@ A review of the implementation against this document. The overall structure is s
 | AR-3 | 🟠 High | Some vitals cannot recover; sleep, night mood, and consistency-based archetypes are unimplemented |
 | AR-4 | 🟠 High | Tiles, complications, and the open screen do not update reactively |
 | AR-5 | 🟡 Medium | `PetDecayWorker` is redundant under decay-on-read |
-| AR-6 | 🟠 High | Permission degradation is all-or-nothing; API 36 permission model; implicit boot re-registration |
+| AR-6 | ✅ Resolved | Permission degradation is all-or-nothing; API 36 permission model; implicit boot re-registration |
 | AR-7 | 🟡 Medium | Layering violation (`:core:health` → `:core:data`) and fragmented dependency wiring |
 | AR-8 | ✅ Resolved | Destructive migrations can delete the pet; invalid rows crash the app |
 
@@ -886,7 +907,14 @@ A review of the implementation against this document. The overall structure is s
 - **Problem**: Under decay-on-read, persisting a decayed snapshot every 2 hours changes no user-visible result. It only adds another writer (safe since AR-2, but pointless) and triggers an extra Room invalidation.
 - **Target design**: Give it a real job or remove it. Useful jobs: refreshing tiles and complications (AR-4), pruning stale sensor baselines (AR-1 handles day rollover lazily on the next reading), and critical-vital notifications (Phase 2). If it is removed, drop the explicit `WAKE_LOCK` permission as well.
 
-### AR-6 — Permissions and Health Services registration
+### AR-6 — Permissions and Health Services registration ✅ Resolved
+- **Resolution**:
+  - Sensors are registered per granted permission (`PassiveSensorPlanner`). Only `ACTIVITY_RECOGNITION` decides between degraded and full mode.
+  - Uses the API 36 health permissions (`health.READ_HEART_RATE`, `health.READ_HEALTH_DATA_IN_BACKGROUND`), with legacy `BODY_SENSORS*` capped at `maxSdkVersion="35"`.
+  - Heart rate requires background access and is requested in a separate, optional second dialog.
+  - Registration goes through the idempotent `ensureRegistered()`, keyed on permitted sensors and boot count, with an explicit `BootCompletedReceiver` → `PassiveRegistrationWorker`.
+
+  See [§7](#7-runtime-permissions--degraded-mode) and DD-22 to DD-25. ⚠ The permission dialogs and the boot re-registration are unverified on a Wear OS 6 image or device.
 - **Where**: [`HealthPermissions.kt`](../core/health/src/main/java/com/healthcompanion/core/health/HealthPermissions.kt), [`HealthServicesManager.kt`](../core/health/src/main/java/com/healthcompanion/core/health/HealthServicesManager.kt), `HealthCompanionApp.onCreate()`, `AndroidManifest.xml`.
 - **Problems**:
   - `hasPermissions()` requires *all* permissions. Partial grants register nothing.

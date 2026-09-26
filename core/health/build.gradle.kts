@@ -31,6 +31,9 @@ dependencies {
     // Health Services on Wear OS
     implementation(libs.androidx.health.services.client)
 
+    // WorkManager: re-registration after boot
+    implementation(libs.androidx.work.runtime.ktx)
+
     testImplementation(libs.junit)
 }
 
