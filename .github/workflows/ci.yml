@@ -31,6 +31,18 @@ jobs:
       - name: Build debug APK
         run: ./gradlew :wearApp:assembleDebug --stacktrace
 
+      # Room re-exports the schema JSON during the build. Any difference from the committed files
+      # means an entity changed without bumping the database version (and adding a migration),
+      # or a new schema version was not committed. Either would put users' pets at risk.
+      - name: Verify Room schemas are committed and unchanged
+        run: |
+          if [ -n "$(git status --porcelain -- core/data/schemas)" ]; then
+            echo "::error::Room schema changed. Bump CompanionDatabase.VERSION, add a migration, and commit core/data/schemas."
+            git status --porcelain -- core/data/schemas
+            git diff -- core/data/schemas
+            exit 1
+          fi
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:

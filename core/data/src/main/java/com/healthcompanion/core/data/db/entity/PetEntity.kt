@@ -9,6 +9,7 @@ import com.healthcompanion.core.model.EvolutionStage
 import com.healthcompanion.core.model.Pet
 import com.healthcompanion.core.model.PetArchetype
 import com.healthcompanion.core.model.Vitals
+import com.healthcompanion.core.model.toVitalRange
 
 /**
  * Room database entity representing a persistent table row for the companion.
@@ -53,23 +54,28 @@ data class PetEntity(
     /**
      * Converts this flat database entity into the rich, type-safe domain [Pet] entity.
      *
+     * Tolerant of bad rows: a stored row must never crash every load of the pet. Out-of-range or
+     * `NaN` vitals are clamped, negative XP becomes 0, an unknown stage name is re-derived from XP,
+     * and an unknown archetype name falls back to [PetArchetype.BALANCED].
+     *
      * @return Fully populated [Pet] instance with nested [Vitals] and validated invariants.
      */
     fun toDomain(): Pet {
+        val safeXp = experiencePoints.coerceAtLeast(0)
         return Pet(
             id = id,
             name = name,
-            stage = EvolutionStage.valueOf(stage),
-            archetype = PetArchetype.valueOf(archetype),
+            stage = EvolutionStage.entries.find { it.name == stage } ?: EvolutionStage.fromXp(safeXp),
+            archetype = PetArchetype.entries.find { it.name == archetype } ?: PetArchetype.BALANCED,
             vitals = Vitals(
-                energy = energy,
-                hunger = hunger,
-                hydration = hydration,
-                fitness = fitness,
-                happiness = happiness,
+                energy = energy.toVitalRange(),
+                hunger = hunger.toVitalRange(),
+                hydration = hydration.toVitalRange(),
+                fitness = fitness.toVitalRange(),
+                happiness = happiness.toVitalRange(),
                 lastUpdatedTimestamp = lastUpdatedTimestamp
             ),
-            experiencePoints = experiencePoints,
+            experiencePoints = safeXp,
             bornTimestamp = bornTimestamp
         )
     }

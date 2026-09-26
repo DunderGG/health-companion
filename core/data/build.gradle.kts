@@ -1,3 +1,5 @@
+import com.android.build.api.variant.HostTestBuilder
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.ksp)
@@ -19,6 +21,19 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
+}
+
+androidComponents {
+    onVariants { variant ->
+        // Exported Room schemas double as unit-test assets for MigrationTestHelper (not shipped in the APK).
+        variant.hostTests[HostTestBuilder.UNIT_TEST_TYPE]
+            ?.sources?.assets?.addStaticSourceDirectory("$projectDir/schemas")
+    }
+}
+
+ksp {
+    // Export Room schema JSON per version; committed to git and used by migration tests.
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -44,5 +59,6 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.room.testing)
 }
 

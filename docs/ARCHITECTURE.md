@@ -470,7 +470,7 @@ deactivate GetUseCase
   - A new local day (or first-ever reading) counts everything since midnight. A reading from an earlier day is ignored.
   - On the same day only the increase over the already-consumed total counts. A lower total (usually an out-of-order batch) is ignored.
   - Deltas are consumed in whole units (200 steps = 1 XP unit, 10 floors). The remainder carries over, so small batches never lose progress to integer rounding.
-  - Baselines live in DataStore (`passive_sync`), not Room, to avoid a schema migration before AR-8. `DataStore.edit` serializes concurrent batches. Deltas are consumed *before* the pet is updated: a crash in between under-counts rather than double counts.
+  - Baselines live in DataStore (`passive_sync`), not Room (see DD-11). `DataStore.edit` serializes concurrent batches. Deltas are consumed *before* the pet is updated: a crash in between under-counts rather than double counts.
 - **Biometric to Companion Mapping**:
   - `DataType.STEPS_DAILY` delta $\rightarrow$ `HabitType.Steps` (restores fitness vital and awards XP proportional to step volume).
   - `DataType.FLOORS_DAILY` delta $\rightarrow$ `HabitType.Steps` bonus (20 step equivalents per floor, for climbing effort).
@@ -646,16 +646,25 @@ Extends `RoomDatabase`, serving as the connection pool manager and factory for D
   ```kotlin
   fun getInstance(context: Context): CompanionDatabase {
       return INSTANCE ?: synchronized(this) {
-          INSTANCE ?: Room.databaseBuilder(
-              context.applicationContext,
-              CompanionDatabase::class.java,
-              "health_companion.db"
-          ).fallbackToDestructiveMigration(dropAllTables = true).build().also { INSTANCE = it }
+          INSTANCE ?: buildDatabase(context.applicationContext).also { INSTANCE = it }
       }
   }
   ```
 - **Context Leak Prevention**: Always invokes `context.applicationContext` so that short-lived Wear activities (`MainActivity`) are never retained in static memory when closed or rotated.
-- ⚠ **Known risk (AR-8)**: `exportSchema = false` combined with `fallbackToDestructiveMigration(dropAllTables = true)` means any schema version bump **deletes the user's pet**. Schema export and explicit migrations must be in place before the first public release and before adding new tables (e.g. the habit log in AR-3).
+
+#### 4. Schema Versioning & Migrations
+Losing the pet is the worst possible failure for a virtual-pet app, so the schema is managed explicitly:
+- **Exported schemas**: `exportSchema = true`. KSP writes `core/data/schemas/<db class>/<version>.json`, and these files are committed.
+- **No destructive fallback on upgrade**: every upgrade must go through [`ALL_MIGRATIONS`](../core/data/src/main/java/com/healthcompanion/core/data/db/migrations/Migrations.kt). A missing migration crashes on open rather than silently deleting the pet. Debuggable builds only fall back destructively on a *downgrade* (installing an older branch build).
+- **Drift guard in CI**: the build re-exports the current schema JSON. CI fails if `core/data/schemas/` differs from the committed files, which catches an entity changed without a version bump and migration.
+- **Migration tests**: `CompanionDatabaseMigrationTest` (Robolectric + `MigrationTestHelper`) creates a database from the exported JSON and opens it with the current entities and migrations. The schema JSON is added to the *unit-test* assets only and is not shipped in the APK.
+- **Tolerant loading**: `PetEntity.toDomain()` never throws on a bad row. It clamps vitals (including `NaN`), clamps negative XP, re-derives an unknown stage from XP, and falls back to `BALANCED` for an unknown archetype. `PetDecayEngine.applyHabit` clamps both bounds via the shared `Float.toVitalRange()`.
+
+**Changing the schema** (checklist, also in `Migrations.kt`):
+1. Bump `CompanionDatabase.VERSION` and build. Room exports the new `<version>.json`.
+2. Add a `Migration(old, new)` (or `@AutoMigration`) to `ALL_MIGRATIONS`.
+3. Add a migration test from the previous version with representative data.
+4. Commit the new schema JSON together with the change.
 
 ---
 
@@ -827,7 +836,7 @@ A review of the implementation against this document. The overall structure is s
 | AR-5 | 🟡 Medium | `PetDecayWorker` is redundant under decay-on-read |
 | AR-6 | 🟠 High | Permission degradation is all-or-nothing; API 36 permission model; implicit boot re-registration |
 | AR-7 | 🟡 Medium | Layering violation (`:core:health` → `:core:data`) and fragmented dependency wiring |
-| AR-8 | 🟠 High | Destructive migrations can delete the pet; invalid rows crash the app |
+| AR-8 | ✅ Resolved | Destructive migrations can delete the pet; invalid rows crash the app |
 
 ### AR-1 — Cumulative daily totals treated as deltas ✅ Resolved
 - **Resolution**: `PassiveDataService` now only parses batches. `IngestPassiveDataUseCase` consumes deltas via the pure `DailyTotalTracker` (DataStore-backed `PassiveSyncRepositoryImpl`) and applies all resulting habits in one `recordHabits()` transaction. Out-of-order and same-day decreasing totals are ignored rather than re-anchored. Distance and daily calories are no longer registered. Heart-rate awards are limited to one per 30 minutes. See [§4.3](#43-phase-3-passive-hardware-sensor-ingestion). Covered by `DailyTotalTrackerTest`, `IngestPassiveDataUseCaseTest` and `PassiveSyncRepositoryImplTest`.
@@ -899,7 +908,8 @@ A review of the implementation against this document. The overall structure is s
   - Provide a single dependency graph (a manual `AppContainer`, or Hilt) shared by the activity, services, tile, and workers.
   - Inject a `Clock` into the engines and use cases.
 
-### AR-8 — Data durability
+### AR-8 — Data durability ✅ Resolved
+- **Resolution**: Schema export is on and `1.json` is committed. The destructive fallback is removed for upgrades (debuggable builds keep it for downgrades only). Migrations are registered in `ALL_MIGRATIONS`. CI fails on uncommitted schema changes. `toDomain()` is tolerant of bad rows, and `applyHabit` clamps both bounds. See [§5.3 Schema Versioning & Migrations](#4-schema-versioning--migrations) and DD-18 to DD-21. Covered by `CompanionDatabaseMigrationTest`, `PetEntityTest` and `PetDecayEngineTest`.
 - **Where**: [`CompanionDatabase.kt`](../core/data/src/main/java/com/healthcompanion/core/data/db/CompanionDatabase.kt), [`Vitals.kt`](../core/model/src/main/java/com/healthcompanion/core/model/Vitals.kt), `PetEntity.toDomain()`.
 - **Problems**:
   - With `exportSchema = false` and `fallbackToDestructiveMigration(dropAllTables = true)`, any schema change deletes the pet.

@@ -100,5 +100,19 @@ class PetDecayEngineTest {
         assertEquals(60f, updated.happiness, 0.01f)
         assertEquals(10, xp)
     }
+
+    @Test
+    fun `applyHabit clamps negative and oversized amounts instead of violating Vitals invariants`() {
+        val baseTime = 1_000_000_000L
+        val vitals = Vitals(hydration = 30f, fitness = 30f, energy = 30f, lastUpdatedTimestamp = baseTime)
+
+        val (drained, _) = PetDecayEngine.applyHabit(vitals, HabitType.Hydration(milliliters = -10_000), baseTime)
+        val (sapped, _) = PetDecayEngine.applyHabit(vitals, HabitType.Steps(stepCount = -50_000), baseTime)
+        val (overslept, _) = PetDecayEngine.applyHabit(vitals, HabitType.Sleep(durationMinutes = 10_000, qualityScore = 5f), baseTime)
+
+        assertEquals(0f, drained.hydration, 0f)
+        assertEquals(0f, sapped.fitness, 0f)
+        assertEquals(100f, overslept.energy, 0f)
+    }
 }
 

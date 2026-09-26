@@ -47,10 +47,10 @@ Fixes for the findings in [ARCHITECTURE.md §9](ARCHITECTURE.md#9-architecture-r
    - [x] Stop consuming `CALORIES_DAILY` (no energy drain from basal burn).
    - [x] Cap heart-rate awards to one per 30 minutes.
    - [x] Unit tests: delta calculation, midnight reset, repeated/out-of-order/concurrent batches.
-3. [ ] **AR-8 — Data durability** 🟠 *(must land before any Room schema change)*
-   - [ ] `exportSchema = true`. Commit the schema JSON. Restrict destructive fallback to debug builds.
-   - [ ] Clamp both bounds in `applyHabit` and make `PetEntity.toDomain()` tolerant of out-of-range values.
-   - [ ] Migration test from schema v1.
+3. [x] **AR-8 — Data durability** 🟠 *(must land before any Room schema change)*
+   - [x] `exportSchema = true`. Commit the schema JSON. No destructive fallback on upgrade. Debuggable builds keep it for downgrades only.
+   - [x] Clamp both bounds in `applyHabit` and make `PetEntity.toDomain()` tolerant of out-of-range values and unknown enum names.
+   - [x] Migration test harness from schema v1 (Robolectric + `MigrationTestHelper`) and a CI check for uncommitted schema changes.
 4. [ ] **AR-6 — Permissions & registration** 🟠
    - [ ] Register passive data types per granted permission (partial degradation).
    - [ ] Adopt API 36 granular health permissions and verify passive heart rate on a Wear OS 6 image.

@@ -24,13 +24,17 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-08](#dd-08--cumulative-daily-totals-are-consumed-as-deltas) | Cumulative daily totals are consumed as deltas | Sensors | Accepted (AR-1) |
 | [DD-09](#dd-09--prefer-under-counting-over-double-counting) | Prefer under-counting over double counting | Sensors | Accepted (AR-1) |
 | [DD-10](#dd-10--deltas-are-consumed-in-whole-units-with-the-remainder-carried-over) | Deltas consumed in whole units, remainder carried over | Sensors / balance | Accepted (AR-1) |
-| [DD-11](#dd-11--sensor-baselines-live-in-datastore-not-room) | Sensor baselines live in DataStore, not Room | Persistence | Accepted (AR-1), revisit after AR-8 ⚠ |
+| [DD-11](#dd-11--sensor-baselines-live-in-datastore-not-room) | Sensor baselines live in DataStore, not Room | Persistence | Accepted (AR-1), revisit now possible ⚠ |
 | [DD-12](#dd-12--one-sensor-batch-is-one-pet-write) | One sensor batch is one pet write | Sensors | Accepted (AR-1) |
 | [DD-13](#dd-13--distance-and-daily-calories-are-not-consumed) | Distance and daily calories are not consumed | Sensors / balance | Accepted (AR-1) ⚠ |
 | [DD-14](#dd-14--floors-are-a-climbing-bonus-worth-20-steps-each) | Floors are a climbing bonus worth 20 steps each | Balance | Accepted (AR-1) ⚠ |
 | [DD-15](#dd-15--heart-rate-awards-are-limited-to-one-per-30-minutes) | Heart-rate awards limited to one per 30 minutes | Balance | Accepted (AR-1) ⚠ |
 | [DD-16](#dd-16--first-reading-credits-todays-activity-so-far) | First reading credits today's activity so far | Balance | Accepted (AR-1) ⚠ |
 | [DD-17](#dd-17--a-daily-reading-belongs-to-the-day-of-its-interval-end-minus-1-ms) | A daily reading belongs to the day of its end instant − 1 ms | Sensors | Accepted (AR-1), unverified ⚠ |
+| [DD-18](#dd-18--no-destructive-migration-on-upgrade-debug-only-destructive-downgrade) | No destructive migration on upgrade; debug-only destructive downgrade | Persistence | Accepted (AR-8) |
+| [DD-19](#dd-19--committed-schemas-guarded-by-ci-rather-than-by-a-test) | Committed schemas guarded by CI rather than by a test | Persistence / CI | Accepted (AR-8) |
+| [DD-20](#dd-20--bad-rows-are-repaired-on-load-not-rejected) | Bad rows are repaired on load, not rejected | Persistence | Accepted (AR-8) ⚠ |
+| [DD-21](#dd-21--one-shared-clamp-for-vital-values-nan-maps-to-0) | One shared clamp for vital values; `NaN` maps to 0 | Game engine | Accepted (AR-8) |
 
 ---
 
@@ -123,7 +127,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Code**: `IngestPassiveDataUseCase.STEP_GRANULARITY`, `FLOOR_GRANULARITY`.
 
 ### DD-11 — Sensor baselines live in DataStore, not Room
-- **Status**: Accepted (AR-1). ⚠ Revisit after AR-8.
+- **Status**: Accepted (AR-1). ⚠ Revisit: now possible, since AR-8 landed real migrations (DD-18).
 - **Decision**: The consumed totals per data type and the last heart-rate award time are stored in the `passive_sync` Preferences DataStore via `PassiveSyncRepositoryImpl`. Concurrent batches are serialized by `DataStore.edit`.
 - **Why**: A new Room table bumps the schema version. With the current destructive migration fallback, that would **delete the pet** (AR-8).
 - **Trade-off**: The baseline and the pet live in different stores, so they cannot share a transaction. This is why DD-09 fixes the ordering to "consume first".
@@ -168,3 +172,44 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Why**: An interval that ends exactly at midnight holds the *previous* day's total. Attributing it to the new day would credit a whole day twice.
 - ⚠ **Open**: Confirm how Health Services timestamps the intervals around the daily reset, and how time-zone changes behave, on an emulator with synthetic data or a physical watch.
 - **Code**: `core/health/.../PassiveDataService.kt` (`latestDailyTotal`).
+
+---
+
+## Data durability (AR-8)
+
+### DD-18 — No destructive migration on upgrade; debug-only destructive downgrade
+- **Status**: Accepted (AR-8, 2026-09-26).
+- **Decision**: No build uses `fallbackToDestructiveMigration`. Every upgrade must have a migration in `ALL_MIGRATIONS`; a missing one crashes on open. Only debuggable builds (detected at runtime via `ApplicationInfo.FLAG_DEBUGGABLE`, since library modules have no `BuildConfig`) use `fallbackToDestructiveMigrationOnDowngrade`.
+- **Why**: Losing the pet is the worst failure this app can have, and a crash is visible and fixable. Downgrades happen routinely when switching branches during development, but never in normal release use.
+- **Alternatives**:
+  - Destructive fallback in debug builds for upgrades too. Rejected: it would hide missing migrations until release.
+  - Destructive fallback everywhere (the previous behaviour).
+- **Consequences**: A developer who forgets a migration sees a crash immediately. Release users are never silently wiped.
+- **Code**: `core/data/.../db/CompanionDatabase.kt`, `db/migrations/Migrations.kt`.
+
+### DD-19 — Committed schemas guarded by CI rather than by a test
+- **Status**: Accepted (AR-8).
+- **Decision**: Room schema JSON is exported to `core/data/schemas/` and committed. CI fails if the build changes anything in that folder. `CompanionDatabaseMigrationTest` (Robolectric + `MigrationTestHelper`) covers migrations and data survival.
+- **Why**: KSP re-exports the *current* version's JSON on every build, so a test alone would compare the entities with a file regenerated from those same entities. It cannot notice "entity changed without a version bump". Comparing against git can.
+- **Alternatives**: The Room Gradle plugin (`androidx.room`, `schemaDirectory`). Not adopted, to avoid another plugin, and its host-test asset wiring was unverified. A KSP argument plus the AGP `hostTests` assets API works.
+- **Consequences**: A local build may show a modified schema JSON in `git status`, which is the intended signal. Schema files are unit-test assets only and are not shipped in the APK (verified).
+- **Code**: `core/data/build.gradle.kts`, `.github/workflows/ci.yml`.
+
+### DD-20 — Bad rows are repaired on load, not rejected
+- **Status**: Accepted (AR-8). ⚠ Silent repair.
+- **Decision**: `PetEntity.toDomain()` repairs invalid data instead of throwing:
+  - Vitals are clamped to `[0, 100]`, and `NaN` becomes 0.
+  - Negative XP becomes 0.
+  - An unknown `stage` name is re-derived from XP.
+  - An unknown `archetype` name becomes `BALANCED`.
+
+  The `Vitals` constructor keeps its `require()` range checks as an invariant for in-memory code.
+- **Why**: A throwing `toDomain()` inside `getPetFlow()` crashes *every* launch, and the user cannot fix that. A slightly repaired pet is far better than a permanently crashing app. Enum fallbacks also make renaming or removing enum constants survivable.
+- **Alternatives**: Throw and reset the pet (loses the pet). Throw and show an error screen (the app becomes unusable).
+- ⚠ **Open**: Repairs are silent. Consider logging or counting them once there is telemetry or a debug screen, so data bugs don't go unnoticed.
+
+### DD-21 — One shared clamp for vital values; `NaN` maps to 0
+- **Status**: Accepted (AR-8).
+- **Decision**: `Float.toVitalRange()` in `:core:model` clamps to `[0, 100]` and maps `NaN` to 0. It is used for every computed or loaded vital: all `applyHabit` results and all of `toDomain()`.
+- **Why**: Previously boosts were clamped only at the top. A negative habit amount could go below 0 and trip the `Vitals` invariant. A single helper keeps the rule in one place.
+- **Consequences**: Nonsensical inputs (e.g. negative millilitres) are absorbed silently rather than rejected. Validating inputs at the boundary (UI, sensor parsing) remains the caller's job.

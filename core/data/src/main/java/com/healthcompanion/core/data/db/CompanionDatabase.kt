@@ -4,11 +4,13 @@
 package com.healthcompanion.core.data.db
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.healthcompanion.core.data.db.dao.PetDao
 import com.healthcompanion.core.data.db.entity.PetEntity
+import com.healthcompanion.core.data.db.migrations.ALL_MIGRATIONS
 
 /**
  * Room Database definition and thread-safe singleton provider for the companion SQLite database.
@@ -27,8 +29,8 @@ import com.healthcompanion.core.data.db.entity.PetEntity
  */
 @Database(
     entities = [PetEntity::class],
-    version = 1,
-    exportSchema = false
+    version = CompanionDatabase.VERSION,
+    exportSchema = true
 )
 abstract class CompanionDatabase : RoomDatabase() {
 
@@ -46,18 +48,34 @@ abstract class CompanionDatabase : RoomDatabase() {
          * Returns the thread-safe singleton instance of [CompanionDatabase].
          * Initializes and builds the Room database on first invocation.
          *
+         * Upgrades always go through [ALL_MIGRATIONS]; there is no destructive fallback, so a missing
+         * migration fails loudly instead of deleting the pet. Debuggable builds additionally allow a
+         * destructive *downgrade* (e.g. installing an older branch build over a newer one).
+         *
          * @param context Android application or component context (uses applicationContext to prevent memory leaks).
          * @return The active [CompanionDatabase] instance.
          */
         fun getInstance(context: Context): CompanionDatabase {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: Room.databaseBuilder(
-                    context.applicationContext,
-                    CompanionDatabase::class.java,
-                    "health_companion.db"
-                ).fallbackToDestructiveMigration(dropAllTables = true).build().also { INSTANCE = it }
+                INSTANCE ?: buildDatabase(context.applicationContext).also { INSTANCE = it }
             }
         }
+
+        private fun buildDatabase(appContext: Context): CompanionDatabase {
+            val builder = Room.databaseBuilder(appContext, CompanionDatabase::class.java, DATABASE_NAME)
+                .addMigrations(*ALL_MIGRATIONS)
+
+            val isDebuggable = (appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            if (isDebuggable) {
+                builder.fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
+            }
+            return builder.build()
+        }
+
+        private const val DATABASE_NAME = "health_companion.db"
+
+        /** Current schema version. Bump together with a migration in [ALL_MIGRATIONS]. */
+        const val VERSION = 1
     }
 }
 

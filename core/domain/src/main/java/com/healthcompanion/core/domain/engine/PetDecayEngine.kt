@@ -5,6 +5,7 @@ package com.healthcompanion.core.domain.engine
 
 import com.healthcompanion.core.model.HabitType
 import com.healthcompanion.core.model.Vitals
+import com.healthcompanion.core.model.toVitalRange
 import kotlin.math.max
 import kotlin.math.min
 
@@ -18,7 +19,9 @@ import kotlin.math.min
  *   namespace with free functions).
  * - **Immutable Value Types**: Functions here are **pure functions**; they do not mutate their arguments
  *   in place (unlike passing `Vitals*` or `Vitals&`). Instead, they return a new copy via `.copy(...)`
- *   with clamped values (analogous to `std::clamp` in C++17 via Kotlin's `.coerceIn(...)` and `.coerceAtMost(...)`).
+ *   with clamped values (analogous to `std::clamp` in C++17 via Kotlin's `.coerceIn(...)` and [toVitalRange]).
+ *   Every result is clamped on *both* bounds, so a negative or oversized habit amount can never produce
+ *   a [Vitals] instance that violates its range invariant.
  */
 object PetDecayEngine {
 
@@ -108,22 +111,22 @@ object PetDecayEngine {
                 val boost = (habit.milliliters / 250f) * 20f
                 xpEarned = 15
                 decayed.copy(
-                    hydration = (decayed.hydration + boost).coerceAtMost(100f),
-                    happiness = (decayed.happiness + 5f).coerceAtMost(100f)
+                    hydration = (decayed.hydration + boost).toVitalRange(),
+                    happiness = (decayed.happiness + 5f).toVitalRange()
                 )
             }
             is HabitType.Meal -> {
                 if (habit.isHealthy) {
                     xpEarned = 25
                     decayed.copy(
-                        hunger = (decayed.hunger + 30f).coerceAtMost(100f),
-                        happiness = (decayed.happiness + 10f).coerceAtMost(100f)
+                        hunger = (decayed.hunger + 30f).toVitalRange(),
+                        happiness = (decayed.happiness + 10f).toVitalRange()
                     )
                 } else {
                     xpEarned = 5
                     decayed.copy(
-                        hunger = (decayed.hunger + 20f).coerceAtMost(100f),
-                        energy = (decayed.energy - 5f).coerceAtLeast(0f)
+                        hunger = (decayed.hunger + 20f).toVitalRange(),
+                        energy = (decayed.energy - 5f).toVitalRange()
                     )
                 }
             }
@@ -131,31 +134,31 @@ object PetDecayEngine {
                 val fitnessBoost = (habit.stepCount / 1000f) * 10f
                 xpEarned = min(50, (habit.stepCount / 200))
                 decayed.copy(
-                    fitness = (decayed.fitness + fitnessBoost).coerceAtMost(100f),
-                    happiness = (decayed.happiness + (fitnessBoost * 0.5f)).coerceAtMost(100f)
+                    fitness = (decayed.fitness + fitnessBoost).toVitalRange(),
+                    happiness = (decayed.happiness + (fitnessBoost * 0.5f)).toVitalRange()
                 )
             }
             is HabitType.Workout -> {
                 val calorieBonus = if (habit.calories > 0) (habit.calories / 100f) * 5f else 0f
                 xpEarned = habit.durationMinutes * 2 + (habit.calories / 50)
                 decayed.copy(
-                    fitness = (decayed.fitness + 25f + calorieBonus).coerceAtMost(100f),
-                    energy = (decayed.energy - 10f).coerceAtLeast(0f),
-                    happiness = (decayed.happiness + 15f).coerceAtMost(100f)
+                    fitness = (decayed.fitness + 25f + calorieBonus).toVitalRange(),
+                    energy = (decayed.energy - 10f).toVitalRange(),
+                    happiness = (decayed.happiness + 15f).toVitalRange()
                 )
             }
             is HabitType.Sleep -> {
                 val energyBoost = (habit.durationMinutes / 480f) * 100f * habit.qualityScore
                 xpEarned = 30
                 decayed.copy(
-                    energy = (decayed.energy + energyBoost).coerceAtMost(100f),
-                    happiness = (decayed.happiness + 10f).coerceAtMost(100f)
+                    energy = (decayed.energy + energyBoost).toVitalRange(),
+                    happiness = (decayed.happiness + 10f).toVitalRange()
                 )
             }
             is HabitType.PettingInteraction -> {
                 xpEarned = 5
                 decayed.copy(
-                    happiness = (decayed.happiness + (5f * habit.intensity)).coerceAtMost(100f)
+                    happiness = (decayed.happiness + (5f * habit.intensity)).toVitalRange()
                 )
             }
             is HabitType.HeartRate -> {
@@ -170,7 +173,7 @@ object PetDecayEngine {
                 }
                 xpEarned = 5
                 decayed.copy(
-                    fitness = (decayed.fitness + fitnessBoost).coerceAtMost(100f)
+                    fitness = (decayed.fitness + fitnessBoost).toVitalRange()
                 )
             }
         }
