@@ -6,7 +6,30 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - Add an entry whenever a change involves a real choice between alternatives, a trade-off, a tunable game-balance value, or an unverified assumption.
 - Never rewrite a decided entry. Replacing one means adding a new entry and setting the old entry's status to `Superseded by DD-xx`.
 - Entries marked **Retroactive** document choices made before this log existed; their reasoning is reconstructed from the code and docs.
-- ⚠ marks an **open question**: something unverified or deliberately provisional.
+- Open questions are shown as coloured callouts (rendered on GitHub and in VS Code's Markdown preview), and marked in the index:
+  - 🟣 **Your call** (`[!IMPORTANT]`): a game-design, balance or product choice that should be confirmed or changed.
+  - 🟠 **Verify on device** (`[!WARNING]`): an assumption that needs an emulator or a physical watch to confirm.
+- When an open question is settled, remove its callout and index marker, and note the outcome in the entry.
+
+> [!IMPORTANT]
+> **🟣 Needs your decision**
+> - [DD-11](#dd-11--sensor-baselines-live-in-datastore-not-room): move sensor baselines from DataStore into Room, now that migrations exist?
+> - [DD-13](#dd-13--distance-and-daily-calories-are-not-consumed): bring distance and calories back as a combined activity score?
+> - [DD-14](#dd-14--floors-are-a-climbing-bonus-worth-20-steps-each): floors worth 20 steps each?
+> - [DD-15](#dd-15--heart-rate-awards-are-limited-to-one-per-30-minutes): heart rate awarded at most once per 30 minutes?
+> - [DD-16](#dd-16--first-reading-credits-todays-activity-so-far): credit today's steps on first install?
+> - [DD-20](#dd-20--bad-rows-are-repaired-on-load-not-rejected): log silent data repairs?
+> - [DD-23](#dd-23--heart-rate-is-registered-only-with-background-access): is heart rate worth two permission dialogs?
+> - [DD-33](#dd-33--energy-recovers-during-a-fixed-local-night-window): fixed 22:00–07:00 bedtime, and full hunger and thirst decay at night?
+> - [DD-34](#dd-34--the-pet-always-sleeps-at-night): pet always asleep at night, hiding thirst and hunger warnings?
+> - [DD-36](#dd-36--archetype-from-7-day-consistency-locked-in-once-at-teen): archetype thresholds (6,000 steps; workout or heart rate ≥ 100; 1,500 ml + 2 meals; 4 of 7 days)?
+
+> [!WARNING]
+> **🟠 Needs verification on an emulator or watch**
+> - [DD-17](#dd-17--a-daily-reading-belongs-to-the-day-of-its-interval-end-minus-1-ms): which day a daily total is counted in at midnight, and after time-zone changes.
+> - [DD-23](#dd-23--heart-rate-is-registered-only-with-background-access): permission dialogs on Wear OS 6 and API 33–35, and background heart-rate delivery.
+> - [DD-24](#dd-24--idempotent-registration-keyed-on-permitted-sensors--boot-count): whether the passive registration survives app updates.
+> - [DD-25](#dd-25--boot-re-registration-via-a-non-exported-receiver-and-workmanager): whether the boot receiver fires and passive data resumes after a reboot.
 
 ---
 
@@ -17,28 +40,28 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-01](#dd-01--standalone-wear-os-app) | Standalone Wear OS app, no phone companion | Platform | Accepted (retroactive) |
 | [DD-02](#dd-02--decay-on-read-instead-of-background-ticking) | Decay-on-read instead of background ticking | Game engine | Accepted (retroactive) |
 | [DD-03](#dd-03--room-as-single-source-of-truth-with-a-single-pet-row) | Room as single source of truth, single pet row | Persistence | Accepted (retroactive) |
-| [DD-04](#dd-04--graceful-degradation-instead-of-a-permission-wall) | Graceful degradation instead of a permission wall | Permissions | Accepted (retroactive) ⚠ |
+| [DD-04](#dd-04--graceful-degradation-instead-of-a-permission-wall) | Graceful degradation instead of a permission wall | Permissions | Accepted (retroactive); open point resolved by DD-22 |
 | [DD-05](#dd-05--all-pet-mutations-go-through-a-transactional-transform) | All pet mutations go through a transactional transform | Persistence | Accepted (AR-2) |
 | [DD-06](#dd-06--default-pet-is-seeded-with-insert-or-ignore) | Default pet is seeded with `INSERT OR IGNORE` | Persistence | Accepted (AR-2) |
 | [DD-07](#dd-07--robolectric-jvm-tests-instead-of-instrumented-tests) | Robolectric JVM tests instead of instrumented tests | Testing | Accepted (AR-2) |
 | [DD-08](#dd-08--cumulative-daily-totals-are-consumed-as-deltas) | Cumulative daily totals are consumed as deltas | Sensors | Accepted (AR-1) |
 | [DD-09](#dd-09--prefer-under-counting-over-double-counting) | Prefer under-counting over double counting | Sensors | Accepted (AR-1) |
 | [DD-10](#dd-10--deltas-are-consumed-in-whole-units-with-the-remainder-carried-over) | Deltas consumed in whole units, remainder carried over | Sensors / balance | Accepted (AR-1) |
-| [DD-11](#dd-11--sensor-baselines-live-in-datastore-not-room) | Sensor baselines live in DataStore, not Room | Persistence | Accepted (AR-1), revisit now possible ⚠ |
+| [DD-11](#dd-11--sensor-baselines-live-in-datastore-not-room) | Sensor baselines live in DataStore, not Room | Persistence | Accepted (AR-1) · 🟣 your call |
 | [DD-12](#dd-12--one-sensor-batch-is-one-pet-write) | One sensor batch is one pet write | Sensors | Accepted (AR-1) |
-| [DD-13](#dd-13--distance-and-daily-calories-are-not-consumed) | Distance and daily calories are not consumed | Sensors / balance | Accepted (AR-1) ⚠ |
-| [DD-14](#dd-14--floors-are-a-climbing-bonus-worth-20-steps-each) | Floors are a climbing bonus worth 20 steps each | Balance | Accepted (AR-1) ⚠ |
-| [DD-15](#dd-15--heart-rate-awards-are-limited-to-one-per-30-minutes) | Heart-rate awards limited to one per 30 minutes | Balance | Accepted (AR-1) ⚠ |
-| [DD-16](#dd-16--first-reading-credits-todays-activity-so-far) | First reading credits today's activity so far | Balance | Accepted (AR-1) ⚠ |
-| [DD-17](#dd-17--a-daily-reading-belongs-to-the-day-of-its-interval-end-minus-1-ms) | A daily reading belongs to the day of its end instant − 1 ms | Sensors | Accepted (AR-1), unverified ⚠ |
+| [DD-13](#dd-13--distance-and-daily-calories-are-not-consumed) | Distance and daily calories are not consumed | Sensors / balance | Accepted (AR-1) · 🟣 your call |
+| [DD-14](#dd-14--floors-are-a-climbing-bonus-worth-20-steps-each) | Floors are a climbing bonus worth 20 steps each | Balance | Accepted (AR-1) · 🟣 your call |
+| [DD-15](#dd-15--heart-rate-awards-are-limited-to-one-per-30-minutes) | Heart-rate awards limited to one per 30 minutes | Balance | Accepted (AR-1) · 🟣 your call |
+| [DD-16](#dd-16--first-reading-credits-todays-activity-so-far) | First reading credits today's activity so far | Balance | Accepted (AR-1) · 🟣 your call |
+| [DD-17](#dd-17--a-daily-reading-belongs-to-the-day-of-its-interval-end-minus-1-ms) | A daily reading belongs to the day of its end instant − 1 ms | Sensors | Accepted (AR-1) · 🟠 verify on device |
 | [DD-18](#dd-18--no-destructive-migration-on-upgrade-debug-only-destructive-downgrade) | No destructive migration on upgrade; debug-only destructive downgrade | Persistence | Accepted (AR-8) |
 | [DD-19](#dd-19--committed-schemas-guarded-by-ci-rather-than-by-a-test) | Committed schemas guarded by CI rather than by a test | Persistence / CI | Accepted (AR-8) |
-| [DD-20](#dd-20--bad-rows-are-repaired-on-load-not-rejected) | Bad rows are repaired on load, not rejected | Persistence | Accepted (AR-8) ⚠ |
+| [DD-20](#dd-20--bad-rows-are-repaired-on-load-not-rejected) | Bad rows are repaired on load, not rejected | Persistence | Accepted (AR-8) · 🟣 your call |
 | [DD-21](#dd-21--one-shared-clamp-for-vital-values-nan-maps-to-0) | One shared clamp for vital values; `NaN` maps to 0 | Game engine | Accepted (AR-8) |
 | [DD-22](#dd-22--only-activity-recognition-is-core-heart-rate-is-optional) | Only activity recognition is core; heart rate is optional | Permissions | Accepted (AR-6) |
-| [DD-23](#dd-23--heart-rate-is-registered-only-with-background-access) | Heart rate is registered only with background access | Permissions | Accepted (AR-6), unverified ⚠ |
-| [DD-24](#dd-24--idempotent-registration-keyed-on-permitted-sensors--boot-count) | Idempotent registration keyed on permitted sensors + boot count | Sensors | Accepted (AR-6) ⚠ |
-| [DD-25](#dd-25--boot-re-registration-via-a-non-exported-receiver-and-workmanager) | Boot re-registration via a non-exported receiver and WorkManager | Sensors | Accepted (AR-6), unverified ⚠ |
+| [DD-23](#dd-23--heart-rate-is-registered-only-with-background-access) | Heart rate is registered only with background access | Permissions | Accepted (AR-6) · 🟠 verify on device · 🟣 your call |
+| [DD-24](#dd-24--idempotent-registration-keyed-on-permitted-sensors--boot-count) | Idempotent registration keyed on permitted sensors + boot count | Sensors | Accepted (AR-6) · 🟠 verify on device |
+| [DD-25](#dd-25--boot-re-registration-via-a-non-exported-receiver-and-workmanager) | Boot re-registration via a non-exported receiver and WorkManager | Sensors | Accepted (AR-6) · 🟠 verify on device |
 | [DD-26](#dd-26--manual-appcontainer-instead-of-a-di-framework) | Manual `AppContainer` instead of a DI framework | Architecture | Accepted (AR-7) |
 | [DD-27](#dd-27--library-services-get-dependencies-through-an-application-implemented-interface) | Library services get dependencies through an Application-implemented interface | Architecture | Accepted (AR-7) |
 | [DD-28](#dd-28--injected-clock-now-is-read-inside-the-transaction) | Injected `Clock`; "now" is read inside the transaction | Architecture | Accepted (AR-7) |
@@ -46,10 +69,10 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-30](#dd-30--60-second-decay-ticker-only-while-collected) | 60-second decay ticker, only while collected | Game engine / UI | Accepted (AR-4) |
 | [DD-31](#dd-31--tile-futures-via-kotlinx-coroutines-guava-not-horologist) | Tile futures via kotlinx-coroutines-guava, not Horologist | Surfaces | Accepted (AR-4) |
 | [DD-32](#dd-32--no-periodic-background-work) | No periodic background work | Background / battery | Accepted (AR-5) |
-| [DD-33](#dd-33--energy-recovers-during-a-fixed-local-night-window) | Energy recovers during a fixed local night window | Game engine / balance | Accepted (AR-3) ⚠ |
-| [DD-34](#dd-34--the-pet-always-sleeps-at-night) | The pet always sleeps at night | Game design | Accepted (AR-3) ⚠ |
+| [DD-33](#dd-33--energy-recovers-during-a-fixed-local-night-window) | Energy recovers during a fixed local night window | Game engine / balance | Accepted (AR-3) · 🟣 your call |
+| [DD-34](#dd-34--the-pet-always-sleeps-at-night) | The pet always sleeps at night | Game design | Accepted (AR-3) · 🟣 your call |
 | [DD-35](#dd-35--an-append-only-habit-history-table-schema-v2) | An append-only habit history table (schema v2) | Persistence | Accepted (AR-3) |
-| [DD-36](#dd-36--archetype-from-7-day-consistency-locked-in-once-at-teen) | Archetype from 7-day consistency, locked in once at TEEN | Game design / balance | Accepted (AR-3) ⚠ |
+| [DD-36](#dd-36--archetype-from-7-day-consistency-locked-in-once-at-teen) | Archetype from 7-day consistency, locked in once at TEEN | Game design / balance | Accepted (AR-3) · 🟣 your call |
 
 ---
 
@@ -81,7 +104,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Status**: Accepted (retroactive).
 - **Decision**: If sensor permissions are denied, the app still works with manual logging and shows an "Enable sensors" chip, rather than blocking.
 - **Why**: The pet should always be usable. Sensor data enhances it but is not required.
-- ⚠ **Open**: Degradation is currently all-or-nothing across permissions (AR-6).
+- **Follow-up (resolved)**: Degradation used to be all-or-nothing across permissions. Since AR-6, each permission unlocks its own sensors and only activity recognition is core (DD-22).
 
 ---
 
@@ -142,11 +165,13 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Code**: `IngestPassiveDataUseCase.STEP_GRANULARITY`, `FLOOR_GRANULARITY`.
 
 ### DD-11 — Sensor baselines live in DataStore, not Room
-- **Status**: Accepted (AR-1). ⚠ Revisit: now possible, since AR-8 landed real migrations (DD-18).
+- **Status**: Accepted (AR-1).
 - **Decision**: The consumed totals per data type and the last heart-rate award time are stored in the `passive_sync` Preferences DataStore via `PassiveSyncRepositoryImpl`. Concurrent batches are serialized by `DataStore.edit`.
 - **Why**: A new Room table bumps the schema version. With the current destructive migration fallback, that would **delete the pet** (AR-8).
 - **Trade-off**: The baseline and the pet live in different stores, so they cannot share a transaction. This is why DD-09 fixes the ordering to "consume first".
-- ⚠ **Revisit**: Once AR-8 adds real migrations, moving the baselines into Room would let one transaction cover both. That removes the under-count-on-crash window.
+
+> [!IMPORTANT]
+> **🟣 Your call: move the baselines into Room?** AR-8 has since added real migrations (DD-18), so this is now possible. It would let one transaction cover both the baseline and the pet, which removes the under-count-on-crash window of DD-09. It costs a schema v3 migration and moving `PassiveSyncRepositoryImpl` off DataStore.
 
 ### DD-12 — One sensor batch is one pet write
 - **Status**: Accepted (AR-1).
@@ -154,39 +179,52 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Why**: Fewer writes and Room invalidations (UI recompositions), and a batch is applied all-or-nothing.
 
 ### DD-13 — Distance and daily calories are not consumed
-- **Status**: Accepted (AR-1). ⚠ Game design open.
+- **Status**: Accepted (AR-1).
 - **Decision**: `DISTANCE_DAILY` and `CALORIES_DAILY` are no longer registered or rewarded.
 - **Why**:
   - Distance is derived from the same walking as steps, so it double-rewards.
   - Daily calories include basal metabolic burn (~2,000 kcal/day), so they measure being alive, not activity. The old mapping to `Workout` also drained 10 energy per batch.
 - **Consequences**: Fewer sensor wake-ups. Running and cycling without steps are under-rewarded.
-- ⚠ **Open**: Reintroduce as a combined activity score or through `ExerciseClient` workouts (AR-3).
+
+> [!IMPORTANT]
+> **🟣 Your call: bring them back in another form?** Running and cycling without steps are currently under-rewarded. The options are a combined activity score (e.g. active minutes), or rewarding them only through `ExerciseClient` workouts, which are planned.
 
 ### DD-14 — Floors are a climbing bonus worth 20 steps each
-- **Status**: Accepted (AR-1). ⚠ Game-balance value.
+- **Status**: Accepted (AR-1).
 - **Decision**: Each floor delta counts as **20 extra step-equivalents**, consumed in chunks of 10 floors (= 200 step-equivalents = 1 XP).
 - **Why**: Climbing takes more effort than the steps it produces. It keeps the pre-existing 20-steps-per-floor ratio.
 - **Code**: `IngestPassiveDataUseCase.STEPS_PER_FLOOR`.
 
+> [!IMPORTANT]
+> **🟣 Your call: is 20 steps per floor right?** It's a game-balance value. With 10-floor chunks, a typical day of 5–10 floors may not earn anything until the next day's floors add up.
+
 ### DD-15 — Heart-rate awards are limited to one per 30 minutes
-- **Status**: Accepted (AR-1). ⚠ Game-balance value.
+- **Status**: Accepted (AR-1).
 - **Decision**: A heart-rate habit (small fitness boost, 5 XP) is awarded at most once per **30 minutes**, using the latest sample in the batch. The limit is enforced atomically via `PassiveSyncRepository.tryClaimHeartRateAward`.
 - **Why**: Heart-rate samples arrive in nearly every batch, and XP per batch would grow unbounded just from wearing the watch.
 - **Consequences**: Heart rate adds at most ~240 XP/day. A wall-clock jump backwards resets the limit rather than blocking it.
 - **Code**: `IngestPassiveDataUseCase.HEART_RATE_AWARD_INTERVAL_MS`.
 
+> [!IMPORTANT]
+> **🟣 Your call: is once per 30 minutes right?** It's a game-balance value. Up to ~240 XP a day, just from wearing the watch, is a lot next to steps (max 50 XP per batch).
+
 ### DD-16 — First reading credits today's activity so far
-- **Status**: Accepted (AR-1). ⚠ Game-balance question.
+- **Status**: Accepted (AR-1).
 - **Decision**: With no stored baseline (fresh install, or cleared app data), the first reading counts everything since midnight. For example, 8,000 steps at install gives +80 fitness and 40 XP.
 - **Why**: It feels rewarding on day one, and it is a one-off.
 - **Alternatives**: Start the baseline at the first reading, so nothing is credited until the user walks further.
 
+> [!IMPORTANT]
+> **🟣 Your call: keep the day-one credit?** It's a nice welcome, but clearing app data or reinstalling also re-credits the day.
+
 ### DD-17 — A daily reading belongs to the day of its interval end minus 1 ms
-- **Status**: Accepted (AR-1). ⚠ **Unverified on hardware.**
+- **Status**: Accepted (AR-1).
 - **Decision**: The local day of a `*_DAILY` data point is computed from `getEndInstant(bootInstant) − 1 ms` in the device's time zone.
 - **Why**: An interval that ends exactly at midnight holds the *previous* day's total. Attributing it to the new day would credit a whole day twice.
-- ⚠ **Open**: Confirm how Health Services timestamps the intervals around the daily reset, and how time-zone changes behave, on an emulator with synthetic data or a physical watch.
 - **Code**: `core/health/.../PassiveDataService.kt` (`latestDailyTotal`).
+
+> [!WARNING]
+> **🟠 Verify on device.** Confirm how Health Services timestamps the intervals around the daily reset, and how time-zone changes behave. Use an emulator with synthetic data (`adb shell am broadcast -a "androidx.health.services.client.action.SIMULATE_DATA"`) or a physical watch.
 
 ---
 
@@ -212,7 +250,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Code**: `core/data/build.gradle.kts`, `.github/workflows/ci.yml`.
 
 ### DD-20 — Bad rows are repaired on load, not rejected
-- **Status**: Accepted (AR-8). ⚠ Silent repair.
+- **Status**: Accepted (AR-8).
 - **Decision**: `PetEntity.toDomain()` repairs invalid data instead of throwing:
   - Vitals are clamped to `[0, 100]`, and `NaN` becomes 0.
   - Negative XP becomes 0.
@@ -222,7 +260,9 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
   The `Vitals` constructor keeps its `require()` range checks as an invariant for in-memory code.
 - **Why**: A throwing `toDomain()` inside `getPetFlow()` crashes *every* launch, and the user cannot fix that. A slightly repaired pet is far better than a permanently crashing app. Enum fallbacks also make renaming or removing enum constants survivable.
 - **Alternatives**: Throw and reset the pet (loses the pet). Throw and show an error screen (the app becomes unusable).
-- ⚠ **Open**: Repairs are silent. Consider logging or counting them once there is telemetry or a debug screen, so data bugs don't go unnoticed.
+
+> [!IMPORTANT]
+> **🟣 Your call: make repairs visible?** Repairs are currently silent. Consider logging or counting them once there is telemetry or a debug screen, so data bugs don't go unnoticed.
 
 ### DD-21 — One shared clamp for vital values; `NaN` maps to 0
 - **Status**: Accepted (AR-8).
@@ -241,7 +281,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Alternatives**: Treat every permission as required (the old behaviour). Add a separate "partial" state with its own UI (more UI for little gain).
 
 ### DD-23 — Heart rate is registered only with background access
-- **Status**: Accepted (AR-6). ⚠ Unverified on hardware.
+- **Status**: Accepted (AR-6).
 - **Decision**: Heart rate is registered only if both permissions are granted:
   - the foreground permission: `BODY_SENSORS` ≤ API 35, `health.READ_HEART_RATE` ≥ 36;
   - the background permission: `BODY_SENSORS_BACKGROUND` on API 33–35, `health.READ_HEALTH_DATA_IN_BACKGROUND` on ≥ 36.
@@ -251,23 +291,29 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Alternatives**:
   - Drop passive heart rate entirely (simplest, most privacy-friendly).
   - Register with the foreground permission only. Rejected: the data likely wouldn't be delivered in the background.
-- ⚠ **Open**:
-  - Verify the dialog behaviour on Wear OS 6 and API 33–35.
-  - Play Store health-permission declarations will be needed before release.
-  - Reconsider whether heart rate is worth two dialogs.
+
+> [!WARNING]
+> **🟠 Verify on device.** Check the dialog behaviour on Wear OS 6 and on API 33–35, and that heart-rate data is actually delivered in the background.
+
+> [!IMPORTANT]
+> **🟣 Your call: is heart rate worth two dialogs?** It only adds a small fitness and XP bonus (DD-15), and it will need Play Store health-permission declarations before release. Dropping it would simplify onboarding and privacy.
 
 ### DD-24 — Idempotent registration keyed on permitted sensors + boot count
-- **Status**: Accepted (AR-6). ⚠ Assumption about Health Services state.
+- **Status**: Accepted (AR-6).
 - **Decision**: `ensureRegistered()` stores a key of *permitted sensors + `Settings.Global.BOOT_COUNT`* after each successful registration. It skips Health Services entirely while the key is unchanged. Calls are serialized by a process-wide `Mutex`.
 - **Why**: `Application.onCreate` runs on every process start, including each time Health Services wakes the app to deliver a batch. Re-registering each time costs an IPC round-trip. Including the boot count keeps the check correct across reboots even if the boot receiver never runs.
 - **Consequences**: The key is based on *permitted* sensors, not the capability-filtered set. Capabilities don't change at runtime, so this saves a capability query on every start.
-- ⚠ **Assumption**: The registration survives app updates and is only lost on reboot. It is also lost if the user clears app data, but that clears the stored key too, so the next start re-registers. If Health Services turns out to drop registrations on app update, add the app version code to the key.
+
+> [!WARNING]
+> **🟠 Verify on device: does the registration survive app updates?** The assumption is that it's only lost on reboot. Clearing app data also loses it, but that clears the stored key too, so the next start re-registers. If Health Services turns out to drop registrations on app update, add the app version code to the key.
 
 ### DD-25 — Boot re-registration via a non-exported receiver and WorkManager
-- **Status**: Accepted (AR-6). ⚠ Unverified on hardware.
+- **Status**: Accepted (AR-6).
 - **Decision**: `BootCompletedReceiver` (`exported="false"`) enqueues a unique one-time `PassiveRegistrationWorker`, which calls `ensureRegistered(force = true)` and retries on failure.
 - **Why**: This follows the [Health Services background monitoring guidance](https://developer.android.com/health-and-fitness/guides/health-services/monitor-background): registrations don't persist across reboots, and at boot Health Services may take over 10 s to respond, which exceeds a receiver's execution limit. The receiver is not exported because only the system sends `BOOT_COMPLETED`.
-- ⚠ **Open**: Verify on an emulator or watch that the non-exported receiver actually receives `BOOT_COMPLETED` and that the passive data arrives afterwards.
+
+> [!WARNING]
+> **🟠 Verify on device.** Reboot an emulator or watch and confirm that the non-exported receiver actually receives `BOOT_COMPLETED`, and that passive data arrives afterwards.
 
 ---
 
@@ -347,7 +393,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 ## Game-loop completeness (AR-3)
 
 ### DD-33 — Energy recovers during a fixed local night window
-- **Status**: Accepted (AR-3, 2026-09-26). ⚠ Game-balance values; real sleep sensing is open.
+- **Status**: Accepted (AR-3, 2026-09-26).
 - **Decision**: Inside `NightWindow.DEFAULT` (22:00–07:00 in `Clock.zone()`), energy **recovers** at +8 %/h instead of decaying at −2 %/h. `calculateDecay` splits the elapsed time into day/night segments and clamps after each one. Other vitals keep decaying at night.
 - **Why**: Energy previously had no way to recover, so every pet ended up permanently `TIRED`. A deterministic, sensor-free rule:
   - works for everyone, including people who don't wear the watch at night or whose watch doesn't detect sleep;
@@ -358,16 +404,23 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Alternatives**:
   - Health Services sleep detection (`UserActivityState.USER_ACTIVITY_ASLEEP`, needs `ACTIVITY_RECOGNITION`): the most "mirroring", but unverified on hardware and useless when the watch is charging overnight.
   - An explicit "rest" button: more UI, and it's a chore.
-- ⚠ **Open**:
-  - A user-configurable bedtime, instead of a fixed 22–07 in the device zone.
-  - Whether hydration and hunger should decay more slowly at night (−27 and −22.5 over 9 h, while the user can't log anything).
-  - Layering real sleep data on top, e.g. bonus XP or happiness for detected sleep.
+
+> [!IMPORTANT]
+> **🟣 Your call: night rules.**
+> - Should bedtime be user-configurable, instead of a fixed 22:00–07:00 in the device's time zone?
+> - Should hydration and hunger decay more slowly at night? They currently lose −27 and −22.5 over 9 h, while the user can't log anything.
+> - Should real sleep data be layered on top later, e.g. bonus XP or happiness for detected sleep?
+>
+> The +8 %/h recovery rate is a game-balance value.
 
 ### DD-34 — The pet always sleeps at night
-- **Status**: Accepted (AR-3). ⚠ Game design.
+- **Status**: Accepted (AR-3).
 - **Decision**: `MoodCalculator` returns `SLEEPING` whenever `isNightTime` is true, regardless of vitals. Previously the rule was night *and* energy < 40, and it was never reached because `isNightTime` was never passed.
 - **Why**: The pet recovers energy at night because it is asleep (DD-33). Under the old threshold rule it would wake up as soon as energy passed 40, at around 2 a.m., which is incoherent.
 - **Consequences**: Thirst and hunger warnings aren't shown at night. They reappear at 07:00 if still relevant.
+
+> [!IMPORTANT]
+> **🟣 Your call: should critical needs wake the pet?** For example, show `THIRSTY` at night when hydration is critical, at the cost of the "always asleep at night" coherence.
 
 ### DD-35 — An append-only habit history table (schema v2)
 - **Status**: Accepted (AR-3).
@@ -383,7 +436,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Consequences**: The table stays small (a few hundred rows over 30 days). `updatePet { }` writes (non-habit transforms) are not recorded. Longer retention would be needed for any future long-term charts.
 
 ### DD-36 — Archetype from 7-day consistency, locked in once at TEEN
-- **Status**: Accepted (AR-3). ⚠ Game-balance thresholds.
+- **Status**: Accepted (AR-3).
 - **Decision**:
   - When the pet *first* reaches `TEEN` while still `BALANCED` (`EvolutionEngine.reachesSpecialization`), `ArchetypeSelector` scores the last 7 local days. Each day can qualify for:
     - **cardio**: ≥ 6,000 steps, floor bonus steps included;
@@ -396,4 +449,6 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
   - Until `ExerciseClient` workouts exist, the strength path relies on sparse heart-rate awards (≤ 1 per 30 min, DD-15).
   - Pets that were already `TEEN`+ and `BALANCED` before this change stay `BALANCED`. The old code would have kept re-evaluating them.
   - Zen no longer considers sleep, because there is no real sleep signal yet (DD-33).
-- ⚠ **Open**: Tune the thresholds once real usage data exists. Consider re-evaluating the archetype at `ADULT`.
+
+> [!IMPORTANT]
+> **🟣 Your call: archetype thresholds.** These are provisional: 6,000 steps; a workout or heart rate ≥ 100 bpm; 1,500 ml plus 2 healthy meals; the winner needs 4 of 7 days and no tie. Tune them once real usage data exists. Also consider re-evaluating the archetype at `ADULT`.
