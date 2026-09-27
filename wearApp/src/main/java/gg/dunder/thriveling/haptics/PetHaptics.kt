@@ -56,7 +56,7 @@ class PetHaptics(context: Context) {
     @SuppressLint("WrongConstant")
     private fun effectFor(pattern: HapticPattern): VibrationEffect {
         val primitives = pattern.steps.map { it.primitive }.distinct().toIntArray()
-        if (vibrator.areAllPrimitivesSupported(*primitives)) {
+        if (primitives.isNotEmpty() && vibrator.areAllPrimitivesSupported(*primitives)) {
             val composition = VibrationEffect.startComposition()
             pattern.steps.forEach { composition.addPrimitive(it.primitive, it.scale, it.delayMs) }
             return composition.compose()

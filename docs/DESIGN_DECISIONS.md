@@ -49,6 +49,7 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
 > - [DD-51](#dd-51--step-progress-is-a-second-complication-pet-steps): both Pet Steps types on real watch faces, and updates after a batch or a goal change.
 > - [DD-53](#dd-53--the-archetype-moves-to-a-pet-details-screen-the-pets-name-and-stage-never-reach-the-ring): whether the smaller meal and water buttons and the "i" and ⚠ buttons are easy to hit on a real watch, and the curved name in ambient mode.
 > - [DD-55](#dd-55--the-app-is-called-thriveling-the-applicationid-is-chosen-last): whether "Thriveling" fits the launcher label on a small round screen.
+> - [DD-62](#dd-62--petting-vibrates-with-short-buzzes-vital-filled-up-with-clicks): whether the purr and the cooldown buzz can be told apart, and the "vital filled up" clicks can be felt, on the Pixel Watch 5.
 
 ---
 
@@ -722,7 +723,7 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
   - The composed patterns were confirmed on the emulator for petting only (`dumpsys vibrator_manager`). Goal and evolution are covered by unit tests. How the patterns feel needs a real watch.
 
 > [!IMPORTANT]
-> **🟣 Your call: haptic feel.** Pattern shapes and strengths (purr ticks 0.3–0.6, goal and evolution clicks at full strength), once felt on a real watch.
+> **🟣 Your call: haptic feel.** Pattern shapes and strengths (purr buzzes since DD-62, goal and evolution clicks at full strength), once felt on a real watch.
 
 > [!WARNING]
 > **🟠 Verify on device:** the three patterns are distinguishable on the wrist, the waveform fallback works on a motor without primitives, and the goal pattern plays when a live sensor batch crosses 6,000 steps with the app open.
@@ -1048,7 +1049,7 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
   - Petting events are stored in the habit history only when rewarded.
 
 ### DD-61 — Hearts show only when a pet earns happiness
-- **Status**: Accepted (2026-09-27). The project owner wanted a rewarded pet to look different from one during the reward cooldown (DD-60), with the change limited to the hearts until the pet's drawing and animation are settled. The same day, the owner asked for the vibration to differ too.
+- **Status**: Accepted (2026-09-27). The project owner wanted a rewarded pet to look different from one during the reward cooldown (DD-60), with the change limited to the hearts until the pet's drawing and animation are settled. The same day, the owner asked for the vibration to differ too. *Update: the ticks were too faint to feel on a Pixel Watch 5; both petting patterns are now short buzzes (DD-62).*
 - **Decision**:
   - A rewarded pet looks as before: the hop, the happiest face and the three-heart burst. A pet during the reward cooldown gets the hop and the face without the hearts.
   - A rewarded pet purrs as before (four soft ticks). A pet during the cooldown gets a single soft tick (`PetHapticEvent.PETTING_UNREWARDED`), the shortest and softest pattern, also played as touch feedback.
@@ -1065,3 +1066,34 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
   - A countdown to the next rewarded pet: makes petting feel like a chore on a timer.
 - **Consequences**:
   - Until the cooldown state is read after the screen opens, a pet shows hearts and purrs even if it will not be rewarded. This lasts only until the first database read.
+
+### DD-62 — Petting vibrates with short buzzes; "vital filled up" with clicks
+- **Status**: Accepted (2026-09-27). The project owner felt no vibration when petting on a Pixel Watch 5. Full-strength clicks still felt weak, and the owner chose the buzzes after trying them on the watch.
+- **Finding**: `dumpsys vibrator_manager` on the watch showed every pattern playing (`finished`, touch intensity HIGH, no scaling). The patterns were too faint, not missing:
+  - `PRIMITIVE_TICK`, the lightest primitive, at 0.3–0.6 can't be felt on this motor, least of all under a finger pressing the screen.
+  - Since DD-60 most taps are during the reward cooldown, which played a single `TICK` at 0.4.
+  - Even a `CLICK` at full strength, the system's own back-swipe feedback, lasts only about 10 ms and felt weak under the finger.
+- **Decision**:
+
+  | Pattern | Was | Now |
+  |---|---|---|
+  | Petting (rewarded) | 4 × `TICK` 0.4 / 0.6 / 0.5 / 0.3 | 4 × 40 ms buzz, 50 ms apart, amplitude 200 / 255 / 230 / 200 |
+  | Petting (cooldown) | 1 × `TICK` 0.4 | 1 × 50 ms buzz at 255 |
+  | Vital filled up | `TICK` 0.5 + `CLICK` 0.6 | `CLICK` 0.5 + `CLICK` 0.7 |
+
+  - The two petting patterns are waveforms only: a `HapticPattern` with no `steps` is always played as its waveform (`PetHaptics.effectFor`). On a motor without amplitude control they play at the default strength.
+  - The "vital filled up" waveform fallback matches its clicks: 30 ms pulses (was 20 ms) at amplitudes 140 and 190 (was 90 and 150).
+  - Goal and evolution are unchanged. Durations still grow with priority, so `HapticArbiter` behaves as before.
+- **Why**: A pattern that can't be felt is the same as none. A buzz of 40–50 ms carries far more energy than a click, and is felt through a finger on the screen. Four buzzes with gaps keep the purr's rise-and-fade shape.
+- **Alternatives**:
+  - `TICK` at full strength: still the weakest primitive.
+  - `CLICK` at 0.5–1.0: tried on the watch; still too weak.
+  - Longer buzzes (70–80 ms): stronger still, but start to feel like a notification rather than a purr. Kept as the next step if needed.
+  - Dropping touch usage (`USAGE_TOUCH`) for petting: not the cause, since touch intensity was already HIGH, and it would stop the system's touch-vibration setting from applying.
+- **Consequences**:
+  - The cooldown buzz is at full strength, so it is no softer than the purr, only shorter. It still says "noticed" clearly.
+  - Petting no longer uses the motor's tuned primitives, so it feels the same on every watch with amplitude control, but less crisp.
+  - Updates the strengths under DD-47's "haptic feel" question and the patterns described in DD-61.
+
+> [!WARNING]
+> **🟠 Verify on device:** the purr can be told apart from the cooldown buzz, and the "vital filled up" clicks can be felt on the Pixel Watch 5.

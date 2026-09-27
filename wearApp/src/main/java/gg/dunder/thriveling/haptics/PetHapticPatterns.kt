@@ -11,13 +11,13 @@ import android.os.VibrationEffect
  * @property priority A pattern never cuts off one with a higher priority that is still playing.
  */
 enum class PetHapticEvent(val priority: Int) {
-    /** A tap on the pet was accepted, but petting is in its reward cooldown (DD-61): one soft tick. */
+    /** A tap on the pet was accepted, but petting is in its reward cooldown (DD-61): one click. */
     PETTING_UNREWARDED(0),
 
-    /** A vital just reached 100 % on screen (DD-50): a light tick-click, lighter than a goal. */
+    /** A vital just reached 100 % on screen (DD-50): two light clicks, lighter than a goal. */
     VITAL_FILLED(0),
 
-    /** A tap on the pet was accepted and earns happiness (DD-60): a soft purr. */
+    /** A tap on the pet was accepted and earns happiness (DD-60): a purr of four clicks. */
     PETTING(1),
 
     /** Today's habits just reached a daily focus goal (e.g. 6,000 steps): a short success pattern. */
@@ -43,7 +43,8 @@ data class HapticStep(val primitive: Int, val scale: Float, val delayMs: Int = 0
 /**
  * A pattern as rich primitives, with a plain waveform for motors that can't play them.
  *
- * @property steps Composition played when the device supports all its primitives.
+ * @property steps Composition played when the device supports all its primitives. Empty for a pattern
+ *   that is always played as its waveform, e.g. a buzz longer than any primitive (DD-62).
  * @property fallbackTimings Waveform segment lengths in ms, alternating off/on and starting with "off".
  * @property fallbackAmplitudes Amplitude per segment, `0..255`; ignored without amplitude control.
  */
@@ -60,35 +61,30 @@ data class HapticPattern(
 object PetHapticPatterns {
 
     /**
-     * A single soft tick, the purr's first beat: "noticed", without a reward. The shortest and softest
-     * pattern.
+     * A single short buzz, the purr's first beat: "noticed", without a reward. The shortest pattern.
+     * A buzz rather than a click, which can't be felt under a finger pressing the screen (DD-62).
      */
     val PETTING_UNREWARDED = HapticPattern(
-        steps = listOf(HapticStep(VibrationEffect.Composition.PRIMITIVE_TICK, 0.4f)),
-        fallbackTimings = longArrayOf(0, 20),
-        fallbackAmplitudes = intArrayOf(0, 70)
+        steps = emptyList(),
+        fallbackTimings = longArrayOf(0, 50),
+        fallbackAmplitudes = intArrayOf(0, 255)
     )
 
-    /** A light tick and a click: "topped up". About 0.1 s. */
+    /** Two clicks, the second firmer: "topped up". About 0.1 s, lighter than a goal. */
     val VITAL_FILLED = HapticPattern(
         steps = listOf(
-            HapticStep(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f),
-            HapticStep(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.6f, delayMs = 60)
+            HapticStep(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.5f),
+            HapticStep(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.7f, delayMs = 60)
         ),
-        fallbackTimings = longArrayOf(0, 20, 60, 30),
-        fallbackAmplitudes = intArrayOf(0, 90, 0, 150)
+        fallbackTimings = longArrayOf(0, 30, 60, 30),
+        fallbackAmplitudes = intArrayOf(0, 140, 0, 190)
     )
 
-    /** Four soft ticks rising and fading, like a purr under the finger. About 0.3 s. */
+    /** Four short buzzes rising and fading, like a purr under the finger. About 0.3 s (DD-62). */
     val PETTING = HapticPattern(
-        steps = listOf(
-            HapticStep(VibrationEffect.Composition.PRIMITIVE_TICK, 0.4f),
-            HapticStep(VibrationEffect.Composition.PRIMITIVE_TICK, 0.6f, delayMs = 60),
-            HapticStep(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f, delayMs = 60),
-            HapticStep(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f, delayMs = 60)
-        ),
-        fallbackTimings = longArrayOf(0, 20, 60, 20, 60, 20, 60, 20),
-        fallbackAmplitudes = intArrayOf(0, 70, 0, 100, 0, 85, 0, 50)
+        steps = emptyList(),
+        fallbackTimings = longArrayOf(0, 40, 50, 40, 50, 40, 50, 40),
+        fallbackAmplitudes = intArrayOf(0, 200, 0, 255, 0, 230, 0, 200)
     )
 
     /** A quick swell and two confident clicks: "done!". About 0.4 s. */
