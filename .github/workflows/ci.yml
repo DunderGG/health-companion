@@ -43,6 +43,22 @@ jobs:
             exit 1
           fi
 
+      # The README promises that health data never leaves the watch. A library can add the INTERNET
+      # permission through manifest merging without anyone noticing, so check the merged manifest.
+      - name: Verify the app has no internet permission
+        run: |
+          manifest=$(find wearApp/build/intermediates -path '*merged_manifest*debug*' -name AndroidManifest.xml | head -n 1)
+          if [ -z "$manifest" ]; then
+            echo "::error::Merged debug manifest not found. Update this step's path for the current Android Gradle Plugin."
+            exit 1
+          fi
+          if grep -q 'android.permission.INTERNET' "$manifest"; then
+            echo "::error::The merged manifest requests android.permission.INTERNET. Find the dependency that adds it, and remove it with tools:node=\"remove\" or update the privacy claims in README.md."
+            grep -n 'android.permission.INTERNET' "$manifest"
+            exit 1
+          fi
+          echo "No INTERNET permission in $manifest"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:

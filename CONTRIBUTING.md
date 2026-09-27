@@ -109,6 +109,10 @@ Room schemas are exported to `core/data/schemas/` and committed. CI fails if a b
 
 See the checklist in [docs/ARCHITECTURE.md §5.3](docs/ARCHITECTURE.md#4-schema-versioning--migrations).
 
+### Adding Dependencies
+
+The app promises that health data never leaves the watch, so it has no internet permission. Libraries can add one through manifest merging, and CI fails if the merged manifest contains `android.permission.INTERNET`. If a new dependency trips the check, remove the permission with `tools:node="remove"` in `wearApp/src/main/AndroidManifest.xml` (only if the app works without it), or choose another library.
+
 ### Simulating Sensor Data on the Emulator
 
 To test passive tracking on the Wear OS emulator without physical movement, simulate Health Services data as described in [docs/VERIFICATION.md §1.1](docs/VERIFICATION.md#11-synthetic-health-services-data). The same guide lists the manual checks to run on an emulator or watch, and how to profile battery use.
