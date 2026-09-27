@@ -52,6 +52,19 @@ data class Vitals(
     companion object {
         /** Default baseline vitals (all stats maxed out at 100%). */
         val DEFAULT = Vitals()
+
+        /** Level every vital starts at for a newly hatched pet, so the first meal, drink or pet visibly helps (DD-58). */
+        const val STARTING_LEVEL = 50f
+
+        /** Vitals of a newly hatched pet: every stat at [STARTING_LEVEL], last updated at [timestamp]. */
+        fun starting(timestamp: Long): Vitals = Vitals(
+            energy = STARTING_LEVEL,
+            hunger = STARTING_LEVEL,
+            hydration = STARTING_LEVEL,
+            fitness = STARTING_LEVEL,
+            happiness = STARTING_LEVEL,
+            lastUpdatedTimestamp = timestamp
+        )
     }
 }
 

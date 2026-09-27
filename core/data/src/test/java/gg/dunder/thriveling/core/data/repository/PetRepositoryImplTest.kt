@@ -139,8 +139,8 @@ class PetRepositoryImplTest {
         val fresh = clockedRepository.startOver()
 
         assertEquals(fresh, clockedRepository.getPet())
-        // A default pet, born now, with full vitals.
-        assertEquals(Pet(vitals = Vitals(lastUpdatedTimestamp = now), bornTimestamp = now), fresh)
+        // A default pet, born now, with half-full vitals.
+        assertEquals(Pet(vitals = Vitals.starting(now), bornTimestamp = now), fresh)
         assertEquals(emptyList<HabitEvent>(), db.habitEventDao().eventsSince(0L).mapNotNull { it.toDomain() })
     }
 
@@ -181,6 +181,14 @@ class PetRepositoryImplTest {
 
         assertEquals(logged.experiencePoints, observed.experiencePoints)
         assertEquals(logged.vitals, observed.vitals)
+    }
+
+    @Test
+    fun `the seeded pet starts with half-full vitals`() = runBlocking {
+        val clockedRepository = PetRepositoryImpl(db, Clock { 5_000_000L }, InMemorySettingsRepository())
+
+        assertEquals(Vitals.starting(5_000_000L), clockedRepository.getPet().vitals)
+        assertEquals(50f, Vitals.STARTING_LEVEL, 0f)
     }
 
     @Test

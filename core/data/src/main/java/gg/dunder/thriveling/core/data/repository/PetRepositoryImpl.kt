@@ -190,7 +190,7 @@ class PetRepositoryImpl(
         return Pet(
             id = "companion_primary",
             name = "Aura",
-            vitals = Vitals(lastUpdatedTimestamp = now),
+            vitals = Vitals.starting(now),
             bornTimestamp = now
         )
     }

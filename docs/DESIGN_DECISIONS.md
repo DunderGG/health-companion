@@ -849,7 +849,7 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
 - **Decision**:
   - The settings list ends with a **Pet** section and a **Start over** button. It is tonal like the other rows, with its label in the error colour.
   - Tapping it asks for confirmation in an `AlertDialog`: "Start over with a new pet? Your pet, its evolution and all habit history are deleted. Your settings are kept. This can't be undone."
-  - Confirming calls `StartOverUseCase` → `PetRepository.startOver()`. In one Room transaction, this deletes every habit event and replaces the pet with a fresh default one: "Aura", `HATCHLING`, balanced, full vitals, born now.
+  - Confirming calls `StartOverUseCase` → `PetRepository.startOver()`. In one Room transaction, this deletes every habit event and replaces the pet with a fresh default one: "Aura", `HATCHLING`, balanced, full vitals, born now. *Update: the fresh pet now starts with half-full vitals (DD-58).*
   - The app then opens the new pet on the pager's first page.
   - `NotifyingPetRepository` refreshes the tile and complications and re-checks vitals afterwards, as for any write.
   - **Kept**:
@@ -985,3 +985,18 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
   - Android treats the new ID as a new app with empty storage. Existing development installs stay on the watch next to the new one, and must be removed with `adb uninstall com.healthcompanion.wear`. The new install starts with a new pet.
   - The dated review files keep their old source links, which GitHub serves from the commit history.
   - A `.debug` suffix for debug builds, so development and Play Store builds can be installed side by side, is planned in [ROADMAP.md Phase 4](ROADMAP.md#phase-4-play-store-release).
+
+### DD-58 — A new pet starts with every vital at 50%
+- **Status**: Accepted (2026-09-27). The project owner found, on a fresh install, that full vitals hide the effect of the first interactions.
+- **Decision**:
+  - The pet seeded on first start, and the one created by *Start over* (DD-52), has energy, hunger, hydration, fitness and happiness at 50% (`Vitals.STARTING_LEVEL`, via `Vitals.starting(now)`).
+  - The `Vitals()` constructor defaults stay at 100%. Only `PetRepositoryImpl.createDefaultPet()` uses the starting level.
+- **Why**:
+  - At 100%, logging a meal or water, or petting, changes nothing the user can see, so the first thing they try seems broken. At 50%, every action moves a ring and a Vitals row straight away.
+  - At 50% the mood is CONTENT: above the hungry, thirsty and grumpy thresholds and far from a critical-vital alert, so a new pet does not look neglected.
+- **Alternatives**:
+  - Lower only hunger, hydration and happiness, the vitals the user raises by hand: energy and fitness at 100% next to them would look arbitrary, and they are driven by sleep and steps, which should also show their effect.
+  - Change the `Vitals()` defaults: many tests use the default as "full" vitals, and a model default that is not a meaningful state would be surprising.
+- **Consequences**:
+  - Existing installs keep their current pet; only a new pet, or *Start over*, starts at 50%.
+  - The overall health starts at 50%, so reaching HAPPY (55%) takes a few interactions.
