@@ -1,7 +1,7 @@
 # Architecture & System Design
 
 ## Overview
-**Health Companion** is a standalone Wear OS virtual pet app inspired by the classic Tamagotchi toy, reimagined for modern smartwatches. The companion's growth, energy, and happiness directly mirror the user's real-world health habits—including physical activity, step goals, hydration, nutrition, and rest.
+**Thriveling** is a standalone Wear OS virtual pet app inspired by the classic Tamagotchi toy, reimagined for modern smartwatches. The companion's growth, energy, and happiness directly mirror the user's real-world health habits—including physical activity, step goals, hydration, nutrition, and rest.
 
 > **Document status (2026-09-26):** This document describes both the implemented system and the target design. Items marked *(planned)* do not exist in code yet. Known deviations between the design and the current implementation are tracked as numbered review findings (**AR-1 … AR-8**) in [reviews/2026-09-26-architecture-review.md](reviews/2026-09-26-architecture-review.md) (all reviews: [reviews/](reviews/README.md)) and scheduled in [ROADMAP.md → Phase 2a](ROADMAP.md#phase-2a-architecture-review-remediation). The reasoning behind non-trivial design choices, their trade-offs and open questions is logged separately in [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md) (**DD-xx**).
 
@@ -578,7 +578,7 @@ To keep the primary diagrams manageable and focused on the core runtime loop, th
 
 ### 5.1 Architectural Overview & Offline-First Strategy
 
-On Wear OS smartwatches, network connectivity is intermittent—wearers leave their phones behind during workouts, Wi-Fi radios sleep to preserve the ~300–400 mAh battery, and cellular (LTE) hardware is either absent or power-prohibitive. Consequently, **Health Companion** employs an **offline-first local persistence architecture**:
+On Wear OS smartwatches, network connectivity is intermittent—wearers leave their phones behind during workouts, Wi-Fi radios sleep to preserve the ~300–400 mAh battery, and cellular (LTE) hardware is either absent or power-prohibitive. Consequently, **Thriveling** employs an **offline-first local persistence architecture**:
 
 1. **Single Source of Truth**: The local SQLite database (`companion.db`) is the authoritative source for companion state, vitals, XP, and habit records. No surface or component maintains a diverging in-memory state.
 2. **Reactive Observation**: In-app UI screens (`PetScreen`) subscribe directly to the database via reactive Kotlin `Flow` streams. Any write to the database (whether initiated by a button tap or background sensor event) immediately and automatically updates them. System surfaces (Tiles, Complications) are pull-based and are asked to refresh after every committed write by the `NotifyingPetRepository` decorator.
@@ -590,7 +590,7 @@ On Wear OS smartwatches, network connectivity is intermittent—wearers leave th
 
 For developers transitioning from C++, Android's persistence terminology maps directly to familiar native database concepts:
 
-| Term | Android / Kotlin Definition | C++ Equivalent / Native Parallel | Role in Health Companion |
+| Term | Android / Kotlin Definition | C++ Equivalent / Native Parallel | Role in Thriveling |
 | :--- | :--- | :--- | :--- |
 | **SQLite** | An embedded, serverless, transactional SQL engine bundled in the Android OS userland (written in pure C). Operates directly on a local binary file on the device filesystem. | Linking `sqlite3.c` / `libsqlite3.so` directly into a C++ process and calling the raw C API (`sqlite3_open()`, `sqlite3_step()`). | Underpins all persistent storage. The database file is located at `/data/data/com.healthcompanion.wear/databases/companion.db`. |
 | **ORM** *(Object-Relational Mapping)* | An architectural technique that automatically bridges the impedance mismatch between relational tables (flat scalar columns: `REAL`, `INTEGER`, `TEXT`) and object-oriented memory graphs (nested domain classes, value objects, and enum types). | C++ compile-time ORM libraries such as [`sqlite_orm`](https://github.com/fnc12/sqlite_orm) or [ODB](https://www.codesynthesis.com/products/odb/), or manual struct serialization mapping. | Eliminates manual `Cursor` indexing (e.g. `cursor.getFloat(4)`). Translates relational rows directly to/from `PetEntity`. |
@@ -745,7 +745,7 @@ Losing the pet is the worst possible failure for a virtual-pet app, so the schem
 
 ### 5.4 Reactive Invalidation Tracker: How Room Powers the UI
 
-The reactive UI update loop in Health Companion works through Room's built-in **`InvalidationTracker`**:
+The reactive UI update loop in Thriveling works through Room's built-in **`InvalidationTracker`**:
 
 ```
 [Write Operation]
@@ -868,7 +868,7 @@ On Android 6.0+ (API 23+), `BODY_SENSORS` and `ACTIVITY_RECOGNITION` are classif
 
 On Wear OS specifically:
 - The system permission dialog is shown directly on the watch (no phone companion involved, since this is a standalone app).
-- After the user taps **"Deny"** twice for the same permission, the system sets a **"Don't ask again"** flag. Subsequent calls to `requestPermissions()` will return an immediate denial without showing a dialog. The only recovery path is for the user to manually toggle the permission in **Settings → Apps → Health Companion → Permissions**.
+- After the user taps **"Deny"** twice for the same permission, the system sets a **"Don't ask again"** flag. Subsequent calls to `requestPermissions()` will return an immediate denial without showing a dialog. The only recovery path is for the user to manually toggle the permission in **Settings → Apps → Thriveling → Permissions**.
 - `shouldShowRequestPermissionRationale()` returns `false` in two cases: (1) the permission has never been requested, and (2) the user selected "Don't ask again." We distinguish these by tracking whether a request has been launched.
 
 ### Design Philosophy: Graceful Degradation

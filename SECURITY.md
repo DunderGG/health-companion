@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Health Companion is in early development and has no releases yet. Only the latest commit on `main` is supported, and fixes land there.
+Thriveling is in early development and has no releases yet. Only the latest commit on `main` is supported, and fixes land there.
 
 ## Reporting a Vulnerability
 

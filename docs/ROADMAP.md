@@ -1,4 +1,4 @@
-# Health Companion: Project Roadmap
+# Thriveling: Project Roadmap
 
 A phased development roadmap guiding the evolution of the Wear OS health-mirroring companion.
 
@@ -108,12 +108,12 @@ Open work that came out of the review. None of it blocks merging the remediation
      - [x] `settings.gradle.kts` — `rootProject.name = "HealthCompanion"` → `"Thriveling"`
      - [x] `CompanionDatabase.DATABASE_NAME` — `health_companion.db` → `companion.db`, so the file name is not tied to any app name (DD-56)
   2. **Documentation**
-     - [ ] `README.md` — title heading and the working-title note
-     - [ ] `docs/ARCHITECTURE.md` — `Health Companion` in the overview and prose
-     - [ ] `docs/ROADMAP.md` — title heading (`# Health Companion: Project Roadmap`)
-     - [ ] `docs/DESIGN_DECISIONS.md` and `docs/reviews/README.md` — `Health Companion` in the intros. The dated review files are point-in-time records and keep the names they were written with.
-     - [ ] `CONTRIBUTING.md` — title and working-title note
-     - [ ] `NOTICE` and `SECURITY.md` — project name
+     - [x] `README.md` — title heading and the working-title note
+     - [x] `docs/ARCHITECTURE.md` — `Health Companion` in the overview and prose
+     - [x] `docs/ROADMAP.md` — title heading (`# Health Companion: Project Roadmap`)
+     - [x] `docs/DESIGN_DECISIONS.md` and `docs/reviews/README.md` — `Health Companion` in the intros. The dated review files are point-in-time records and keep the names they were written with.
+     - [x] `CONTRIBUTING.md` — title and working-title note
+     - [x] `NOTICE` and `SECURITY.md` — project name
   3. **CI / GitHub**
      - [ ] `.github/workflows/ci.yml` — uploaded artifact name (`wearApp-debug`)
      - [ ] Rename the GitHub repository (Settings → Repository name, e.g. `thriveling`). GitHub redirects the old URLs, but only until someone creates a new repository with the old name, so update the hardcoded URLs right after:
@@ -178,7 +178,7 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 ---
 
 ## General Improvements
->The Future of the Health Companion.
+>The Future of Thriveling.
 
 **Priority** (same colors as Phase 2a):
 - 🔴 **High**: fixes a fairness, data-loss or core-loop gap, or is cheap and makes the pet feel owned. Do these first.

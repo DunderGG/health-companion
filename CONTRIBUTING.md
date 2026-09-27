@@ -1,9 +1,9 @@
-# Contributing to Health Companion
+# Contributing to Thriveling
 
 Thank you for your interest in contributing! This document covers everything you need to get the project building locally and submit a pull request.
 
 > [!NOTE]
-> **Health Companion** is currently a working title. A dedicated milestone (**Phase 2b**) in the [Project Roadmap](docs/ROADMAP.md) is reserved for the final brand name decision. Contributions are welcome under the current name — a rename refactor will be a tracked milestone task.
+> **Thriveling** was called *Health Companion* while it had a working title. Until the final rebrand step in [Phase 2b](docs/ROADMAP.md#phase-2b-brand-identity--naming), the Kotlin package and application ID keep the old name (`com.healthcompanion.*`). Keep using that package for new files.
 
 ---
 

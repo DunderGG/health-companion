@@ -1,4 +1,4 @@
-# Health Companion (Wear OS)
+# Thriveling (Wear OS)
 
 [![CI](https://github.com/DunderGG/health-companion/actions/workflows/ci.yml/badge.svg)](https://github.com/DunderGG/health-companion/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -12,8 +12,7 @@ A health-mirroring virtual pet companion for Wear OS smartwatches, inspired by t
 </p>
 
 > [!NOTE]
-> **Status: early development.** The core game, passive health sync, and Wear OS surfaces (tile, complications, always-on) are working, while the final name and pet graphics are still open. See the [roadmap](docs/ROADMAP.md). The app is not on the Play Store yet, so you build and install it yourself (see [Getting Started](#-getting-started)).
-> *Health Companion* is a working title. The final name will be chosen in roadmap Phase 2b.
+> **Status: early development.** The core game, passive health sync, and Wear OS surfaces (tile, complications, always-on) are working, while the pet graphics are still open. See the [roadmap](docs/ROADMAP.md). The app is not on the Play Store yet, so you build and install it yourself (see [Getting Started](#-getting-started)).
 
 ---
 
@@ -154,7 +153,7 @@ Contributions, bug reports, and ideas are welcome! Please review [CONTRIBUTING.m
 
 ## 👤 Author
 
-Health Companion • By David Bennehag ([dunder.gg](https://dunder.gg) / [@DunderGG](https://github.com/DunderGG)) • Built with ❤️, 🤖 and ☕
+Thriveling • By David Bennehag ([dunder.gg](https://dunder.gg) / [@DunderGG](https://github.com/DunderGG)) • Built with ❤️, 🤖 and ☕
 
 ---
 

@@ -1,6 +1,6 @@
 # Design Decisions
 
-A log of the non-trivial design choices in Health Companion: what was chosen, what the alternatives were, and what it costs. [ARCHITECTURE.md](ARCHITECTURE.md) describes *how* the system works. This document explains *why*, and lists what to revisit. Finding IDs such as `AR-1` refer to the [reviews](reviews/README.md) that prompted a decision.
+A log of the non-trivial design choices in Thriveling: what was chosen, what the alternatives were, and what it costs. [ARCHITECTURE.md](ARCHITECTURE.md) describes *how* the system works. This document explains *why*, and lists what to revisit. Finding IDs such as `AR-1` refer to the [reviews](reviews/README.md) that prompted a decision.
 
 **How to use this log**
 - Add an entry whenever a change involves a real choice between alternatives, a trade-off, a tunable game-balance value, or an unverified assumption.

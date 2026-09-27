@@ -1,6 +1,6 @@
 # Reviews
 
-Point-in-time reviews of the Health Companion codebase. Each review is its own dated file, so [ARCHITECTURE.md](../ARCHITECTURE.md) stays a description of the current system rather than an accumulating list of findings.
+Point-in-time reviews of the Thriveling codebase. Each review is its own dated file, so [ARCHITECTURE.md](../ARCHITECTURE.md) stays a description of the current system rather than an accumulating list of findings.
 
 | Date | Review | Findings | Status |
 | :--- | :--- | :--- | :--- |
