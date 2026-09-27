@@ -1,11 +1,11 @@
 # Thriveling
 
-*A little creature on your wrist that thrives when you do.*
-
 [![CI](https://github.com/DunderGG/thriveling/actions/workflows/ci.yml/badge.svg)](https://github.com/DunderGG/thriveling/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Wear OS](https://img.shields.io/badge/Wear%20OS-3.0%2B%20(API%2030%2B)-4285F4?logo=wearos&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
+
+### A little creature on your wrist that thrives when you do
 
 Thriveling is a virtual pet for Wear OS smartwatches, in the spirit of the classic Tamagotchi. Unlike a Tamagotchi, its needs aren't made up: they're yours. Walk, drink water, eat well and keep to a bedtime, and your Thriveling stays happy, grows and evolves. Neglect those habits, and it gets tired, thirsty and hungry. Its five vitals (Energy, Hydration, Nutrition, Fitness and Happiness) mirror how you're looking after yourself.
 
@@ -14,7 +14,7 @@ The idea is that healthy habits are easier to keep when they feel like caring fo
 **About the name:** *thrive* + *-ling*, the English ending for something small and young, as in *duckling* or *hatchling*. A Thriveling is a little creature that thrives when you do.
 
 <p align="center">
-  <img src="docs/images/pet.gif" alt="The pet on a round Wear OS watch, surrounded by its vitals ring, with buttons to log a meal or water" width="300">
+  <img src="docs/images/pet.gif" alt="A Thriveling on a round Wear OS watch, surrounded by its vitals ring, with buttons to log a meal or water" width="300">
 </p>
 
 > [!NOTE]
@@ -24,9 +24,9 @@ The idea is that healthy habits are easier to keep when they feel like caring fo
 
 ## 🐾 How It Works
 
-Your pet's vitals slowly drop over time. Healthy habits fill them back up:
+Your Thriveling's vitals slowly drop over time. Healthy habits fill them back up:
 
-| You… | Your pet… |
+| You… | Your Thriveling… |
 |---|---|
 | 🚶 Walk and climb stairs (tracked passively) | gains **Fitness**, **Happiness** and evolution XP, and walks or runs alongside you on screen |
 | 💧 Drink water (1 tap on the watch or the tile) | restores **Hydration** |
@@ -35,7 +35,7 @@ Your pet's vitals slowly drop over time. Healthy habits fill them back up:
 | 😴 Keep to a bedtime | sleeps through its night and recovers **Energy** |
 | 👆 Tap the pet | purrs, and gains **Happiness** |
 
-Neglect shows too. If hydration or hunger gets critically low, the pet loses happiness faster and a notification reminds you. The pet's mood, evolution stage and archetype all follow from how consistently you look after yourself.
+Neglect shows too. If hydration or hunger gets critically low, your Thriveling loses happiness faster and a notification reminds you. Its mood, evolution stage and archetype all follow from how consistently you look after yourself.
 
 ---
 
@@ -46,7 +46,7 @@ Neglect shows too. If hydration or hunger gets critically low, the pet loses hap
 - **Live Step Reactions**: While the pet screen is open, the pet walks or runs in step with you.
 - **Modern Vector-Native Companion**: Dynamic vector rendering with breathing bounce, blinking eyes, blushing cheeks, and mood expressions. The pet sleeps during its night.
 - **Round-Screen UI**: A circular multi-vital progress ring (`VitalsRing`), with the rotary crown paging between the pet, a vitals breakdown, today's goals and settings.
-- **Daily Goals & Settings**: Set your own goals for steps, water and healthy meals, pick the pet's bedtime, turn vibration on or off, or start over with a new pet.
+- **Daily Goals & Settings**: Set your own goals for steps, water and healthy meals, pick the pet's bedtime, turn vibration on or off, or start over and hatch a new Thriveling.
 - **Haptic Feedback**: A purr when petted, a success buzz when you reach a daily goal, a fanfare on evolution, and a tick when a vital fills up.
 - **Wear OS Carousel Tile**: Swipe from your watch face to glance at your companion's status, and log a glass of water with one tap.
 - **Watch Face Complications**: *Pet Mood* shows the pet's mood and overall health. *Pet Steps* shows today's steps towards your step goal.
