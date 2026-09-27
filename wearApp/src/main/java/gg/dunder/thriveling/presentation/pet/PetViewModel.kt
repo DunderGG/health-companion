@@ -214,7 +214,8 @@ class PetViewModel(
      *   when petting isn't in [careCooldowns] (DD-61). The pet screen collects [careCooldowns] whenever the pet
      *   can be tapped, so it is current here.
      * - Dispatches [HabitType.PettingInteraction] to award happiness and XP in the game engine. The repository
-     *   rewards at most one pet an hour (DD-60); the hop and the purr still play for every accepted tap.
+     *   rewards at most one pet an hour (DD-60); an unrewarded tap still hops, with a single tick instead of
+     *   the purr (DD-61).
      *
      * @return `true` if petting was accepted; `false` if rejected due to active cooldown.
      */
@@ -225,7 +226,7 @@ class PetViewModel(
         }
         lastPetTimestamp = now
         val rewarded = CareAction.PETTING !in careCooldowns.value
-        pettingAccepted.tryEmit(PetHapticEvent.PETTING)
+        pettingAccepted.tryEmit(if (rewarded) PetHapticEvent.PETTING else PetHapticEvent.PETTING_UNREWARDED)
         viewModelScope.launch {
             _petting.value = if (rewarded) PettingReaction.REWARDED else PettingReaction.UNREWARDED
             logHabitUseCase.execute(HabitType.PettingInteraction(1.0f))

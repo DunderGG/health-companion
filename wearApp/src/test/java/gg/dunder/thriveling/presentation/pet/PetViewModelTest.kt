@@ -161,10 +161,11 @@ class PetViewModelTest {
     }
 
     @Test
-    fun `a rewarded pet shows hearts, a pet in the reward cooldown only hops`() = runTest(dispatcher) {
+    fun `a rewarded pet shows hearts and purrs, a pet in the reward cooldown only hops and ticks`() = runTest(dispatcher) {
         val viewModel = viewModel()
         val states = collect(viewModel)
         backgroundScope.launch { viewModel.careCooldowns.collect {} }
+        val haptics = collectHaptics(viewModel)
         now = start + PetViewModel.PET_COOLDOWN_MS
 
         viewModel.petCompanion()
@@ -180,6 +181,7 @@ class PetViewModelTest {
         runCurrent()
         val content = states.last() as PetUiState.Success
         assertEquals(true to false, content.isPettingFeedbackActive to content.isPettingRewarded)
+        assertEquals(listOf(PetHapticEvent.PETTING, PetHapticEvent.PETTING_UNREWARDED), haptics)
     }
 
     @Test

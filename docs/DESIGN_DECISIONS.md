@@ -1048,18 +1048,20 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
   - Petting events are stored in the habit history only when rewarded.
 
 ### DD-61 — Hearts show only when a pet earns happiness
-- **Status**: Accepted (2026-09-27). The project owner wanted a rewarded pet to look different from one during the reward cooldown (DD-60), with the change limited to the hearts until the pet's drawing and animation are settled.
+- **Status**: Accepted (2026-09-27). The project owner wanted a rewarded pet to look different from one during the reward cooldown (DD-60), with the change limited to the hearts until the pet's drawing and animation are settled. The same day, the owner asked for the vibration to differ too.
 - **Decision**:
   - A rewarded pet looks as before: the hop, the happiest face and the three-heart burst. A pet during the reward cooldown gets the hop and the face without the hearts.
-  - The purr plays for both. Only the hearts differ.
+  - A rewarded pet purrs as before (four soft ticks). A pet during the cooldown gets a single soft tick (`PetHapticEvent.PETTING_UNREWARDED`), the shortest and softest pattern, also played as touch feedback.
   - `PetViewModel.petCompanion` chooses the reaction at tap time from `careCooldowns`, the same state that dims the food and water buttons, and keeps it for the whole 1.5 s reaction. `ModernPetCanvas` takes a `showHearts` flag.
 - **Why**:
   - Hearts that appear only on a reward teach the rule without text: hearts mean happiness went up.
   - The reaction has to start at once, so it can't wait for the repository's answer. The cooldown state mirrors the repository's rule, and the two disagree only if a pet is logged elsewhere at the same instant, which nothing does.
   - The pet's drawing and animation may be redone, so a new face or movement for the cooldown pet (a content squint, a lean into the finger) is left for then.
+  - The vibration is cheap to change and not tied to the drawing, and it tells the two apart without looking at the screen. A single tick still says "noticed", so the pet never feels unresponsive.
 - **Alternatives**:
-  - A distinct cooldown reaction (squint and lean, a single soft tick instead of the purr): clearer, but it means new drawing and haptic work that may be replaced.
+  - A distinct cooldown animation (a content squint, a lean into the finger): clearer, but it means new drawing work that may be replaced.
+  - No vibration for a cooldown pet: the tap would feel ignored.
   - A floating "+5": clear, but it turns the pet into a number and crowds the small screen.
   - A countdown to the next rewarded pet: makes petting feel like a chore on a timer.
 - **Consequences**:
-  - Until the cooldown state is read after the screen opens, a pet shows hearts even if it will not be rewarded. This lasts only until the first database read.
+  - Until the cooldown state is read after the screen opens, a pet shows hearts and purrs even if it will not be rewarded. This lasts only until the first database read.

@@ -208,13 +208,13 @@ On the emulator, use the rotary control in the extended controls (**⋯**), or `
 
 ### V11 — Haptics ([DD-47](DESIGN_DECISIONS.md#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only)) — physical watch for the feel
 `adb shell dumpsys vibrator_manager` lists every vibration with its primitives, so the emulator can confirm what was played. Only a watch shows how it feels.
-- [ ] Tapping the pet (outside its 10 s cooldown) plays the purr: four `TICK` primitives with `usage: TOUCH`. A tap during the cooldown plays nothing.
+- [ ] Tapping the pet (outside its 10 s cooldown) plays the purr: four `TICK` primitives with `usage: TOUCH`. A tap during the cooldown plays nothing. Within an hour of a rewarded pet, a tap plays a single `TICK` with `usage: TOUCH` instead ([DD-61](DESIGN_DECISIONS.md#dd-61--hearts-show-only-when-a-pet-earns-happiness)).
 - [ ] With the app open, meeting a daily goal plays the goal pattern once (`QUICK_RISE` + two `CLICK`s). The quickest way is on a fresh day, or after clearing app data: log 6 × 250 ml (water goal), then 2 healthy meals (meal goal); each plays it once. Food and water can each be logged once an hour (DD-59), so set the clock forward an hour between taps (§0), staying on the same day. Goals already reached before the app was opened play nothing.
 - [ ] An evolution while the app is open plays the fanfare (`SLOW_RISE`, `QUICK_FALL`, three `CLICK`s), and a goal reached by the same write doesn't cut it off.
 - [ ] With the app closed, reaching a goal through a sensor batch doesn't vibrate.
 - [ ] With hydration below 100 %, tapping water until it shows 100 % plays the light tick (`TICK` + `CLICK`) once ([DD-50](DESIGN_DECISIONS.md#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream)). If the same tap reaches the water goal, only the goal pattern plays. Nothing plays for a vital that fills up during the night.
 - [ ] Close the app, let the pet evolve or fill hydration from the tile, wait over 5 s and reopen: nothing vibrates.
-- [ ] On the wrist, the four patterns are easy to tell apart, the purr feels soft, and the tick is the lightest.
+- [ ] On the wrist, the five patterns are easy to tell apart, the purr feels soft, and the single petting tick is the lightest.
 
 ### V12 — Settings ([DD-48](DESIGN_DECISIONS.md#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype))
 Open the last pager page and tap **Settings**. On the emulator, turn the crown with `adb shell input rotaryencoder scroll --axis SCROLL,-1` (V10).
@@ -241,7 +241,7 @@ The third pager page. Easiest on a fresh day, or after clearing app data.
 - [ ] An hour after the tap, the button brightens on its own with the screen open, and after reopening the app. Setting the clock forward an hour (§0) does the same.
 - [ ] A drink logged on the tile dims the water button in the app.
 - [ ] Setting the clock back after a tap doesn't keep the button dimmed for longer than an hour.
-- [ ] Petting ([DD-60](DESIGN_DECISIONS.md#dd-60--healthy-meals-give-energy-snacks-give-happiness-petting-rewards-once-an-hour)): the first pet raises happiness on the Vitals page. Petting again within the hour hops and purrs without hearts ([DD-61](DESIGN_DECISIONS.md#dd-61--hearts-show-only-when-a-pet-earns-happiness)), and happiness doesn't rise. After the hour, the hearts come back.
+- [ ] Petting ([DD-60](DESIGN_DECISIONS.md#dd-60--healthy-meals-give-energy-snacks-give-happiness-petting-rewards-once-an-hour)): the first pet raises happiness on the Vitals page. Petting again within the hour hops without hearts and plays a single tick instead of the purr ([DD-61](DESIGN_DECISIONS.md#dd-61--hearts-show-only-when-a-pet-earns-happiness)), and happiness doesn't rise. After the hour, the hearts come back.
 - [ ] A healthy meal raises hunger by 30 and energy by 5, and happiness stays the same.
 
 ---

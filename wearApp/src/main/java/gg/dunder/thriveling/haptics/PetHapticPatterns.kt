@@ -6,22 +6,28 @@ package gg.dunder.thriveling.haptics
 import android.os.VibrationEffect
 
 /**
- * Moments the wrist should feel (DD-47, DD-50), from least to most important.
+ * Moments the wrist should feel (DD-47, DD-50, DD-61), from least to most important.
  *
  * @property priority A pattern never cuts off one with a higher priority that is still playing.
  */
 enum class PetHapticEvent(val priority: Int) {
+    /** A tap on the pet was accepted, but petting is in its reward cooldown (DD-61): one soft tick. */
+    PETTING_UNREWARDED(0),
+
     /** A vital just reached 100 % on screen (DD-50): a light tick-click, lighter than a goal. */
     VITAL_FILLED(0),
 
-    /** A tap on the pet was accepted (not in its cooldown): a soft purr. */
+    /** A tap on the pet was accepted and earns happiness (DD-60): a soft purr. */
     PETTING(1),
 
     /** Today's habits just reached a daily focus goal (e.g. 6,000 steps): a short success pattern. */
     GOAL_REACHED(2),
 
     /** The pet grew into its next stage: a longer fanfare. */
-    EVOLUTION(3)
+    EVOLUTION(3);
+
+    /** A reaction to a tap on the pet, played as touch feedback. */
+    val isPetting: Boolean get() = this == PETTING || this == PETTING_UNREWARDED
 }
 
 /**
@@ -50,10 +56,20 @@ data class HapticPattern(
     val fallbackDurationMs: Long get() = fallbackTimings.sum()
 }
 
-/** The four patterns. They differ in length and shape, so they can be told apart without looking. */
+/** The five patterns. They differ in length and shape, so they can be told apart without looking. */
 object PetHapticPatterns {
 
-    /** A light tick and a click: "topped up". About 0.1 s, the shortest and softest pattern. */
+    /**
+     * A single soft tick, the purr's first beat: "noticed", without a reward. The shortest and softest
+     * pattern.
+     */
+    val PETTING_UNREWARDED = HapticPattern(
+        steps = listOf(HapticStep(VibrationEffect.Composition.PRIMITIVE_TICK, 0.4f)),
+        fallbackTimings = longArrayOf(0, 20),
+        fallbackAmplitudes = intArrayOf(0, 70)
+    )
+
+    /** A light tick and a click: "topped up". About 0.1 s. */
     val VITAL_FILLED = HapticPattern(
         steps = listOf(
             HapticStep(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f),
@@ -100,6 +116,7 @@ object PetHapticPatterns {
     )
 
     fun of(event: PetHapticEvent): HapticPattern = when (event) {
+        PetHapticEvent.PETTING_UNREWARDED -> PETTING_UNREWARDED
         PetHapticEvent.VITAL_FILLED -> VITAL_FILLED
         PetHapticEvent.PETTING -> PETTING
         PetHapticEvent.GOAL_REACHED -> GOAL_REACHED

@@ -44,7 +44,7 @@ class PetHaptics(context: Context) {
         if (!arbiter.tryStart(event, SystemClock.elapsedRealtime())) return
 
         val effect = effectFor(PetHapticPatterns.of(event))
-        if (event == PetHapticEvent.PETTING && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (event.isPetting && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH))
         } else {
             vibrator.vibrate(effect)
