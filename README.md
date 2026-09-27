@@ -1,11 +1,17 @@
-# Thriveling (Wear OS)
+# Thriveling
+
+*A little creature on your wrist that thrives when you do.*
 
 [![CI](https://github.com/DunderGG/thriveling/actions/workflows/ci.yml/badge.svg)](https://github.com/DunderGG/thriveling/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Wear OS](https://img.shields.io/badge/Wear%20OS-3.0%2B%20(API%2030%2B)-4285F4?logo=wearos&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
 
-A health-mirroring virtual pet companion for Wear OS smartwatches, inspired by the classic Tamagotchi toy. Your companion's vitals (Energy, Hydration, Nutrition, Fitness, and Happiness) directly reflect your real-world habits.
+Thriveling is a virtual pet for Wear OS smartwatches, in the spirit of the classic Tamagotchi. Unlike a Tamagotchi, its needs aren't made up: they're yours. Walk, drink water, eat well and keep to a bedtime, and your Thriveling stays happy, grows and evolves. Neglect those habits, and it gets tired, thirsty and hungry. Its five vitals (Energy, Hydration, Nutrition, Fitness and Happiness) mirror how you're looking after yourself.
+
+The idea is that healthy habits are easier to keep when they feel like caring for someone rather than chasing a streak. A thirsty little friend is a friendlier nudge to drink water than a number on a dashboard.
+
+**About the name:** *thrive* + *-ling*, the English ending for something small and young, as in *duckling* or *hatchling*. A Thriveling is a little creature that thrives when you do.
 
 <p align="center">
   <img src="docs/images/pet.gif" alt="The pet on a round Wear OS watch, surrounded by its vitals ring, with buttons to log a meal or water" width="300">
