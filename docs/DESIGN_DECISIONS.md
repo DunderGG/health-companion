@@ -117,8 +117,8 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Status**: Accepted (retroactive).
 - **Decision**: The app runs entirely on the watch (`com.google.android.wearable.standalone = true`). There is no phone app and no Data Layer sync.
 - **Why**: Users often leave the phone behind during workouts. A standalone app is simpler to build and ship.
-- **Alternatives**: Phone + watch pair with Data Layer sync (planned as optional Phase 5).
-- **Consequences**: All state, logic, and history live on the watch. No backup or export until Phase 5.
+- **Alternatives**: Phone + watch pair with Data Layer sync (an optional phone companion app is listed under General Improvements in the roadmap).
+- **Consequences**: All state, logic, and history live on the watch. No backup or export until the cloud backup and local backup items in the roadmap are done.
 
 ### DD-02 — Decay-on-read instead of background ticking
 - **Status**: Accepted (retroactive).
@@ -753,7 +753,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
   - A settings button on the vitals page: there is no room on a round screen.
   - Preset pickers (e.g. 4k / 6k / 8k / 10k steps): fewer taps, less flexible.
   - A time picker with minutes for bedtime: more precision than decay needs, and wrapping around midnight would need validation.
-  - Settings in a phone app: there is none yet (Phase 5).
+  - Settings in a phone app: there is none yet (an optional phone companion app is a roadmap idea).
 - **Consequences**:
   - Decay is computed from the last write with the *current* bedtime. Changing the bedtime therefore reinterprets the time since the last write once, which can shift energy by a few percent.
   - Lowering a goal below today's progress doesn't vibrate. The settings screens replace the pager, so the haptics aren't collected there, and returning to the pet takes a fresh baseline (DD-47).

@@ -165,22 +165,6 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 
 ---
 
-## Phase 4: Gamification, Evolution & Mini-Games
-- [ ] Expanded visual evolutions: Distinct vector sprites for Egg, Hatchling, Child, Teen, Adult, and Ancient Sage.
-- [ ] Archetype transformations: Visual accessories for Swift Strider (running headband), Zen Ascetic (halo/lotus aura), and Mighty Titan (armbands).
-- [ ] Watch mini-game: Rhythmic breathing exercise / water catch mini-game using the rotary dial.
-- [ ] Sound effects: Subtle, retro-modern chimes on goal achievement.
-
----
-
-## Phase 5: Ecosystem & Companion Mobile App (Optional)
-- [ ] Android companion phone app module (`:phoneApp`).
-- [ ] Wearable Data Layer API sync: Two-way sync between watch and phone.
-- [ ] Detailed health charts: Weekly activity trends, water intake logs, and meal history.
-- [ ] Cloud backup and companion export/import.
-
----
-
 ## Testing & Verification
 
 - **Unit tests**: `./gradlew test` (Windows: `.\gradlew.bat test`).
@@ -189,7 +173,7 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 ---
 
 ## General Improvements
-Ideas that aren't tied to a phase, grouped by theme. Some of the rewards and personality items could move into Phase 4 once that phase is planned in detail.
+>The Future of the Health Companion.
 
 **Priority** (same colors as Phase 2a):
 - 🔴 **High**: fixes a fairness, data-loss or core-loop gap, or is cheap and makes the pet feel owned. Do these first.
@@ -213,6 +197,8 @@ Ideas that aren't tied to a phase, grouped by theme. Some of the rewards and per
 - [ ] 🔴 **Evolution ceremony**: a full-screen moment (animation, haptic fanfare, "Aura evolved into a Teen!") instead of a silent stage change, including an archetype reveal at `TEEN`.
 - [ ] 🟡 🟣 **Sickness from neglect**: a vital stuck at 0 for several hours makes the pet sick (a visual state plus slower recovery), and it takes sustained care to recover, not a single tap. It has to stay gentle for a health app.
 - [ ] 🔴 🟣 **What happens after long neglect**: the classic answer is that the pet dies. The alternatives are that it goes dormant or hibernates, runs away and comes back once the user is active again, or never reaches a failure state at all. This should be settled before sickness is built.
+- [ ] 🟢 **Expanded visual evolutions**: distinct vector sprites for Egg, Hatchling, Child, Teen, Adult and Ancient Sage.
+- [ ] 🟢 **Archetype transformations**: visual accessories for Swift Strider (running headband), Zen Ascetic (halo / lotus aura) and Mighty Titan (armbands).
 - [ ] 🟢 **Legacy and generations**: an `ANCIENT_SAGE` can "retire", and the next egg inherits a trait or color from it. A **memorial / hall of fame** lists past pets (name, age, archetype, lifetime steps), which also gives "Start over" (DD-52) something to keep.
 
 ### Personality & Expression
@@ -230,19 +216,26 @@ Ideas that aren't tied to a phase, grouped by theme. Some of the rewards and per
 - [ ] 🟢 **Achievements / badges**: e.g. first 10k-step day, 7-day hydration streak, first evolution, 100 pets. Shown on a trophy page.
 - [ ] 🟢 **Items and inventory**: toys, food varieties and backgrounds, earned through activity (e.g. a coin per 1,000 steps). A toy gives a happiness bonus and plays its own animation.
 - [ ] 🟢 **Surprise moments**: an occasional random event (the pet finds a gift, a butterfly visits) to reward opening the app without making it a slot machine.
-- [ ] 🟢 **Pet journal**: a daily line from the pet's perspective ("We walked 8,214 steps together today!") and a weekly recap, which is simpler on the watch than the Phase 5 charts.
+- [ ] 🟢 **Pet journal**: a daily line from the pet's perspective ("We walked 8,214 steps together today!") and a weekly recap, which is simpler on the watch than the phone app's charts.
+- [ ] 🟢 **Watch mini-game**: a rhythmic breathing exercise or a water-catch mini-game played with the rotary dial.
 
 ### Notifications & Surfaces
 - [ ] 🟢 **Attention calls**: besides critical-vital alerts, the pet occasionally "calls" (at most a few times a day, never at night) when it wants to play or go for a walk. The Tamagotchi call, but rate-limited.
 - [ ] 🟡 **Richer tile**: show the pet's most urgent need as an icon, and add a quick "feed" action next to "+250 ml Water".
 - [ ] 🟢 **Pet watch face** (Watch Face Format): the pet lives on the watch face itself, with the time and the vitals ring. It is the most direct way to have it "always with you".
 - [ ] 🟢 **Notification sound and vibration identity**: a consistent sound and vibration signature per alert type, so the user knows what the pet wants without looking.
+- [ ] 🟢 **Sound effects**: subtle, retro-modern chimes on goal achievement.
 
 ### Wellbeing & Fairness
 - [ ] 🔴 **Rest / sick-day mode**: pause or slow decay for a day or more when the user is ill or on holiday, so the app never punishes real-life rest.
 - [ ] 🟡 🟣 **Off-wrist and charging**: decide whether decay should slow while the watch is charging or off the wrist (overnight charging currently overlaps with the night window).
 - [ ] 🟡 **No guilt-tripping**: review notification and mood copy to make sure it encourages rather than shames, especially for sickness and neglect states.
 - [ ] 🟡 **Timezone travel**: make the day rollover, night window and goals behave sensibly when the user crosses timezones (no double day, no missed night).
+
+### Phone Companion App
+- [ ] 🟢 **Phone app module**: an optional Android companion app (`:phoneApp`).
+- [ ] 🟢 **Watch–phone sync**: two-way sync between the watch and the phone over the Wearable Data Layer API.
+- [ ] 🟢 **Detailed health charts**: weekly activity trends, water intake logs and meal history on the phone.
 
 ### Accessibility & Localization
 - [ ] 🟡 **TalkBack**: content descriptions for the pet's mood, vitals and goal progress on every screen, the tile and the complications.
@@ -252,6 +245,7 @@ Ideas that aren't tied to a phase, grouped by theme. Some of the rewards and per
 
 ### Performance, Reliability & Tooling
 - [ ] 🔴 **Battery usage**: make sure background services and sensors are managed efficiently to minimize battery drain (see B1–B6 in [VERIFICATION.md](VERIFICATION.md)).
-- [ ] 🔴 **Local backup**: Android Auto Backup rules so the pet survives a reinstall or a new watch before the Phase 5 cloud backup exists.
+- [ ] 🔴 **Local backup**: Android Auto Backup rules so the pet survives a reinstall or a new watch before a cloud backup exists.
+- [ ] 🟢 **Cloud backup**: back up the pet to the cloud, plus export / import of the companion.
 - [ ] 🟡 **Debug menu** (debug builds only): set vitals, XP, stage and a fake clock offset to test evolution, sickness and night behavior quickly. Also a place to show the silent row repairs from DD-20.
-- [ ] 🟢 **Line Implication**:  We have circle implications
+- [ ] 🟢 **Line Implication**:  We have circle complications, but a line complication could provide a more continuous view of the pet's vitals and activity throughout the day.
