@@ -30,6 +30,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype): goal ranges and increments, bedtime hours, and a configurable strength goal?
 > - [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream): should all five vitals tick when they fill up?
 > - [DD-52](#dd-52--start-over-deletes-the-pet-and-its-history-keeps-settings-and-sensor-bookkeeping): what starting over keeps, and a name for the new pet?
+> - [DD-55](#dd-55--the-app-is-called-thriveling-the-applicationid-is-chosen-last): the `applicationId`, and trademark and domain checks for Thriveling?
 
 > [!WARNING]
 > **🟠 Needs verification on an emulator or watch** (step-by-step instructions: [VERIFICATION.md](VERIFICATION.md))
@@ -47,6 +48,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 > - [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream): the "vital filled up" tick on a real motor, lighter than the goal pattern.
 > - [DD-51](#dd-51--step-progress-is-a-second-complication-pet-steps): both Pet Steps types on real watch faces, and updates after a batch or a goal change.
 > - [DD-53](#dd-53--the-archetype-moves-to-a-pet-details-screen-the-pets-name-and-stage-never-reach-the-ring): whether the smaller meal and water buttons and the "i" and ⚠ buttons are easy to hit on a real watch, and the curved name in ambient mode.
+> - [DD-55](#dd-55--the-app-is-called-thriveling-the-applicationid-is-chosen-last): whether "Thriveling" fits the launcher label on a small round screen.
 
 ---
 
@@ -108,6 +110,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-52](#dd-52--start-over-deletes-the-pet-and-its-history-keeps-settings-and-sensor-bookkeeping) | "Start over" deletes the pet and its history, keeps settings and sensor bookkeeping | Persistence / UI | Accepted · 🟣 your call |
 | [DD-53](#dd-53--the-archetype-moves-to-a-pet-details-screen-the-pets-name-and-stage-never-reach-the-ring) | The archetype moves to a pet details screen; the pet's name and stage never reach the ring | UI | Accepted · 🟠 verify on device |
 | [DD-54](#dd-54--the-goals-page-counts-its-four-rows-and-each-one-filling-up-vibrates) | The goals page counts its four rows, and each one filling up vibrates | UI / game design | Accepted |
+| [DD-55](#dd-55--the-app-is-called-thriveling-the-applicationid-is-chosen-last) | The app is called Thriveling; the `applicationId` is chosen last | Brand | Accepted · 🟣 your call · 🟠 verify on device |
 
 ---
 
@@ -918,3 +921,31 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Consequences**:
   - Up to four goal vibrations a day instead of three.
   - The goals page counts water and meals separately, but the details screen's goal days count them as one ("Water & meals"), since those follow the archetype's focus goals.
+
+---
+
+## Brand identity (Phase 2b)
+
+### DD-55 — The app is called Thriveling; the `applicationId` is chosen last
+- **Status**: Accepted (2026-09-27). The project owner chose the name, and asked for the `applicationId` to be the final step of the rebrand.
+- **Decision**:
+  - The app is called **Thriveling**: a small creature ("-ling") that thrives when you do. The pet can still get its own name on top.
+  - The rebrand runs in the order of [ROADMAP.md Phase 2b](ROADMAP.md#phase-2b-brand-identity--naming): app name and code names, docs, GitHub repository, and finally the `applicationId` together with the Kotlin package.
+- **Why**:
+  - The app is about taking care of a pet, so the name should sound like a creature rather than a wellness brand.
+  - It is a coined word, which is easier to own and find than a descriptive name such as "WristPal". A quick web search (2026-09-27) found no app with that name, only an artist's handle and a fan-made species in a forum game.
+  - The `applicationId` is the only permanent part: Google Play identifies the app by it, and it can never change after the first upload. The Kotlin package normally shares its prefix, so both are renamed together, once.
+- **Alternatives**:
+  - The curated candidates (Resona, Symbio, Vitalkin, Paravita, Vitecho, AuraSync): they sound like wellness brands rather than a pet. AuraSync also collides with ASUS's *Aura Sync* lighting brand.
+  - Descriptive names such as WristPal: clear, but hard to trademark or find in search, and close to the existing Wristpet app.
+  - Other "-ling" names: Zestling is shorter and still looked free, while Glowling and Bloomling are taken (Bloomlings is a kids' pet app with a very similar idea).
+- **Consequences**:
+  - At 10 characters, "Thriveling" may be cut off in the Wear OS launcher on small round screens. If so, the Play Store listing keeps the full name and the launcher label gets a shorter one.
+  - Many wellness apps start with "Thrive", so a Play Store search for "thrive" alone will be crowded.
+  - Until the final step, the source keeps the `com.healthcompanion.*` package and the `com.healthcompanion.wear` `applicationId`.
+
+> [!IMPORTANT]
+> **🟣 Your call:** the `applicationId`, before the first Play Store upload. Also check trademarks (EUIPO/USPTO) and the `thriveling.app` / `thriveling.com` domains.
+
+> [!WARNING]
+> **🟠 Verify on device:** whether "Thriveling" fits the launcher label on a small round screen.

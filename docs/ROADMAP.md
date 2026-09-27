@@ -93,38 +93,43 @@ Open work that came out of the review. None of it blocks merging the remediation
 ---
 
 ## Phase 2b: Brand Identity & Naming
-- [ ] **Final Naming Decision**: Choose official app & companion name from curated candidates:
+- [x] **Final Naming Decision**: the app is called **Thriveling**, a small creature that thrives when you do (DD-55). Candidates that were considered:
   - **Resona**: Resonating with your body’s biological rhythms and habits.
   - **Symbio**: Two organisms mutually flourishing in biological symbiosis.
   - **Vitalkin**: A kindred wrist companion sharing your life-energy.
   - **Paravita**: A creature living a parallel life alongside your daily routine.
   - **Vitecho**: A responsive companion where daily habits echo directly into vitals.
   - **AuraSync**: Synchronizing your aura and well-being directly with watch sensors.
-- [ ] **Brand Refactor**: Update all references to the working title across the project:
-  - **App identity**
-    - [ ] `wearApp/src/main/res/values/strings.xml` — `app_name` string value (`"Health Companion"`)
-    - [ ] `wearApp/build.gradle.kts` — `namespace` and `applicationId` (`com.healthcompanion.wear`)
-    - [ ] `wearApp/src/main/AndroidManifest.xml` — `android:name=".HealthCompanionApp"` (if the Application class is renamed)
-  - **Kotlin source & package namespace** (affects all `.kt` files, including tests — use IDE refactor: *Rename Package*)
-    - [ ] All `package com.healthcompanion.*` declarations
-    - [ ] All `import com.healthcompanion.*` statements
-    - [ ] `core/*/build.gradle.kts` — `namespace` in each module (`com.healthcompanion.core.*`)
-    - [ ] `wearApp/src/main/java/com/healthcompanion/wear/HealthCompanionApp.kt` — class name and file
-    - [ ] `core/ui/src/main/java/com/healthcompanion/core/ui/theme/Theme.kt` — `HealthCompanionTheme` function name and all call sites
-    - [ ] Physical source directory tree (`src/main/java/com/healthcompanion/…`) — renamed automatically by IDE package refactor
-  - **Build configuration**
-    - [ ] `settings.gradle.kts` — `rootProject.name = "HealthCompanion"`
-  - **Documentation**
-    - [ ] `README.md` — title heading, CI badge URL, and `git clone` URL
-    - [ ] `docs/ARCHITECTURE.md` — `Health Companion` in overview, `HealthCompanionApp.kt` reference, package path in module diagram, `com/healthcompanion/wear/` source tree
-    - [ ] `docs/ROADMAP.md` — title heading (`# Health Companion: Project Roadmap`) and this checklist itself
-    - [ ] `docs/DESIGN_DECISIONS.md` and `docs/reviews/*.md` — `Health Companion` in the intros, and package paths such as `core/data/.../repository/`
-    - [ ] `CONTRIBUTING.md` — title, working-title note, `git clone` URL, `health-companion/` folder references, project structure tree
-    - [ ] `NOTICE` — project name and GitHub URL on lines 1 and 5
-  - **CI / GitHub**
-    - [ ] `.github/workflows/ci.yml` — `name:` field and the uploaded artifact name (`wearApp-debug`)
-    - [ ] GitHub repository name itself (Settings → Repository name) — this automatically redirects the old URL, but update all hardcoded URLs above to match
-    - [ ] README CI badge URL (`https://github.com/DunderGG/health-companion/…`)
+- [ ] **Brand Refactor**: Replace the working title across the project. The steps are ordered so that the permanent choice, the `applicationId`, comes last.
+  1. **App identity and code names** (no package change)
+     - [ ] `wearApp/src/main/res/values/strings.xml` — `app_name` (`"Health Companion"` → `"Thriveling"`)
+     - [ ] `wearApp/src/main/java/com/healthcompanion/wear/HealthCompanionApp.kt` — class and file → `ThrivelingApp`, plus `android:name` in `AndroidManifest.xml` and all call sites
+     - [ ] `core/ui/src/main/java/com/healthcompanion/core/ui/theme/Theme.kt` — `HealthCompanionTheme` → `ThrivelingTheme`, and all call sites
+     - [ ] `settings.gradle.kts` — `rootProject.name = "HealthCompanion"` → `"Thriveling"`
+     - [ ] `CompanionDatabase.DATABASE_NAME` — `health_companion.db` → `companion.db`, so the file name is not tied to any app name (DD-56)
+  2. **Documentation**
+     - [ ] `README.md` — title heading and the working-title note
+     - [ ] `docs/ARCHITECTURE.md` — `Health Companion` in the overview and prose, `HealthCompanionApp` references, the database file name
+     - [ ] `docs/ROADMAP.md` — title heading (`# Health Companion: Project Roadmap`)
+     - [ ] `docs/DESIGN_DECISIONS.md` and `docs/reviews/README.md` — `Health Companion` in the intros, `HealthCompanionApp` references in current entries. The dated review files are point-in-time records and keep the names they were written with.
+     - [ ] `CONTRIBUTING.md` — title and working-title note
+     - [ ] `NOTICE` and `SECURITY.md` — project name
+  3. **CI / GitHub**
+     - [ ] `.github/workflows/ci.yml` — uploaded artifact name (`wearApp-debug`)
+     - [ ] Rename the GitHub repository (Settings → Repository name, e.g. `thriveling`). GitHub redirects the old URLs, but only until someone creates a new repository with the old name, so update the hardcoded URLs right after:
+       - [ ] `README.md` — CI badge URL and `git clone` URL
+       - [ ] `CONTRIBUTING.md` — `git clone` URL, `health-companion/` folder references and the project structure tree
+       - [ ] `docs/ARCHITECTURE.md` — `health-companion/` in the source tree
+       - [ ] `NOTICE` — GitHub URL
+       - [ ] `.github/ISSUE_TEMPLATE/config.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/pull_request_template.md` — links to `DunderGG/health-companion`
+  4. **Final step: `applicationId` and package name.** The `applicationId` can never change after the first Play Store upload, and renaming the tile, complication and background service classes after launch would remove them from users' watches. Do this step before the first upload.
+     - [ ] Decide the `applicationId` (e.g. `com.dundergg.thriveling`, or `app.thriveling` if that domain is bought)
+     - [ ] `wearApp/build.gradle.kts` — `applicationId` and `namespace` (`com.healthcompanion.wear`)
+     - [ ] `core/*/build.gradle.kts` — `namespace` in each module (`com.healthcompanion.core.*`)
+     - [ ] All `package` and `import com.healthcompanion.*` statements, including tests, and the physical source directories (IDE refactor: *Rename Package*)
+     - [ ] `wearApp/src/main/AndroidManifest.xml` — fully qualified `PassiveDataService` and `BootCompletedReceiver` names
+     - [ ] `docs/VERIFICATION.md` — `adb` commands and Logcat filter using `com.healthcompanion.wear`
+     - [ ] `docs/ARCHITECTURE.md` and `docs/DESIGN_DECISIONS.md` — source links and paths containing `com/healthcompanion/`. The dated review files keep their links; GitHub serves them from the commit history.
 
 ---
 
