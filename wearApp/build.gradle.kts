@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.healthcompanion.wear"
+    namespace = "gg.dunder.thriveling"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.healthcompanion.wear"
+        applicationId = "gg.dunder.thriveling"
         minSdk = 30
         targetSdk = 36
         versionCode = 1

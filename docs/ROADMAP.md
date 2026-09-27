@@ -100,7 +100,7 @@ Open work that came out of the review. None of it blocks merging the remediation
   - **Paravita**: A creature living a parallel life alongside your daily routine.
   - **Vitecho**: A responsive companion where daily habits echo directly into vitals.
   - **AuraSync**: Synchronizing your aura and well-being directly with watch sensors.
-- [ ] **Brand Refactor**: Replace the working title across the project. The steps are ordered so that the permanent choice, the `applicationId`, comes last.
+- [x] **Brand Refactor**: Replace the working title across the project. The steps are ordered so that the permanent choice, the `applicationId`, comes last.
   1. **App identity and code names** (no package change)
      - [x] `wearApp/src/main/res/values/strings.xml` — `app_name` (`"Health Companion"` → `"Thriveling"`)
      - [x] `HealthCompanionApp` → `ThrivelingApp` (class and file), plus `android:name` in `AndroidManifest.xml` and all call sites
@@ -123,13 +123,13 @@ Open work that came out of the review. None of it blocks merging the remediation
        - [x] `NOTICE` — GitHub URL
        - [x] `.github/ISSUE_TEMPLATE/config.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/pull_request_template.md` — links to `DunderGG/health-companion`
   4. **Final step: `applicationId` and package name.** The `applicationId` can never change after the first Play Store upload, and renaming the tile, complication and background service classes after launch would remove them from users' watches. Do this step before the first upload ([Phase 4](#phase-4-play-store-release)).
-     - [ ] Decide the `applicationId` (e.g. `com.dundergg.thriveling`, or `app.thriveling` if that domain is bought)
-     - [ ] `wearApp/build.gradle.kts` — `applicationId` and `namespace` (`com.healthcompanion.wear`)
-     - [ ] `core/*/build.gradle.kts` — `namespace` in each module (`com.healthcompanion.core.*`)
-     - [ ] All `package` and `import com.healthcompanion.*` statements, including tests, and the physical source directories (IDE refactor: *Rename Package*)
-     - [ ] `wearApp/src/main/AndroidManifest.xml` — fully qualified `PassiveDataService` and `BootCompletedReceiver` names
-     - [ ] `docs/VERIFICATION.md` — `adb` commands and Logcat filter using `com.healthcompanion.wear`
-     - [ ] `docs/ARCHITECTURE.md` and `docs/DESIGN_DECISIONS.md` — source links and paths containing `com/healthcompanion/`. The dated review files keep their links; GitHub serves them from the commit history.
+     - [x] Decide the `applicationId`: `gg.dunder.thriveling`, from the owner's domain dunder.gg (DD-57)
+     - [x] `wearApp/build.gradle.kts` — `applicationId` and `namespace` (`com.healthcompanion.wear` → `gg.dunder.thriveling`)
+     - [x] `core/*/build.gradle.kts` — `namespace` in each module (`com.healthcompanion.core.*` → `gg.dunder.thriveling.core.*`)
+     - [x] All `package` and `import com.healthcompanion.*` statements, including tests, the physical source directories and the Room schema folder, which is named after `CompanionDatabase`'s fully qualified name
+     - [x] `wearApp/src/main/AndroidManifest.xml` — fully qualified `PassiveDataService` and `BootCompletedReceiver` names
+     - [x] `docs/VERIFICATION.md` — `adb` commands and Logcat filter using `com.healthcompanion.wear`
+     - [x] `docs/ARCHITECTURE.md` and `docs/DESIGN_DECISIONS.md` — source links and paths containing `com/healthcompanion/`. The dated review files keep their links; GitHub serves them from the commit history.
 
 ---
 

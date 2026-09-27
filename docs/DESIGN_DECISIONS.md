@@ -30,7 +30,7 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
 > - [DD-48](#dd-48--a-settings-screen-for-daily-goals-bedtime-and-haptics-goals-dont-change-the-archetype): goal ranges and increments, bedtime hours, and a configurable strength goal?
 > - [DD-50](#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream): should all five vitals tick when they fill up?
 > - [DD-52](#dd-52--start-over-deletes-the-pet-and-its-history-keeps-settings-and-sensor-bookkeeping): what starting over keeps, and a name for the new pet?
-> - [DD-55](#dd-55--the-app-is-called-thriveling-the-applicationid-is-chosen-last): the `applicationId`, and trademark and domain checks for Thriveling?
+> - [DD-55](#dd-55--the-app-is-called-thriveling-the-applicationid-is-chosen-last): trademark and domain checks for Thriveling?
 
 > [!WARNING]
 > **🟠 Needs verification on an emulator or watch** (step-by-step instructions: [VERIFICATION.md](VERIFICATION.md))
@@ -112,6 +112,7 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
 | [DD-54](#dd-54--the-goals-page-counts-its-four-rows-and-each-one-filling-up-vibrates) | The goals page counts its four rows, and each one filling up vibrates | UI / game design | Accepted |
 | [DD-55](#dd-55--the-app-is-called-thriveling-the-applicationid-is-chosen-last) | The app is called Thriveling; the `applicationId` is chosen last | Brand | Accepted · 🟣 your call · 🟠 verify on device |
 | [DD-56](#dd-56--the-database-file-has-a-neutral-name-companiondb-renamed-without-a-migration) | The database file has a neutral name, `companion.db`, renamed without a migration | Persistence / brand | Accepted |
+| [DD-57](#dd-57--the-applicationid-and-the-kotlin-package-are-ggdunderthriveling) | The `applicationId` and the Kotlin package are `gg.dunder.thriveling` | Brand / platform | Accepted |
 
 ---
 
@@ -943,10 +944,10 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
 - **Consequences**:
   - At 10 characters, "Thriveling" may be cut off in the Wear OS launcher on small round screens. If so, the Play Store listing keeps the full name and the launcher label gets a shorter one.
   - Many wellness apps start with "Thrive", so a Play Store search for "thrive" alone will be crowded.
-  - Until the final step, the source keeps the `com.healthcompanion.*` package and the `com.healthcompanion.wear` `applicationId`.
+  - Until the final step, the source keeps the `com.healthcompanion.*` package and the `com.healthcompanion.wear` `applicationId`. *Outcome: the final step chose `gg.dunder.thriveling` (DD-57).*
 
 > [!IMPORTANT]
-> **🟣 Your call:** the `applicationId`, before the first Play Store upload. Also check trademarks (EUIPO/USPTO) and the `thriveling.app` / `thriveling.com` domains.
+> **🟣 Your call:** check trademarks (EUIPO/USPTO) and the `thriveling.app` / `thriveling.com` domains before the first Play Store upload.
 
 > [!WARNING]
 > **🟠 Verify on device:** whether "Thriveling" fits the launcher label on a small round screen.
@@ -964,3 +965,23 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
   - Move `health_companion.db` (and its `-wal` / `-shm` files) on first start: keeps development pets, but is permanent code for a situation no real user will ever be in.
 - **Consequences**:
   - Updating an existing development install creates an empty `companion.db` and a new pet. The old file stays in the app's storage until the app is uninstalled.
+
+### DD-57 — The `applicationId` and the Kotlin package are `gg.dunder.thriveling`
+- **Status**: Accepted (2026-09-27). The project owner chose their own domain, dunder.gg, together with the app name. This settles DD-55's open `applicationId` question.
+- **Decision**:
+  - The `applicationId`, and the `:wearApp` namespace and package, are `gg.dunder.thriveling` (was `com.healthcompanion.wear`). There is no `.wear` suffix.
+  - The core modules are `gg.dunder.thriveling.core.*`. The Room schema folder follows the database's fully qualified name, so it moved to `core/data/schemas/gg.dunder.thriveling.core.data.db.CompanionDatabase/`, with unchanged contents.
+- **Why**:
+  - The reverse of a domain the owner holds is unique without registering anything. Google Play does not check domain ownership, but nobody else has a reason to use `gg.dunder.*`.
+  - Users almost never see the ID: it appears in the Play Store URL and the system's app info. If the app is renamed after launch, the ID stays behind quietly, as with Messenger (`com.facebook.orca`). A brand-free ID would guard against a rename that may never happen, and read worse in the meantime.
+  - Without a `.wear` suffix, a future phone app ([Phone Companion App](ROADMAP.md#phone-companion-app)) can share the same `applicationId`, which Google recommends so the watch and phone apps sit under one Play listing.
+  - The package could be renamed later, but the manifest's component class names (tile, complications, passive data service, boot receiver) cannot change after launch without removing them from users' watches, so both are renamed together now, before the first upload.
+- **Alternatives**:
+  - `com.dundergg.thriveling`, the placeholder in the roadmap: based on the GitHub handle, not on a domain the owner controls.
+  - `app.thriveling`: needs the domain to be bought first.
+  - A brand-free ID such as `gg.dunder.wearpet`: see *Why*.
+  - Keeping `com.healthcompanion.wear`: permanently tied to the working title.
+- **Consequences**:
+  - Android treats the new ID as a new app with empty storage. Existing development installs stay on the watch next to the new one, and must be removed with `adb uninstall com.healthcompanion.wear`. The new install starts with a new pet.
+  - The dated review files keep their old source links, which GitHub serves from the commit history.
+  - A `.debug` suffix for debug builds, so development and Play Store builds can be installed side by side, is planned in [ROADMAP.md Phase 4](ROADMAP.md#phase-4-play-store-release).

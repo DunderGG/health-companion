@@ -37,12 +37,12 @@ A **physical watch** is required for V7 (the emulator has no step detector) and 
 .\gradlew.bat :wearApp:installDebug
 adb logcat -s PassiveDataService HealthServicesManager PassiveRegistration VitalAlertWorker SensorLiveStepSource
 ```
-In Android Studio, use **Logcat** with the filter `package:com.healthcompanion.wear`.
+In Android Studio, use **Logcat** with the filter `package:gg.dunder.thriveling`.
 
 ### Start from a clean install
 Some checks (onboarding, first reading) need a fresh state:
 ```powershell
-adb uninstall com.healthcompanion.wear
+adb uninstall gg.dunder.thriveling
 .\gradlew.bat :wearApp:installDebug
 ```
 
@@ -81,21 +81,21 @@ Synthetic data only feeds **Health Services** (the passive batches). It does not
 
 From the command line:
 ```powershell
-adb shell dumpsys jobscheduler | Select-String -Context 0,15 healthcompanion
+adb shell dumpsys jobscheduler | Select-String -Context 0,15 gg.dunder.thriveling
 ```
 
 ### 1.3 Active sensors
 ```powershell
 adb shell dumpsys sensorservice
 ```
-Look at the **active connections** and recent registrations for `com.healthcompanion.wear`.
+Look at the **active connections** and recent registrations for `gg.dunder.thriveling`.
 
 ### 1.4 batterystats and Battery Historian
 ```powershell
 adb shell dumpsys battery unplug                 # count as "on battery" (emulator, or a watch on the charger)
 adb shell dumpsys batterystats --reset
 # ... run the scenario ...
-adb shell dumpsys batterystats --charged com.healthcompanion.wear > stats.txt
+adb shell dumpsys batterystats --charged gg.dunder.thriveling > stats.txt
 adb bugreport bugreport.zip                      # optional: for Battery Historian
 adb shell dumpsys battery reset                  # undo the unplug
 ```
@@ -120,9 +120,9 @@ adb shell dumpsys battery reset
 - **Profiler** (**View → Tool Windows → Profiler**) → **CPU** → **System Trace** (Perfetto): per-frame work of `ModernPetCanvas`, and main-thread activity.
 - Frame statistics:
   ```powershell
-  adb shell dumpsys gfxinfo com.healthcompanion.wear reset
+  adb shell dumpsys gfxinfo gg.dunder.thriveling reset
   # ... use the screen for a while ...
-  adb shell dumpsys gfxinfo com.healthcompanion.wear
+  adb shell dumpsys gfxinfo gg.dunder.thriveling
   ```
 
 ---
@@ -275,7 +275,7 @@ Force Doze (§1.5) with an alert check pending.
 
 ### B6 — Real-world cost (physical watch)
 1. Charge the watch fully, run `adb shell dumpsys batterystats --reset`, then wear it for a normal day with the app installed. Open the pet screen a few times and take at least one walk.
-2. Capture `dumpsys batterystats --charged com.healthcompanion.wear` and a bug report for Battery Historian.
+2. Capture `dumpsys batterystats --charged gg.dunder.thriveling` and a bug report for Battery Historian.
 3. Repeat on a comparable day without the app, or with it disabled, for a baseline.
 - [ ] Record the app's estimated mAh and its share of the total, plus the overall battery drop with and without the app.
 - [ ] Record the cost of a 15-minute walk with the pet screen on (live reactions) compared with screen off.

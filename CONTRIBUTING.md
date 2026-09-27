@@ -3,7 +3,7 @@
 Thank you for your interest in contributing! This document covers everything you need to get the project building locally and submit a pull request.
 
 > [!NOTE]
-> **Thriveling** was called *Health Companion* while it had a working title. Until the final rebrand step in [Phase 2b](docs/ROADMAP.md#phase-2b-brand-identity--naming), the Kotlin package and application ID keep the old name (`com.healthcompanion.*`). Keep using that package for new files.
+> **Thriveling** was called *Health Companion* while it had a working title. Older commits and the dated [reviews](docs/reviews/README.md) use that name and the old `com.healthcompanion.*` package. The package is now `gg.dunder.thriveling` (modules under `gg.dunder.thriveling.core.*`), which is also the application ID.
 
 ---
 

@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.healthcompanion.core.data"
+    namespace = "gg.dunder.thriveling.core.data"
     compileSdk = 36
 
     defaultConfig {

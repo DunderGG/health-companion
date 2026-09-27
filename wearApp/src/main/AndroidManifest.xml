@@ -47,13 +47,13 @@
 
         <!-- Health Services Passive Monitoring Receiver Service -->
         <service
-            android:name="com.healthcompanion.core.health.PassiveDataService"
+            android:name="gg.dunder.thriveling.core.health.PassiveDataService"
             android:permission="com.google.android.wearable.healthservices.permission.PASSIVE_DATA_BINDING"
             android:exported="true" />
 
         <!-- Passive registrations do not survive reboot: re-register via WorkManager on boot. -->
         <receiver
-            android:name="com.healthcompanion.core.health.BootCompletedReceiver"
+            android:name="gg.dunder.thriveling.core.health.BootCompletedReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
