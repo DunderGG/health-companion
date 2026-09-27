@@ -46,7 +46,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: wearApp-debug
+          name: thriveling-debug
           path: wearApp/build/outputs/apk/debug/wearApp-debug.apk
           retention-days: 7
 

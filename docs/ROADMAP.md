@@ -115,7 +115,7 @@ Open work that came out of the review. None of it blocks merging the remediation
      - [x] `CONTRIBUTING.md` — title and working-title note
      - [x] `NOTICE` and `SECURITY.md` — project name
   3. **CI / GitHub**
-     - [ ] `.github/workflows/ci.yml` — uploaded artifact name (`wearApp-debug`)
+     - [x] `.github/workflows/ci.yml` — uploaded artifact name (`wearApp-debug` → `thriveling-debug`; the APK file keeps the module name)
      - [ ] Rename the GitHub repository (Settings → Repository name, e.g. `thriveling`). GitHub redirects the old URLs, but only until someone creates a new repository with the old name, so update the hardcoded URLs right after:
        - [ ] `README.md` — CI badge URL and `git clone` URL
        - [ ] `CONTRIBUTING.md` — `git clone` URL, `health-companion/` folder references and the project structure tree
