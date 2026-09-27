@@ -46,7 +46,7 @@ import kotlinx.coroutines.launch
  *   lifespan of the ViewModel. When the user exits the screen, `viewModelScope` is cancelled automatically,
  *   cancelling all pending child tasks (analogous to C++20 `std::jthread` joining/cancelling on destruction).
  * - **Reactive Combination (`combine`)**: Merges the database stream (`GetPetStateUseCase`), local UI state
- *   (`_isPetting`) and the live step reaction (`ObservePetActivityUseCase`) into a single unified
+ *   (`_petting`) and the live step reaction (`ObservePetActivityUseCase`) into a single unified
  *   [PetUiState.Success] output stream.
  * - **Hot State (`.stateIn`)**:
  *   - Converts a cold stream into a hot, replayable `StateFlow` with an initial [PetUiState.Loading] value.
@@ -71,7 +71,7 @@ class PetViewModel(
     private val clock: Clock
 ) : ViewModel() {
 
-    private val _isPetting = MutableStateFlow(false)
+    private val _petting = MutableStateFlow(PettingReaction.NONE)
     private var lastPetTimestamp: Long = 0L
 
     private val isAmbient = MutableStateFlow(false)
@@ -98,13 +98,14 @@ class PetViewModel(
      */
     val uiState: StateFlow<PetUiState> = combine(
         getPetStateUseCase.execute(refresh = ambientUpdates),
-        _isPetting,
+        _petting,
         activity
-    ) { petWithMood, isPetting, activity ->
+    ) { petWithMood, petting, activity ->
         PetUiState.Success(
             pet = petWithMood.pet,
             mood = petWithMood.mood,
-            isPettingFeedbackActive = isPetting,
+            isPettingFeedbackActive = petting != PettingReaction.NONE,
+            isPettingRewarded = petting == PettingReaction.REWARDED,
             // A sleeping pet stays asleep rather than sleepwalking alongside the user (DD-39).
             activity = if (petWithMood.mood == Mood.SLEEPING) PetActivity.IDLE else activity
         )
@@ -124,8 +125,9 @@ class PetViewModel(
     )
 
     /**
-     * The care buttons in their one-hour cooldown, shown dimmed and not tappable (DD-59). Starts empty, so
-     * both buttons show as available until the history is read; the repository ignores an early tap anyway.
+     * The care actions in their one-hour cooldown: food and water buttons are shown dimmed and not tappable
+     * (DD-59), and a pet shows no hearts (DD-61). Starts empty, so everything shows as available until the
+     * history is read; the repository ignores an early tap anyway.
      */
     val careCooldowns: StateFlow<Set<CareAction>> = observeCareCooldownsUseCase.execute().stateIn(
         scope = viewModelScope,
@@ -208,24 +210,27 @@ class PetViewModel(
      *
      * ### Cooldown & Concurrency:
      * - Enforces a 10-second debounce cooldown ([PET_COOLDOWN_MS]) between petting sessions.
-     * - Activates [_isPetting] state for 1500ms to drive the UI heart burst and bouncy hop.
+     * - Activates [_petting] for 1500ms to drive the bouncy hop, and the heart burst if the pet is rewarded:
+     *   when petting isn't in [careCooldowns] (DD-61). The pet screen collects [careCooldowns] whenever the pet
+     *   can be tapped, so it is current here.
      * - Dispatches [HabitType.PettingInteraction] to award happiness and XP in the game engine. The repository
-     *   rewards at most one pet an hour (DD-60); the hearts and the purr still play for every accepted tap.
+     *   rewards at most one pet an hour (DD-60); the hop and the purr still play for every accepted tap.
      *
      * @return `true` if petting was accepted; `false` if rejected due to active cooldown.
      */
     fun petCompanion(): Boolean {
         val now = clock.nowMillis()
-        if (now - lastPetTimestamp < PET_COOLDOWN_MS || _isPetting.value) {
+        if (now - lastPetTimestamp < PET_COOLDOWN_MS || _petting.value != PettingReaction.NONE) {
             return false
         }
         lastPetTimestamp = now
+        val rewarded = CareAction.PETTING !in careCooldowns.value
         pettingAccepted.tryEmit(PetHapticEvent.PETTING)
         viewModelScope.launch {
-            _isPetting.value = true
+            _petting.value = if (rewarded) PettingReaction.REWARDED else PettingReaction.UNREWARDED
             logHabitUseCase.execute(HabitType.PettingInteraction(1.0f))
             delay(1500)
-            _isPetting.value = false
+            _petting.value = PettingReaction.NONE
         }
         return true
     }
@@ -257,3 +262,14 @@ private fun <T> Flow<T>.changes(): Flow<Pair<T, T>> = flow {
 }
 
 private object NoValue
+
+/** The petting reaction currently playing (DD-61). */
+private enum class PettingReaction {
+    NONE,
+
+    /** The pet earns happiness: hop and hearts. */
+    REWARDED,
+
+    /** Petting is in its reward cooldown: the hop only. */
+    UNREWARDED
+}

@@ -29,12 +29,14 @@ sealed interface PetUiState {
      * @property mood Derived emotional state ([Mood]) driving animations and expressions.
      * @property isPettingFeedbackActive When `true`, indicates that petting feedback (spring hop & hearts)
      *                                  is actively playing.
+     * @property isPettingRewarded Whether the current pet earns happiness, so the hearts show (DD-61).
      * @property activity Live gait mirroring the user's steps (walking / running alongside them).
      */
     data class Success(
         val pet: Pet,
         val mood: Mood,
         val isPettingFeedbackActive: Boolean = false,
+        val isPettingRewarded: Boolean = false,
         val activity: PetActivity = PetActivity.IDLE
     ) : PetUiState
 }

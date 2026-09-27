@@ -1032,7 +1032,7 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
     | Healthy meal | +30 | +5 energy (was +10 happiness) | 25 | yes |
     | Snack | +20 | +10 happiness (was −5 energy) | 5 | no |
 
-  - Petting is a `CareAction` with the same one-hour cooldown as food and water (DD-59): the repository rewards (+5 happiness, 5 XP) at most one pet an hour. Taps still get the hearts and the purr every 10 seconds (`PET_COOLDOWN_MS`); only the reward is limited.
+  - Petting is a `CareAction` with the same one-hour cooldown as food and water (DD-59): the repository rewards (+5 happiness, 5 XP) at most one pet an hour. Taps still get a reaction and the purr every 10 seconds (`PET_COOLDOWN_MS`); only the reward is limited.
 - **Why**:
   - With the healthy meal giving happiness as well, a snack's happiness was not special and nothing favoured choosing one. Now a snack is the comfort option, and a healthy meal the one that feeds and builds progress.
   - A snack costs less nutrition, much less XP, no progress towards the meal goal, and the food cooldown: choosing a snack means no healthy meal for an hour. That is enough of a trade-off, so the energy penalty the roadmap suggested is left out.
@@ -1044,5 +1044,22 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
   - A shorter petting cooldown (e.g. 30 minutes): a reasonable tuning later if petting feels stingy; the constant is shared, so it would need its own.
 - **Consequences**:
   - A healthy meal no longer cheers the pet up. Happiness now comes from water, steps, workouts, snacks and petting.
-  - A pet during the cooldown gives no sign that it earned nothing; the hearts look the same.
+  - A pet during the cooldown gives no sign that it earned nothing; the hearts look the same. *Update: the hearts now show only for a rewarded pet (DD-61).*
   - Petting events are stored in the habit history only when rewarded.
+
+### DD-61 — Hearts show only when a pet earns happiness
+- **Status**: Accepted (2026-09-27). The project owner wanted a rewarded pet to look different from one during the reward cooldown (DD-60), with the change limited to the hearts until the pet's drawing and animation are settled.
+- **Decision**:
+  - A rewarded pet looks as before: the hop, the happiest face and the three-heart burst. A pet during the reward cooldown gets the hop and the face without the hearts.
+  - The purr plays for both. Only the hearts differ.
+  - `PetViewModel.petCompanion` chooses the reaction at tap time from `careCooldowns`, the same state that dims the food and water buttons, and keeps it for the whole 1.5 s reaction. `ModernPetCanvas` takes a `showHearts` flag.
+- **Why**:
+  - Hearts that appear only on a reward teach the rule without text: hearts mean happiness went up.
+  - The reaction has to start at once, so it can't wait for the repository's answer. The cooldown state mirrors the repository's rule, and the two disagree only if a pet is logged elsewhere at the same instant, which nothing does.
+  - The pet's drawing and animation may be redone, so a new face or movement for the cooldown pet (a content squint, a lean into the finger) is left for then.
+- **Alternatives**:
+  - A distinct cooldown reaction (squint and lean, a single soft tick instead of the purr): clearer, but it means new drawing and haptic work that may be replaced.
+  - A floating "+5": clear, but it turns the pet into a number and crowds the small screen.
+  - A countdown to the next rewarded pet: makes petting feel like a chore on a timer.
+- **Consequences**:
+  - Until the cooldown state is read after the screen opens, a pet shows hearts even if it will not be rewarded. This lasts only until the first database read.

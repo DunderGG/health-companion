@@ -66,7 +66,8 @@ import gg.dunder.thriveling.core.ui.theme.SunsetOrange
  *
  * @param mood The companion's current emotional state ([Mood]) determining colors and expressions.
  * @param modifier Layout modifier applied to the character's bounding box.
- * @param isPetting When `true`, triggers a joyful hop animation and bursts floating heart particles.
+ * @param isPetting When `true`, triggers a joyful hop animation and, with [showHearts], bursts floating heart particles.
+ * @param showHearts `false` plays the petting hop without hearts, for a pet that earned no happiness (DD-61).
  * @param activity Live gait mirroring the user's steps: a bobbing trot when walking, a forward-leaning
  *                 sprint with speed lines when running. Transitions are eased, never snapped.
  * @param canvasSize Dimensions of the square drawing canvas in [Dp] (default: 140.dp).
@@ -77,6 +78,7 @@ fun ModernPetCanvas(
     mood: Mood,
     modifier: Modifier = Modifier,
     isPetting: Boolean = false,
+    showHearts: Boolean = true,
     activity: PetActivity = PetActivity.IDLE,
     canvasSize: Dp = 140.dp,
     displayMode: DisplayMode = DisplayMode.INTERACTIVE
@@ -159,8 +161,8 @@ fun ModernPetCanvas(
 
     // Dedicated upward burst animation for petting hearts
     val heartProgress by animateFloatAsState(
-        targetValue = if (isPetting) 1f else 0f,
-        animationSpec = if (isPetting) {
+        targetValue = if (isPetting && showHearts) 1f else 0f,
+        animationSpec = if (isPetting && showHearts) {
             tween(durationMillis = 1400, easing = FastOutSlowInEasing)
         } else {
             snap()

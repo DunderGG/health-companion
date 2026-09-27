@@ -161,6 +161,28 @@ class PetViewModelTest {
     }
 
     @Test
+    fun `a rewarded pet shows hearts, a pet in the reward cooldown only hops`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val states = collect(viewModel)
+        backgroundScope.launch { viewModel.careCooldowns.collect {} }
+        now = start + PetViewModel.PET_COOLDOWN_MS
+
+        viewModel.petCompanion()
+        runCurrent()
+        val rewarded = states.last() as PetUiState.Success
+        assertEquals(true to true, rewarded.isPettingFeedbackActive to rewarded.isPettingRewarded)
+
+        // The repository records the rewarded pet; the next pet falls within its hour.
+        repository.history.value = listOf(HabitEvent(HabitType.PettingInteraction(1.0f), now))
+        advanceTimeBy(2_000)
+        now += PetViewModel.PET_COOLDOWN_MS
+        viewModel.petCompanion()
+        runCurrent()
+        val content = states.last() as PetUiState.Success
+        assertEquals(true to false, content.isPettingFeedbackActive to content.isPettingRewarded)
+    }
+
+    @Test
     fun `growing into the next stage plays the evolution pattern once`() = runTest(dispatcher) {
         val viewModel = viewModel()
         val haptics = collectHaptics(viewModel)

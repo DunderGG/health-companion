@@ -186,6 +186,7 @@ fun PetScreen(
                             ModernPetCanvas(
                                 mood = mood,
                                 isPetting = state.isPettingFeedbackActive,
+                                showHearts = state.isPettingRewarded,
                                 activity = state.activity,
                                 canvasSize = petSize,
                                 displayMode = displayMode
