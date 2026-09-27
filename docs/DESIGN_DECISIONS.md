@@ -1004,7 +1004,7 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
 ### DD-59 — Food and water can each be logged once an hour
 - **Status**: Accepted (2026-09-27). The project owner asked for the care buttons to be rate-limited like petting, suggesting once an hour.
 - **Decision**:
-  - A meal and a drink can each be logged at most once per hour (`CareCooldown.COOLDOWN_MS`). They have separate cooldowns; a healthy meal and a snack share the food one. Petting keeps its own 10-second cooldown, and sensor habits have none.
+  - A meal and a drink can each be logged at most once per hour (`CareCooldown.COOLDOWN_MS`). They have separate cooldowns; every meal shares the food one, including the snack the model supports but the UI doesn't offer yet. Petting keeps its own 10-second cooldown, and sensor habits have none. *Update: petting's reward now has a one-hour cooldown too (DD-60).*
   - `PetRepositoryImpl.recordHabits` enforces it inside the write transaction, reading the last hour of the habit history. A meal or drink still in its cooldown is dropped. If nothing is left, nothing is written and the stored pet is returned.
   - `ObserveCareCooldownsUseCase` mirrors the rule for the UI. The pet screen dims the meal or water button and ignores taps on it (no vibration) until the cooldown ends. The flow wakes up when a cooldown ends, so the button brightens with the screen open.
   - An event stamped after "now" (the clock was set back) is ignored rather than blocking the button.
@@ -1021,3 +1021,28 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
   - The tile's water chip doesn't show the cooldown yet, so a tap there during the cooldown silently does nothing ([ROADMAP](ROADMAP.md#care-balance--anti-spam)).
   - Setting the clock back lets the user log again early. That falls under the open clock-change question in the roadmap.
   - A drink of any size counts as one; the app only logs 250 ml today.
+
+### DD-60 — Healthy meals give energy, snacks give happiness, petting rewards once an hour
+- **Status**: Accepted (2026-09-27). The project owner chose the balance, and asked for petting to be limited so it doesn't make snacks pointless. This is the balance half of the roadmap's *Treats vs. meals*; the snack button comes next.
+- **Decision**:
+  - Both kinds of meal restore nutrition, and each wins at one thing:
+
+    | | Hunger | Bonus | XP | Counts toward the meal goal |
+    |---|---|---|---|---|
+    | Healthy meal | +30 | +5 energy (was +10 happiness) | 25 | yes |
+    | Snack | +20 | +10 happiness (was −5 energy) | 5 | no |
+
+  - Petting is a `CareAction` with the same one-hour cooldown as food and water (DD-59): the repository rewards (+5 happiness, 5 XP) at most one pet an hour. Taps still get the hearts and the purr every 10 seconds (`PET_COOLDOWN_MS`); only the reward is limited.
+- **Why**:
+  - With the healthy meal giving happiness as well, a snack's happiness was not special and nothing favoured choosing one. Now a snack is the comfort option, and a healthy meal the one that feeds and builds progress.
+  - A snack costs less nutrition, much less XP, no progress towards the meal goal, and the food cooldown: choosing a snack means no healthy meal for an hour. That is enough of a trade-off, so the energy penalty the roadmap suggested is left out.
+  - Petting gave +5 happiness and 5 XP every 10 seconds without limit: a few taps outweighed a snack, and it was the easiest way to farm XP. Once an hour, +5 still more than covers happiness decay (2 per hour), so petting stays worthwhile.
+  - Limiting the reward rather than the tap keeps petting playful. The pet always reacts; the reward is quietly skipped, as with any habit in its cooldown.
+- **Alternatives**:
+  - Keeping +10 happiness on healthy meals and adding energy: the snack would have no reason to exist.
+  - A daily cap on petting rewards: harder to explain than the same hourly rule as the other care actions.
+  - A shorter petting cooldown (e.g. 30 minutes): a reasonable tuning later if petting feels stingy; the constant is shared, so it would need its own.
+- **Consequences**:
+  - A healthy meal no longer cheers the pet up. Happiness now comes from water, steps, workouts, snacks and petting.
+  - A pet during the cooldown gives no sign that it earned nothing; the hearts look the same.
+  - Petting events are stored in the habit history only when rewarded.

@@ -827,9 +827,9 @@ $$\text{decay} = \frac{\text{currentTime} - \text{lastUpdatedTimestamp}}{3600000
 | :--- | :--- | :--- | :--- | :--- |
 | **Fitness / Vitality** | 0–100 | $1.5\% / \text{hr}$ | Step and floor deltas, and rate-limited heart rate via `PassiveMonitoringClient`; active workouts *(planned)* | High fitness triggers athletic evolutions and energetic animations |
 | **Hydration** | 0–100 | $3.0\% / \text{hr}$ | $+250\text{ml}$ quick tap on watch / Tile | Thirsty pet appears droopy; sends gentle haptic reminder |
-| **Hunger / Nutrition**| 0–100 | $2.5\% / \text{hr}$ | Healthy Meal ($+30\%$) / Snack ($+20\%$) | Starving pet refuses to play; well-fed pet smiles and dances |
+| **Hunger / Nutrition**| 0–100 | $2.5\% / \text{hr}$ | Healthy meal ($+30\%$, plus $+5\%$ energy) / snack ($+20\%$, plus $+10\%$ happiness), together once an hour (DD-59, DD-60) | Starving pet refuses to play; well-fed pet smiles and dances |
 | **Energy** | 0–100 | $2.0\% / \text{hr}$ | Recovers at +8 %/hr during the pet's night (the user's bedtime, 22:00–07:00 local by default, `NightWindow`), computed per day/night segment. Real sleep sensing is planned | Sleepy pet yawns and sleeps when watch is in ambient mode |
-| **Happiness**| 0–100 | $2.0\% / \text{hr}$ | Weighted vitals + direct petting/rotary play | Drops if any vital < 20; unlocks tricks, dialogue bubbles, XP |
+| **Happiness**| 0–100 | $2.0\% / \text{hr}$ | Water ($+5\%$), steps, workouts, snacks ($+10\%$), and petting ($+5\%$, rewarded once an hour, DD-60) | Drops if any vital < 20; unlocks tricks, dialogue bubbles, XP |
 
 ### Evolution & Archetypes
 - **Evolution Stages**: `EGG` (Lv 0) $\rightarrow$ `HATCHLING` (Lv 1, 100 XP) $\rightarrow$ `CHILD` (Lv 2, 300 XP) $\rightarrow$ `TEEN` (Lv 3, 750 XP) $\rightarrow$ `ADULT` (Lv 4, 1500 XP) $\rightarrow$ `ANCIENT_SAGE` (Lv 5, 3000 XP).

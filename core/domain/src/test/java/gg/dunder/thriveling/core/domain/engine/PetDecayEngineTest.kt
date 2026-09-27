@@ -111,6 +111,20 @@ class PetDecayEngineTest {
     }
 
     @Test
+    fun `a healthy meal fills more and gives energy, a snack fills less and gives happiness`() {
+        val baseTime = 1_000_000_000L
+        val vitals = Vitals.starting(baseTime)
+
+        val (meal, mealXp) = PetDecayEngine.applyHabit(vitals, HabitType.Meal(isHealthy = true), baseTime, utc)
+        val (snack, snackXp) = PetDecayEngine.applyHabit(vitals, HabitType.Meal(isHealthy = false), baseTime, utc)
+
+        assertEquals(vitals.copy(hunger = 80f, energy = 55f), meal)
+        assertEquals(25, mealXp)
+        assertEquals(vitals.copy(hunger = 70f, happiness = 60f), snack)
+        assertEquals(5, snackXp)
+    }
+
+    @Test
     fun `applyHabit steps increases fitness and happiness`() {
         val baseTime = 1_000_000_000L
         val vitals = Vitals(

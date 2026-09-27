@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
  * @param logHabitUseCase Domain use case dispatching health habits and interactions.
  * @param observePetActivityUseCase Live walking/running reaction to the user's steps.
  * @param observeDailyProgressUseCase Today's goal progress, for the goals page and the goal haptic (DD-47, DD-49).
- * @param observeCareCooldownsUseCase Which care buttons are in their one-hour cooldown (DD-59).
+ * @param observeCareCooldownsUseCase Which care actions are in their one-hour cooldown (DD-59).
  * @param settingsRepository Whether haptics are switched on (DD-48).
  * @param clock Source of "now" for the petting cooldown.
  */
@@ -209,7 +209,8 @@ class PetViewModel(
      * ### Cooldown & Concurrency:
      * - Enforces a 10-second debounce cooldown ([PET_COOLDOWN_MS]) between petting sessions.
      * - Activates [_isPetting] state for 1500ms to drive the UI heart burst and bouncy hop.
-     * - Dispatches [HabitType.PettingInteraction] to award happiness and XP in the game engine.
+     * - Dispatches [HabitType.PettingInteraction] to award happiness and XP in the game engine. The repository
+     *   rewards at most one pet an hour (DD-60); the hearts and the purr still play for every accepted tap.
      *
      * @return `true` if petting was accepted; `false` if rejected due to active cooldown.
      */

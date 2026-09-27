@@ -29,11 +29,11 @@ Your Thriveling's vitals slowly drop over time. Healthy habits fill them back up
 | You… | Your Thriveling… |
 |---|---|
 | 🚶 Walk and climb stairs (tracked passively) | gains **Fitness**, **Happiness** and evolution XP, and walks or runs alongside you on screen |
-| 💧 Drink water (1 tap on the watch or the tile) | restores **Hydration** |
-| 🥗 Log a meal, healthy or not | restores **Nutrition**. Healthy meals also lift **Happiness** |
+| 💧 Drink water (1 tap on the watch or the tile, once an hour) | restores **Hydration** |
+| 🥗 Log a healthy meal (once an hour) | restores **Nutrition** and gives a little **Energy** |
 | 🏃 Get your heart rate up (optional heart-rate sensor) | gains **Fitness** |
 | 😴 Keep to a bedtime | sleeps through its night and recovers **Energy** |
-| 👆 Tap the pet | purrs, and gains **Happiness** |
+| 👆 Tap the pet | purrs, and gains **Happiness** (once an hour) |
 
 Neglect shows too. If hydration or hunger gets critically low, your Thriveling loses happiness faster and a notification reminds you. Its mood, evolution stage and archetype all follow from how consistently you look after yourself.
 

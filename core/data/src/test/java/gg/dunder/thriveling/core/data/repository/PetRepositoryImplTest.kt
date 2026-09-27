@@ -150,10 +150,10 @@ class PetRepositoryImplTest {
         val startXp = repository.getPet().experiencePoints
         val writers = 50
 
-        // Each pet awards a fixed 5 XP (and, unlike water, has no cooldown). XP is unbounded, so any lost
-        // read-modify-write shows up as a shortfall in the final total.
+        // Each heart-rate reading awards a fixed 5 XP (and, unlike care by hand, has no cooldown). XP is
+        // unbounded, so any lost read-modify-write shows up as a shortfall in the final total.
         (1..writers).map {
-            async(Dispatchers.Default) { repository.recordHabit(HabitType.PettingInteraction(1.0f)) }
+            async(Dispatchers.Default) { repository.recordHabit(HabitType.HeartRate(bpm = 70f)) }
         }.awaitAll()
 
         assertEquals(startXp + writers * 5, repository.getPet().experiencePoints)
@@ -169,6 +169,21 @@ class PetRepositoryImplTest {
 
         assertEquals(startXp + 15, repository.getPet().experiencePoints)
         assertEquals(1, db.habitEventDao().eventsSince(0L).size)
+    }
+
+    @Test
+    fun `petting rewards the pet once an hour`() = runBlocking {
+        val start = Instant.parse("2026-03-01T12:00:00Z").toEpochMilli()
+        var now = start
+        val clockedRepository = PetRepositoryImpl(db, utcClock { now }, InMemorySettingsRepository())
+        val petted = clockedRepository.recordHabit(HabitType.PettingInteraction(1.0f))
+
+        now = start + 10 * 60_000L
+        assertEquals(petted, clockedRepository.recordHabit(HabitType.PettingInteraction(1.0f)))
+
+        now = start + CareCooldown.COOLDOWN_MS
+        val again = clockedRepository.recordHabit(HabitType.PettingInteraction(1.0f))
+        assertEquals(petted.experiencePoints + 5, again.experiencePoints)
     }
 
     @Test

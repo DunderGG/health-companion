@@ -106,8 +106,8 @@ class PetRepositoryImpl(
 
     /**
      * Applies habits atomically, in one transaction:
-     * 0. Drops meals and drinks still in their [CareCooldown] (DD-59). If nothing is left, nothing is
-     *    written and the stored pet is returned unchanged.
+     * 0. Drops meals, drinks and pets still in their [CareCooldown] (DD-59, DD-60). If nothing is left,
+     *    nothing is written and the stored pet is returned unchanged.
      * 1. Applies each habit in order: decay and stat boosts via [PetDecayEngine.applyHabit], then XP and
      *    stage via [EvolutionEngine.checkEvolution].
      * 2. Appends the habits to the `habit_events` history and prunes events older than [HISTORY_RETENTION_MS].
@@ -174,7 +174,7 @@ class PetRepositoryImpl(
         habitEventDao.eventsSinceFlow(fromMillis).map { entities -> entities.mapNotNull { it.toDomain() } }
 
     /**
-     * [habits] without the meals and drinks whose [CareCooldown] hasn't passed, counting both the stored
+     * [habits] without the meals, drinks and pets whose [CareCooldown] hasn't passed, counting both the stored
      * history and earlier habits in the same batch. Must be called inside the write transaction, so two
      * quick taps can't both pass the check.
      */

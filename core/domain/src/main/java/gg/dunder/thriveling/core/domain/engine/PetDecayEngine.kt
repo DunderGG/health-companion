@@ -139,18 +139,20 @@ object PetDecayEngine {
                     happiness = (decayed.happiness + 5f).toVitalRange()
                 )
             }
+            // Each kind of meal wins at one thing (DD-60): a healthy meal fills more and gives a little
+            // energy and most of the XP; a snack fills less but cheers the pet up.
             is HabitType.Meal -> {
                 if (habit.isHealthy) {
                     xpEarned = 25
                     decayed.copy(
                         hunger = (decayed.hunger + 30f).toVitalRange(),
-                        happiness = (decayed.happiness + 10f).toVitalRange()
+                        energy = (decayed.energy + 5f).toVitalRange()
                     )
                 } else {
                     xpEarned = 5
                     decayed.copy(
                         hunger = (decayed.hunger + 20f).toVitalRange(),
-                        energy = (decayed.energy - 5f).toVitalRange()
+                        happiness = (decayed.happiness + 10f).toVitalRange()
                     )
                 }
             }

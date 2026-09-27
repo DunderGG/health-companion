@@ -241,6 +241,8 @@ The third pager page. Easiest on a fresh day, or after clearing app data.
 - [ ] An hour after the tap, the button brightens on its own with the screen open, and after reopening the app. Setting the clock forward an hour (§0) does the same.
 - [ ] A drink logged on the tile dims the water button in the app.
 - [ ] Setting the clock back after a tap doesn't keep the button dimmed for longer than an hour.
+- [ ] Petting ([DD-60](DESIGN_DECISIONS.md#dd-60--healthy-meals-give-energy-snacks-give-happiness-petting-rewards-once-an-hour)): the first pet raises happiness on the Vitals page. Petting again within the hour still shows the hearts and purrs, but happiness doesn't rise.
+- [ ] A healthy meal raises hunger by 30 and energy by 5, and happiness stays the same.
 
 ---
 

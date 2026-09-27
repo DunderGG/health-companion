@@ -216,7 +216,9 @@ Getting Thriveling onto the Play Store. The `applicationId` is permanent after t
 - [ ] 🟡 **Show the cooldown on the tile**: the tile's water chip looks tappable during the cooldown, and a tap does nothing. Show when water is next available, or hide the chip until then.
 - [ ] 🟡 **A full pet refuses**: when a vital is already full, the pet turns the food or water away (head shake) instead of the tap being logged silently. This is the classic Tamagotchi overfeeding feedback.
 - [ ] 🟡 **Undo the last log**: a short undo window (snackbar or confirmation) for accidental taps on the tile or the pet screen.
-- [ ] 🟢 **Treats vs. meals**: make unhealthy meals a "treat" with a real trade-off (a happiness boost but a small energy cost, overeating makes the pet sluggish) instead of just a less effective meal.
+- [ ] 🟡 **Treats vs. meals**: make unhealthy meals a "treat" with a real trade-off instead of just a less effective meal.
+  - [x] Balance: a healthy meal gives more nutrition, a little energy and most of the XP; a snack gives less nutrition but lifts happiness. Petting rewards happiness once an hour, so it doesn't make snacks pointless (DD-60).
+  - [ ] A way to log a snack: tapping the meal button opens a Meal / Snack choice. Today the app only logs healthy meals.
 - [ ] 🟢 🟣 **Clock-change cheating**: decide how to handle the user moving the device clock forward or backward ("time travel"). Options are to ignore it, clamp negative or huge deltas, or detect it using elapsed realtime.
 
 ### Pet Life Cycle

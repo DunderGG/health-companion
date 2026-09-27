@@ -28,7 +28,7 @@ class ObserveCareCooldownsUseCase(
 ) {
 
     /**
-     * @return Cold [Flow] of the care actions currently in their cooldown. Emits again when a meal or drink
+     * @return Cold [Flow] of the care actions currently in their cooldown. Emits again when a care action
      *   is logged, and when a cooldown ends.
      */
     @OptIn(ExperimentalCoroutinesApi::class)

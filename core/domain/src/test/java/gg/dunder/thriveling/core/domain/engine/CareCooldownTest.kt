@@ -15,12 +15,13 @@ class CareCooldownTest {
     private val minute = 60_000L
 
     @Test
-    fun `only meals and drinks have a cooldown, snacks share the food one`() {
+    fun `only care by hand has a cooldown, snacks share the food one`() {
         assertEquals(CareAction.FOOD, CareCooldown.actionOf(HabitType.Meal(isHealthy = true)))
         assertEquals(CareAction.FOOD, CareCooldown.actionOf(HabitType.Meal(isHealthy = false)))
         assertEquals(CareAction.WATER, CareCooldown.actionOf(HabitType.Hydration(250)))
-        assertNull(CareCooldown.actionOf(HabitType.PettingInteraction(1.0f)))
+        assertEquals(CareAction.PETTING, CareCooldown.actionOf(HabitType.PettingInteraction(1.0f)))
         assertNull(CareCooldown.actionOf(HabitType.Steps(1_000)))
+        assertNull(CareCooldown.actionOf(HabitType.HeartRate(bpm = 70f)))
     }
 
     @Test
