@@ -1,6 +1,6 @@
 # Thriveling (Wear OS)
 
-[![CI](https://github.com/DunderGG/health-companion/actions/workflows/ci.yml/badge.svg)](https://github.com/DunderGG/health-companion/actions/workflows/ci.yml)
+[![CI](https://github.com/DunderGG/thriveling/actions/workflows/ci.yml/badge.svg)](https://github.com/DunderGG/thriveling/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Wear OS](https://img.shields.io/badge/Wear%20OS-3.0%2B%20(API%2030%2B)-4285F4?logo=wearos&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
@@ -81,7 +81,7 @@ Everything stays on your watch. The app has no internet permission, no account, 
 
 ### 1. Clone & Open
 ```bash
-git clone https://github.com/DunderGG/health-companion.git
+git clone https://github.com/DunderGG/thriveling.git
 ```
 Open the repository in **Android Studio**. Gradle will automatically sync dependencies.
 

@@ -23,8 +23,8 @@ Thank you for your interest in contributing! This document covers everything you
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/health-companion.git
-cd health-companion
+git clone https://github.com/<your-username>/thriveling.git
+cd thriveling
 ```
 
 ### 2. Configure your local Android SDK path
@@ -46,14 +46,14 @@ Then open `local.properties` and set `sdk.dir` to your local Android SDK locatio
 
 ### 3. Open in Android Studio
 
-Open the root `health-companion/` folder in Android Studio. Gradle will sync the multi-module project automatically.
+Open the root `thriveling/` folder in Android Studio. Gradle will sync the multi-module project automatically.
 
 ---
 
 ## Project Structure
 
 ```
-health-companion/
+thriveling/
 ├── wearApp/          # Wear OS application module (entry point, AppContainer, tile)
 ├── core/model/       # Pure domain models (no Android dependencies)
 ├── core/domain/      # Game engine, use cases, repository interfaces, Clock

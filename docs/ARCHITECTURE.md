@@ -170,7 +170,7 @@ coreDomain --> coreModel : Evaluates Game Rules
 ### Directory & Source Tree
 
 ```
-health-companion/
+thriveling/
 ├── build.gradle.kts                      # Root build configuration
 ├── settings.gradle.kts                   # Multi-module settings
 ├── gradle/libs.versions.toml             # Version catalog (Compose, Wear, Health, etc.)

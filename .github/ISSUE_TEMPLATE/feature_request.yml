@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the idea! Please check the [roadmap](https://github.com/DunderGG/health-companion/blob/main/docs/ROADMAP.md) first, as it may already be planned.
+        Thanks for the idea! Please check the [roadmap](https://github.com/DunderGG/thriveling/blob/main/docs/ROADMAP.md) first, as it may already be planned.
 
   - type: textarea
     id: idea

@@ -116,12 +116,12 @@ Open work that came out of the review. None of it blocks merging the remediation
      - [x] `NOTICE` and `SECURITY.md` — project name
   3. **CI / GitHub**
      - [x] `.github/workflows/ci.yml` — uploaded artifact name (`wearApp-debug` → `thriveling-debug`; the APK file keeps the module name)
-     - [ ] Rename the GitHub repository (Settings → Repository name, e.g. `thriveling`). GitHub redirects the old URLs, but only until someone creates a new repository with the old name, so update the hardcoded URLs right after:
-       - [ ] `README.md` — CI badge URL and `git clone` URL
-       - [ ] `CONTRIBUTING.md` — `git clone` URL, `health-companion/` folder references and the project structure tree
-       - [ ] `docs/ARCHITECTURE.md` — `health-companion/` in the source tree
-       - [ ] `NOTICE` — GitHub URL
-       - [ ] `.github/ISSUE_TEMPLATE/config.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/pull_request_template.md` — links to `DunderGG/health-companion`
+     - [x] Rename the GitHub repository to `DunderGG/thriveling`. GitHub redirects the old URLs, but only until someone creates a new repository with the old name, so update the hardcoded URLs right after:
+       - [x] `README.md` — CI badge URL and `git clone` URL
+       - [x] `CONTRIBUTING.md` — `git clone` URL, `health-companion/` folder references and the project structure tree
+       - [x] `docs/ARCHITECTURE.md` — `health-companion/` in the source tree
+       - [x] `NOTICE` — GitHub URL
+       - [x] `.github/ISSUE_TEMPLATE/config.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/pull_request_template.md` — links to `DunderGG/health-companion`
   4. **Final step: `applicationId` and package name.** The `applicationId` can never change after the first Play Store upload, and renaming the tile, complication and background service classes after launch would remove them from users' watches. Do this step before the first upload.
      - [ ] Decide the `applicationId` (e.g. `com.dundergg.thriveling`, or `app.thriveling` if that domain is bought)
      - [ ] `wearApp/build.gradle.kts` — `applicationId` and `namespace` (`com.healthcompanion.wear`)
