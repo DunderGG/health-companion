@@ -122,7 +122,7 @@ Open work that came out of the review. None of it blocks merging the remediation
        - [x] `docs/ARCHITECTURE.md` — `health-companion/` in the source tree
        - [x] `NOTICE` — GitHub URL
        - [x] `.github/ISSUE_TEMPLATE/config.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/pull_request_template.md` — links to `DunderGG/health-companion`
-  4. **Final step: `applicationId` and package name.** The `applicationId` can never change after the first Play Store upload, and renaming the tile, complication and background service classes after launch would remove them from users' watches. Do this step before the first upload.
+  4. **Final step: `applicationId` and package name.** The `applicationId` can never change after the first Play Store upload, and renaming the tile, complication and background service classes after launch would remove them from users' watches. Do this step before the first upload ([Phase 4](#phase-4-play-store-release)).
      - [ ] Decide the `applicationId` (e.g. `com.dundergg.thriveling`, or `app.thriveling` if that domain is bought)
      - [ ] `wearApp/build.gradle.kts` — `applicationId` and `namespace` (`com.healthcompanion.wear`)
      - [ ] `core/*/build.gradle.kts` — `namespace` in each module (`com.healthcompanion.core.*`)
@@ -167,6 +167,29 @@ Evaluation and prototyping phase to determine the long-term character rendering 
 - [x] **"Vital filled up" haptic**: a light tick-click when a vital shown on screen reaches 100 % from below while the pet UI is open, never while the pet sleeps (DD-50).
 - [x] Step-progress complication: a second complication, "Pet Steps", with a ring of today's steps towards the step goal (ranged value) or the step count (short text), next to Pet Mood (DD-51).
 - [x] **Start over**: a button at the end of Settings, with a confirmation dialog, replaces the pet with a new hatchling and deletes the habit history; settings are kept (DD-52).
+
+---
+
+## Phase 4: Play Store Release
+Getting Thriveling onto the Play Store. The `applicationId` is permanent after the first upload, so [Phase 2b](#phase-2b-brand-identity--naming) must be finished first.
+
+### Build setup
+- [ ] **Debug and release side by side**: add `applicationIdSuffix = ".debug"` (and `versionNameSuffix = "-debug"`) to the debug build type, so a development build and the Play Store build can be installed on the same watch without overwriting each other's pet. Give the debug build its own launcher label (e.g. *Thriveling Debug*) so the two are easy to tell apart, and update the `adb` commands in [VERIFICATION.md](VERIFICATION.md) to the `.debug` package.
+- [ ] **Release signing**: create an upload key and enroll in Play App Signing. Keep the keystore and its passwords out of Git (`local.properties` or environment variables), with a backup stored somewhere safe.
+- [ ] **Shrinking**: turn on `isMinifyEnabled` and `isShrinkResources` for release, add any keep rules R8 needs, and check that the release build still works on a watch (Room, WorkManager, tile, complications, passive data service).
+- [ ] **Versioning**: decide a `versionCode` / `versionName` scheme and bump both for every upload.
+
+### Play Console
+- [ ] **Developer account**: create a Google Play developer account and complete identity verification. New personal accounts must run a closed test with at least 12 testers for 14 days before they can publish to production.
+- [ ] **Privacy policy**: a public page (e.g. on dunder.gg) saying what the app reads (steps, floors, heart rate) and that nothing leaves the watch. Play requires one for apps that use health and body sensor permissions.
+- [ ] **Data safety form**: no data collected or shared, which the CI check for the INTERNET permission helps keep true.
+- [ ] **Health apps declaration and permission declarations**: explain the use of activity recognition, body sensors and background health data.
+- [ ] **Content rating and target audience** questionnaires.
+- [ ] **Store listing**: round Wear OS screenshots, a 512 × 512 icon, short and full descriptions, and the Health & Fitness category. Review the Wear OS app quality guidelines before submitting.
+
+### Rollout
+- [ ] **Internal testing** track for a first signed build on your own watch.
+- [ ] **Closed testing** with the required testers, then **production**.
 
 ---
 
