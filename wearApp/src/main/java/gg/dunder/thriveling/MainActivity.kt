@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
                     logHabitUseCase = container.logHabitUseCase,
                     observePetActivityUseCase = container.observePetActivityUseCase,
                     observeDailyProgressUseCase = container.observeDailyProgressUseCase,
+                    observeCareCooldownsUseCase = container.observeCareCooldownsUseCase,
                     settingsRepository = container.settingsRepository,
                     clock = container.clock
                 ) as T

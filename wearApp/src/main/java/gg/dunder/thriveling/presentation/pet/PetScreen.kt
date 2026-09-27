@@ -36,6 +36,7 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeTextDefaults
 import androidx.wear.compose.material3.curvedText
+import gg.dunder.thriveling.core.domain.engine.CareAction
 import gg.dunder.thriveling.core.ui.components.MealActionToken
 import gg.dunder.thriveling.core.ui.components.ModernPetCanvas
 import gg.dunder.thriveling.core.ui.components.VitalsRing
@@ -196,11 +197,14 @@ fun PetScreen(
                 // Meal and water buttons, each just inside the middle of the arc it fills: hunger at 135°
                 // (lower left) and hydration at 45° (lower right). Hidden in ambient, where the screen isn't
                 // interactive (DD-53).
+                // Each is dimmed for an hour after use (DD-59).
                 if (!isAmbient) {
                     val offset = actionTokenOffset(LocalConfiguration.current.screenWidthDp.dp)
+                    val cooldowns by viewModel.careCooldowns.collectAsStateWithLifecycle()
                     MealActionToken(
                         onClick = { viewModel.logMeal(isHealthy = true) },
                         size = ACTION_TOKEN_SIZE,
+                        enabled = CareAction.FOOD !in cooldowns,
                         modifier = Modifier
                             .align(Alignment.Center)
                             .offset(x = -offset, y = offset)
@@ -208,6 +212,7 @@ fun PetScreen(
                     WaterActionToken(
                         onClick = { viewModel.logWater(250) },
                         size = ACTION_TOKEN_SIZE,
+                        enabled = CareAction.WATER !in cooldowns,
                         modifier = Modifier
                             .align(Alignment.Center)
                             .offset(x = offset, y = offset)

@@ -20,6 +20,7 @@ import gg.dunder.thriveling.core.domain.usecase.CheckCriticalVitalsUseCase
 import gg.dunder.thriveling.core.domain.usecase.GetPetStateUseCase
 import gg.dunder.thriveling.core.domain.usecase.IngestPassiveDataUseCase
 import gg.dunder.thriveling.core.domain.usecase.LogHabitUseCase
+import gg.dunder.thriveling.core.domain.usecase.ObserveCareCooldownsUseCase
 import gg.dunder.thriveling.core.domain.usecase.ObserveDailyProgressUseCase
 import gg.dunder.thriveling.core.domain.usecase.ObservePetActivityUseCase
 import gg.dunder.thriveling.core.domain.usecase.ObservePetDetailsUseCase
@@ -99,6 +100,11 @@ class AppContainer(context: Context) {
     /** Today's reached focus goals against the user's own goals, for the goal haptic (DD-47, DD-48). */
     val observeDailyProgressUseCase: ObserveDailyProgressUseCase by lazy {
         ObserveDailyProgressUseCase(petRepository, settingsRepository, clock)
+    }
+
+    /** Which care buttons are in their one-hour cooldown, to dim them (DD-59). */
+    val observeCareCooldownsUseCase: ObserveCareCooldownsUseCase by lazy {
+        ObserveCareCooldownsUseCase(petRepository, clock)
     }
 
     val observePetDetailsUseCase: ObservePetDetailsUseCase by lazy {

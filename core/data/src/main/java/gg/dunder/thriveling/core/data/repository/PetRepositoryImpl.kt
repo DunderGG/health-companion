@@ -8,6 +8,7 @@ import gg.dunder.thriveling.core.data.db.CompanionDatabase
 import gg.dunder.thriveling.core.data.db.entity.HabitEventEntity
 import gg.dunder.thriveling.core.data.db.entity.PetEntity
 import gg.dunder.thriveling.core.domain.engine.ArchetypeSelector
+import gg.dunder.thriveling.core.domain.engine.CareCooldown
 import gg.dunder.thriveling.core.domain.engine.EvolutionEngine
 import gg.dunder.thriveling.core.domain.engine.PetDecayEngine
 import gg.dunder.thriveling.core.domain.repository.PetRepository
@@ -105,6 +106,8 @@ class PetRepositoryImpl(
 
     /**
      * Applies habits atomically, in one transaction:
+     * 0. Drops meals and drinks still in their [CareCooldown] (DD-59). If nothing is left, nothing is
+     *    written and the stored pet is returned unchanged.
      * 1. Applies each habit in order: decay and stat boosts via [PetDecayEngine.applyHabit], then XP and
      *    stage via [EvolutionEngine.checkEvolution].
      * 2. Appends the habits to the `habit_events` history and prunes events older than [HISTORY_RETENTION_MS].
@@ -122,8 +125,10 @@ class PetRepositoryImpl(
             val now = clock.nowMillis()
             val zone = clock.zone()
             val startPet = loadOrSeedPet()
+            val accepted = withoutCareOnCooldown(habits, now)
+            if (accepted.isEmpty()) return@withTransaction startPet
 
-            var pet = habits.fold(startPet) { currentPet, habit ->
+            var pet = accepted.fold(startPet) { currentPet, habit ->
                 val (updatedVitals, xpGained) = PetDecayEngine.applyHabit(
                     vitals = currentPet.vitals,
                     habit = habit,
@@ -137,7 +142,7 @@ class PetRepositoryImpl(
                 )
             }
 
-            habitEventDao.insertAll(habits.map { HabitEventEntity.fromDomain(it, now) })
+            habitEventDao.insertAll(accepted.map { HabitEventEntity.fromDomain(it, now) })
             habitEventDao.deleteOlderThan(now - HISTORY_RETENTION_MS)
 
             if (EvolutionEngine.reachesSpecialization(before = startPet, after = pet)) {
@@ -167,6 +172,25 @@ class PetRepositoryImpl(
     /** Rows whose habit can't be decoded (e.g. from a newer app version) are skipped, as in archetype selection. */
     override fun habitEventsSinceFlow(fromMillis: Long): Flow<List<HabitEvent>> =
         habitEventDao.eventsSinceFlow(fromMillis).map { entities -> entities.mapNotNull { it.toDomain() } }
+
+    /**
+     * [habits] without the meals and drinks whose [CareCooldown] hasn't passed, counting both the stored
+     * history and earlier habits in the same batch. Must be called inside the write transaction, so two
+     * quick taps can't both pass the check.
+     */
+    private suspend fun withoutCareOnCooldown(habits: List<HabitType>, now: Long): List<HabitType> {
+        if (habits.none { CareCooldown.actionOf(it) != null }) return habits
+
+        val recent = habitEventDao.eventsSince(now - CareCooldown.COOLDOWN_MS)
+            .mapNotNull { it.toDomain() }
+            .toMutableList()
+        return habits.filter { habit ->
+            val action = CareCooldown.actionOf(habit) ?: return@filter true
+            val available = CareCooldown.availableAt(action, recent, now) == null
+            if (available) recent += HabitEvent(habit, now)
+            available
+        }
+    }
 
     /**
      * Loads the stored pet, or seeds and returns the default pet if none exists.

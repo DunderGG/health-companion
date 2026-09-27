@@ -11,6 +11,7 @@ import gg.dunder.thriveling.core.domain.settings.DailyGoals
 import gg.dunder.thriveling.core.domain.time.Clock
 import gg.dunder.thriveling.core.domain.usecase.GetPetStateUseCase
 import gg.dunder.thriveling.core.domain.usecase.LogHabitUseCase
+import gg.dunder.thriveling.core.domain.usecase.ObserveCareCooldownsUseCase
 import gg.dunder.thriveling.core.domain.usecase.ObserveDailyProgressUseCase
 import gg.dunder.thriveling.core.domain.usecase.ObservePetActivityUseCase
 import gg.dunder.thriveling.core.model.EvolutionStage
@@ -89,6 +90,7 @@ class PetViewModelTest {
         logHabitUseCase = LogHabitUseCase(repository),
         observePetActivityUseCase = ObservePetActivityUseCase(stepSource, clock),
         observeDailyProgressUseCase = ObserveDailyProgressUseCase(repository, settings, clock),
+        observeCareCooldownsUseCase = ObserveCareCooldownsUseCase(repository, clock),
         settingsRepository = settings,
         clock = clock
     )

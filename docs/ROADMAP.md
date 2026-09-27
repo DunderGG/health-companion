@@ -212,7 +212,8 @@ Getting Thriveling onto the Play Store. The `applicationId` is permanent after t
 **Suggested first batch** (🔴): rate-limit the care buttons, name your pet, evolution ceremony, decide what happens after long neglect, rest / sick-day mode, local backup, battery usage.
 
 ### Care Balance & Anti-Spam
-- [ ] 🔴 **Rate-limit the care buttons**: water and food should not be spammable. Add a per-action cooldown or diminishing returns (e.g. each extra glass of water within an hour counts less).
+- [x] 🔴 **Rate-limit the care buttons**: water and food can each be logged once an hour; the buttons are dimmed in between (DD-59).
+- [ ] 🟡 **Show the cooldown on the tile**: the tile's water chip looks tappable during the cooldown, and a tap does nothing. Show when water is next available, or hide the chip until then.
 - [ ] 🟡 **A full pet refuses**: when a vital is already full, the pet turns the food or water away (head shake) instead of the tap being logged silently. This is the classic Tamagotchi overfeeding feedback.
 - [ ] 🟡 **Undo the last log**: a short undo window (snackbar or confirmation) for accidental taps on the tile or the pet screen.
 - [ ] 🟢 **Treats vs. meals**: make unhealthy meals a "treat" with a real trade-off (a happiness boost but a small energy cost, overeating makes the pet sluggish) instead of just a less effective meal.

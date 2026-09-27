@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
@@ -58,6 +59,7 @@ import gg.dunder.thriveling.core.ui.theme.SurfaceDark
  * @param onClick Invoked when the user taps the button (also triggers watch vibration).
  * @param modifier Compose layout modifier.
  * @param size Button diameter in [Dp] (defaults to 40.dp, sized for watch fingertips).
+ * @param enabled `false` dims the button and ignores taps, e.g. during a cooldown.
  * @param icon Composable vector icon slot drawn in the center of the token.
  */
 @Composable
@@ -67,6 +69,7 @@ fun QuickActionToken(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: Dp = 40.dp,
+    enabled: Boolean = true,
     icon: @Composable () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
@@ -86,6 +89,7 @@ fun QuickActionToken(
         modifier = modifier
             .size(size)
             .scale(scale)
+            .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .clip(CircleShape)
             .background(
                 brush = Brush.radialGradient(
@@ -111,6 +115,7 @@ fun QuickActionToken(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
+                enabled = enabled,
                 role = Role.Button,
                 onClickLabel = contentDescription,
                 onClick = {
@@ -124,25 +129,31 @@ fun QuickActionToken(
     }
 }
 
+/** Opacity of a disabled token: still recognisable, but clearly not tappable. */
+private const val DISABLED_ALPHA = 0.35f
+
 /**
  * Quick meal action token with a custom vector salad/nourishment bowl icon.
  *
  * @param onClick Invoked when tapped to log a healthy meal.
  * @param modifier Layout modifier.
  * @param size Button diameter (defaults to 40.dp).
+ * @param enabled `false` dims the button and ignores taps, during the one-hour cooldown.
  */
 @Composable
 fun MealActionToken(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = 40.dp
+    size: Dp = 40.dp,
+    enabled: Boolean = true
 ) {
     QuickActionToken(
         accentColor = SunsetOrange,
         contentDescription = "Log Healthy Meal",
         onClick = onClick,
         modifier = modifier,
-        size = size
+        size = size,
+        enabled = enabled
     ) {
         MealBowlVector(
             color = SunsetOrange,
@@ -157,19 +168,22 @@ fun MealActionToken(
  * @param onClick Invoked when tapped to log 250ml water intake.
  * @param modifier Layout modifier.
  * @param size Button diameter (defaults to 40.dp).
+ * @param enabled `false` dims the button and ignores taps, during the one-hour cooldown.
  */
 @Composable
 fun WaterActionToken(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = 40.dp
+    size: Dp = 40.dp,
+    enabled: Boolean = true
 ) {
     QuickActionToken(
         accentColor = BrightAqua,
         contentDescription = "Log Water 250ml",
         onClick = onClick,
         modifier = modifier,
-        size = size
+        size = size,
+        enabled = enabled
     ) {
         WaterDropletVector(
             color = BrightAqua,

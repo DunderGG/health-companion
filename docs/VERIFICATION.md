@@ -147,6 +147,7 @@ Use synthetic walking (§1.1) and follow `PassiveDataService` in logcat.
 - [ ] Add the **Pet Status** tile. Logging water in the app updates the tile within a few seconds.
 - [ ] Tapping **+250ml Water** on the tile raises its hydration line (and the in-app ring) by one drink, and the tile re-renders within a second or two (DD-42).
 - [ ] Tapping twice quickly logs one drink. Leaving the tile and coming back, or waiting for a refresh, doesn't log again.
+- [ ] Within an hour of the last drink (from the app or the tile), a tap on the tile changes nothing ([DD-59](DESIGN_DECISIONS.md#dd-59--food-and-water-can-each-be-logged-once-an-hour)).
 - [ ] Tapping the health/hydration text opens the app.
 - [ ] Add the **Pet Mood** complication to a watch face in each slot type it offers (short text, ranged value, icon). The mood face is tinted by the watch face and stays visible in ambient mode (DD-43).
 - [ ] Logging water (in the app or on the tile) updates the complication's health ring within a few seconds. Tapping the complication opens the app.
@@ -208,7 +209,7 @@ On the emulator, use the rotary control in the extended controls (**⋯**), or `
 ### V11 — Haptics ([DD-47](DESIGN_DECISIONS.md#dd-47--three-vibration-patterns-goals-are-the-daily-focus-goals-foreground-only)) — physical watch for the feel
 `adb shell dumpsys vibrator_manager` lists every vibration with its primitives, so the emulator can confirm what was played. Only a watch shows how it feels.
 - [ ] Tapping the pet (outside its 10 s cooldown) plays the purr: four `TICK` primitives with `usage: TOUCH`. A tap during the cooldown plays nothing.
-- [ ] With the app open, meeting a daily goal plays the goal pattern once (`QUICK_RISE` + two `CLICK`s). The quickest way is on a fresh day, or after clearing app data: log 6 × 250 ml (water goal), then 2 healthy meals (meal goal); each plays it once. Goals already reached before the app was opened play nothing.
+- [ ] With the app open, meeting a daily goal plays the goal pattern once (`QUICK_RISE` + two `CLICK`s). The quickest way is on a fresh day, or after clearing app data: log 6 × 250 ml (water goal), then 2 healthy meals (meal goal); each plays it once. Food and water can each be logged once an hour (DD-59), so set the clock forward an hour between taps (§0), staying on the same day. Goals already reached before the app was opened play nothing.
 - [ ] An evolution while the app is open plays the fanfare (`SLOW_RISE`, `QUICK_FALL`, three `CLICK`s), and a goal reached by the same write doesn't cut it off.
 - [ ] With the app closed, reaching a goal through a sensor batch doesn't vibrate.
 - [ ] With hydration below 100 %, tapping water until it shows 100 % plays the light tick (`TICK` + `CLICK`) once ([DD-50](DESIGN_DECISIONS.md#dd-50--a-light-vital-filled-up-tick-not-while-asleep-haptics-read-a-fresh-pet-stream)). If the same tap reaches the water goal, only the goal pattern plays. Nothing plays for a vital that fills up during the night.
@@ -233,6 +234,13 @@ The third pager page. Easiest on a fresh day, or after clearing app data.
 - [ ] A goal reached with the app open fills its row, shows "✓" and today's total, raises the title count (out of 4), and plays the goal vibration at the same moment (V11). Water and healthy meals each count and vibrate on their own (DD-54).
 - [ ] A heart rate of 100+ (synthetic data, §1.1) or a workout shows "✓ Done" for Workout.
 - [ ] After midnight the page starts empty, and the rows fit on the smallest supported round screen.
+
+### V14 — Care cooldown ([DD-59](DESIGN_DECISIONS.md#dd-59--food-and-water-can-each-be-logged-once-an-hour))
+- [ ] Tapping water dims the water button at once, and the meal button stays bright. A tap on the dimmed button does nothing: no vibration, no change to the ring.
+- [ ] The same holds for the meal button, independently of water.
+- [ ] An hour after the tap, the button brightens on its own with the screen open, and after reopening the app. Setting the clock forward an hour (§0) does the same.
+- [ ] A drink logged on the tile dims the water button in the app.
+- [ ] Setting the clock back after a tap doesn't keep the button dimmed for longer than an hour.
 
 ---
 

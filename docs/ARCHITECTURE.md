@@ -350,6 +350,7 @@ LogUseCase -> Repo : recordHabit(HabitType.Hydration(250))
 activate Repo
 
 Repo -> Repo : getPet()
+Repo -> Repo : drop the drink if water is in its\none-hour CareCooldown (DD-59)
 Repo -> DecayEngine : applyHabit(vitals, Hydration(250), now)
 activate DecayEngine
 note over DecayEngine

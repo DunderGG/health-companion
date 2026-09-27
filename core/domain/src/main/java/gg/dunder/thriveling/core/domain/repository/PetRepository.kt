@@ -49,6 +49,7 @@ interface PetRepository {
     /**
      * Atomically applies a health habit: computes decay up to current time, applies habit boost,
      * awards XP, checks evolution thresholds, persists changes to the database, and returns the result.
+     * A meal or drink still in its [gg.dunder.thriveling.core.domain.engine.CareCooldown] is ignored (DD-59).
      *
      * @param habit The health event or interaction to process ([HabitType]).
      * @return The updated and evolved [Pet] state immediately after persistence.
@@ -57,7 +58,7 @@ interface PetRepository {
 
     /**
      * Atomically applies several habits in order within a single write, e.g. all habits
-     * derived from one passive sensor batch.
+     * derived from one passive sensor batch. Meals and drinks still in their cooldown are dropped (DD-59).
      *
      * @param habits The habits to apply, in order.
      * @return The updated and evolved [Pet] state immediately after persistence.

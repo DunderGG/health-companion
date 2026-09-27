@@ -8,6 +8,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import gg.dunder.thriveling.core.data.db.CompanionDatabase
 import gg.dunder.thriveling.core.data.db.entity.HabitEventEntity
+import gg.dunder.thriveling.core.domain.engine.CareCooldown
 import gg.dunder.thriveling.core.domain.engine.NightWindow
 import gg.dunder.thriveling.core.domain.repository.InMemorySettingsRepository
 import gg.dunder.thriveling.core.domain.settings.UserSettings
@@ -149,13 +150,50 @@ class PetRepositoryImplTest {
         val startXp = repository.getPet().experiencePoints
         val writers = 50
 
-        // Each hydration log awards a fixed 15 XP. XP is unbounded, so any lost
+        // Each pet awards a fixed 5 XP (and, unlike water, has no cooldown). XP is unbounded, so any lost
         // read-modify-write shows up as a shortfall in the final total.
         (1..writers).map {
+            async(Dispatchers.Default) { repository.recordHabit(HabitType.PettingInteraction(1.0f)) }
+        }.awaitAll()
+
+        assertEquals(startXp + writers * 5, repository.getPet().experiencePoints)
+    }
+
+    @Test
+    fun `concurrent drinks count only once within the cooldown`() = runBlocking {
+        val startXp = repository.getPet().experiencePoints
+
+        (1..10).map {
             async(Dispatchers.Default) { repository.recordHabit(HabitType.Hydration(250)) }
         }.awaitAll()
 
-        assertEquals(startXp + writers * 15, repository.getPet().experiencePoints)
+        assertEquals(startXp + 15, repository.getPet().experiencePoints)
+        assertEquals(1, db.habitEventDao().eventsSince(0L).size)
+    }
+
+    @Test
+    fun `meals and drinks are ignored for an hour after the last one, each on its own cooldown`() = runBlocking {
+        val start = Instant.parse("2026-03-01T12:00:00Z").toEpochMilli()
+        var now = start
+        val clockedRepository = PetRepositoryImpl(db, utcClock { now }, InMemorySettingsRepository())
+        val drunk = clockedRepository.recordHabit(HabitType.Hydration(250))
+
+        now = start + 30 * 60_000L
+        // A second drink, and a snack in the same batch as a meal, are dropped; the meal is not.
+        assertEquals(drunk, clockedRepository.recordHabit(HabitType.Hydration(250)))
+        clockedRepository.recordHabits(listOf(HabitType.Meal(isHealthy = true), HabitType.Meal(isHealthy = false)))
+
+        now = start + CareCooldown.COOLDOWN_MS
+        clockedRepository.recordHabit(HabitType.Hydration(250))
+
+        assertEquals(
+            listOf(
+                HabitEvent(HabitType.Hydration(250), start),
+                HabitEvent(HabitType.Meal(isHealthy = true), start + 30 * 60_000L),
+                HabitEvent(HabitType.Hydration(250), start + CareCooldown.COOLDOWN_MS)
+            ),
+            db.habitEventDao().eventsSince(0L).mapNotNull { it.toDomain() }
+        )
     }
 
     @Test

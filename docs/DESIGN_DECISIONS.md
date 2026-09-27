@@ -1000,3 +1000,24 @@ A log of the non-trivial design choices in Thriveling: what was chosen, what the
 - **Consequences**:
   - Existing installs keep their current pet; only a new pet, or *Start over*, starts at 50%.
   - The overall health starts at 50%, so reaching HAPPY (55%) takes a few interactions.
+
+### DD-59 — Food and water can each be logged once an hour
+- **Status**: Accepted (2026-09-27). The project owner asked for the care buttons to be rate-limited like petting, suggesting once an hour.
+- **Decision**:
+  - A meal and a drink can each be logged at most once per hour (`CareCooldown.COOLDOWN_MS`). They have separate cooldowns; a healthy meal and a snack share the food one. Petting keeps its own 10-second cooldown, and sensor habits have none.
+  - `PetRepositoryImpl.recordHabits` enforces it inside the write transaction, reading the last hour of the habit history. A meal or drink still in its cooldown is dropped. If nothing is left, nothing is written and the stored pet is returned.
+  - `ObserveCareCooldownsUseCase` mirrors the rule for the UI. The pet screen dims the meal or water button and ignores taps on it (no vibration) until the cooldown ends. The flow wakes up when a cooldown ends, so the button brightens with the screen open.
+  - An event stamped after "now" (the clock was set back) is ignored rather than blocking the button.
+- **Why**:
+  - Without a limit, tapping water ten times filled hydration and gave 150 XP in seconds, which makes the vitals meaningless and evolution a matter of tapping.
+  - An hour keeps care ahead of decay: a drink adds 20 against a loss of 3 per hour, and a meal adds 30 against 2.5 per hour. The daily goals stay reachable (6 drinks and 2 meals a day).
+  - The history table already records every drink and meal with its time, so the cooldown survives restarts and covers the tile and every other caller, with no new storage. Petting's in-memory cooldown would reset when the app restarts, which matters little for 10 seconds but not for an hour.
+  - Checking inside the transaction means two quick taps, or a tap in the app and on the tile, can't both pass.
+- **Alternatives**:
+  - Diminishing returns (each extra drink within an hour counts less): no hard wall, but harder to understand, and still farmable for XP.
+  - One shared cooldown for food and water: a drink would block a meal, which isn't how eating and drinking work.
+  - Enforcing it in the ViewModel, like petting: misses the tile, and resets when the app restarts.
+- **Consequences**:
+  - The tile's water chip doesn't show the cooldown yet, so a tap there during the cooldown silently does nothing ([ROADMAP](ROADMAP.md#care-balance--anti-spam)).
+  - Setting the clock back lets the user log again early. That falls under the open clock-change question in the roadmap.
+  - A drink of any size counts as one; the app only logs 250 ml today.

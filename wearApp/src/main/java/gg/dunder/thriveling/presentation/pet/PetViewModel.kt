@@ -5,11 +5,13 @@ package gg.dunder.thriveling.presentation.pet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import gg.dunder.thriveling.core.domain.engine.CareAction
 import gg.dunder.thriveling.core.domain.engine.DailyProgress
 import gg.dunder.thriveling.core.domain.repository.SettingsRepository
 import gg.dunder.thriveling.core.domain.time.Clock
 import gg.dunder.thriveling.core.domain.usecase.GetPetStateUseCase
 import gg.dunder.thriveling.core.domain.usecase.LogHabitUseCase
+import gg.dunder.thriveling.core.domain.usecase.ObserveCareCooldownsUseCase
 import gg.dunder.thriveling.core.domain.usecase.ObserveDailyProgressUseCase
 import gg.dunder.thriveling.core.domain.usecase.ObservePetActivityUseCase
 import gg.dunder.thriveling.core.model.HabitType
@@ -55,6 +57,7 @@ import kotlinx.coroutines.launch
  * @param logHabitUseCase Domain use case dispatching health habits and interactions.
  * @param observePetActivityUseCase Live walking/running reaction to the user's steps.
  * @param observeDailyProgressUseCase Today's goal progress, for the goals page and the goal haptic (DD-47, DD-49).
+ * @param observeCareCooldownsUseCase Which care buttons are in their one-hour cooldown (DD-59).
  * @param settingsRepository Whether haptics are switched on (DD-48).
  * @param clock Source of "now" for the petting cooldown.
  */
@@ -63,6 +66,7 @@ class PetViewModel(
     private val logHabitUseCase: LogHabitUseCase,
     private val observePetActivityUseCase: ObservePetActivityUseCase,
     private val observeDailyProgressUseCase: ObserveDailyProgressUseCase,
+    private val observeCareCooldownsUseCase: ObserveCareCooldownsUseCase,
     private val settingsRepository: SettingsRepository,
     private val clock: Clock
 ) : ViewModel() {
@@ -117,6 +121,16 @@ class PetViewModel(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = null
+    )
+
+    /**
+     * The care buttons in their one-hour cooldown, shown dimmed and not tappable (DD-59). Starts empty, so
+     * both buttons show as available until the history is read; the repository ignores an early tap anyway.
+     */
+    val careCooldowns: StateFlow<Set<CareAction>> = observeCareCooldownsUseCase.execute().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptySet()
     )
 
     /**
