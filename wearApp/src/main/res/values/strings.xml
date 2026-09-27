@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Health Companion</string>
+    <string name="app_name">Thriveling</string>
     <string name="tile_name">Pet Status</string>
     <string name="pet_name_default">Aura</string>
     <string name="action_drink_water">+250ml Water</string>

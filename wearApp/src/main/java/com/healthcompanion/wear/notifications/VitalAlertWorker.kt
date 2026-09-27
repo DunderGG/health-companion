@@ -10,7 +10,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.healthcompanion.wear.HealthCompanionApp
+import com.healthcompanion.wear.ThrivelingApp
 import java.util.concurrent.TimeUnit
 
 /**
@@ -41,7 +41,7 @@ class VitalAlertWorker(
         }
 
         return try {
-            val container = (applicationContext as HealthCompanionApp).container
+            val container = (applicationContext as ThrivelingApp).container
             val check = container.checkCriticalVitalsUseCase.execute()
             val notifier = container.vitalAlertNotifier
 

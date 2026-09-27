@@ -20,7 +20,7 @@ import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
 import com.healthcompanion.core.model.HabitType
-import com.healthcompanion.wear.HealthCompanionApp
+import com.healthcompanion.wear.ThrivelingApp
 import com.healthcompanion.wear.MainActivity
 import com.healthcompanion.wear.R
 import com.healthcompanion.wear.toDisplayPercent
@@ -70,7 +70,7 @@ class PetStatusTileService : TileService() {
         }
 
     private suspend fun handleClick(lastClickableId: String) {
-        val container = (application as HealthCompanionApp).container
+        val container = (application as ThrivelingApp).container
         val isNewTap = withContext(Dispatchers.IO) { container.tileClickLedger.claimWaterClick(lastClickableId) }
         if (isNewTap) {
             container.logHabitUseCase.execute(HabitType.Hydration(WATER_ML))
@@ -78,7 +78,7 @@ class PetStatusTileService : TileService() {
     }
 
     private suspend fun buildTile(deviceParameters: DeviceParameters): TileBuilders.Tile {
-        val container = (application as HealthCompanionApp).container
+        val container = (application as ThrivelingApp).container
 
         val (pet, mood) = container.getPetStateUseCase.current()
         val decayedVitals = pet.vitals

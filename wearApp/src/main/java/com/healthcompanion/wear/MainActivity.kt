@@ -18,7 +18,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.wear.ambient.AmbientLifecycleObserver
 import androidx.wear.compose.material3.CircularProgressIndicator
 import com.healthcompanion.core.health.HealthPermissions
-import com.healthcompanion.core.ui.theme.HealthCompanionTheme
+import com.healthcompanion.core.ui.theme.ThrivelingTheme
 import com.healthcompanion.wear.notifications.VitalAlertNotifier
 import com.healthcompanion.wear.notifications.VitalAlertWorker
 import com.healthcompanion.wear.presentation.CompanionNavHost
@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val container = (application as HealthCompanionApp).container
+                val container = (application as ThrivelingApp).container
                 return PetViewModel(
                     getPetStateUseCase = container.getPetStateUseCase,
                     logHabitUseCase = container.logHabitUseCase,
@@ -78,7 +78,7 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val container = (application as HealthCompanionApp).container
+                val container = (application as ThrivelingApp).container
                 return PetDetailsViewModel(container.observePetDetailsUseCase) as T
             }
         }
@@ -89,7 +89,7 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val container = (application as HealthCompanionApp).container
+                val container = (application as ThrivelingApp).container
                 return SettingsViewModel(container.settingsRepository, container.startOverUseCase) as T
             }
         }
@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val app = application as HealthCompanionApp
+                val app = application as ThrivelingApp
                 return PermissionViewModel(
                     application = app,
                     healthServicesManager = app.container.healthServicesManager
@@ -158,7 +158,7 @@ class MainActivity : ComponentActivity() {
         })
 
         setContent {
-            HealthCompanionTheme {
+            ThrivelingTheme {
                 val permState by permissionViewModel.permissionState.collectAsState()
                 val ambient by ambientState.collectAsState()
 

@@ -20,7 +20,7 @@ import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUp
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import com.healthcompanion.core.model.Mood
-import com.healthcompanion.wear.HealthCompanionApp
+import com.healthcompanion.wear.ThrivelingApp
 import com.healthcompanion.wear.MainActivity
 import com.healthcompanion.wear.R
 import com.healthcompanion.wear.toDisplayPercent
@@ -47,7 +47,7 @@ import com.healthcompanion.wear.toDisplayPercent
 class PetMoodComplicationService : SuspendingComplicationDataSourceService() {
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? {
-        val (pet, mood) = (application as HealthCompanionApp).container.getPetStateUseCase.current()
+        val (pet, mood) = (application as ThrivelingApp).container.getPetStateUseCase.current()
         return build(request.complicationType, pet.name, mood, pet.vitals.overallHealth)
     }
 

@@ -123,7 +123,7 @@ coreDomain --> coreModel : Evaluates Game Rules
    - UI orchestration, Wear Navigation, ViewModel bindings.
    - Goals page (DD-49): third pager page, today's progress towards each daily goal.
    - Settings (DD-48): the last pager page opens `CompanionNavHost`'s settings list and one stepper screen per number (daily goals, bedtime), plus the vibration switch. The list ends with "Start over" (DD-52).
-   - Composition root: `AppContainer` builds the single dependency graph (clock, database, repositories, use cases, `HealthServicesManager`). `HealthCompanionApp` owns it and implements `PassiveDataDependencies` for `:core:health`.
+   - Composition root: `AppContainer` builds the single dependency graph (clock, database, repositories, use cases, `HealthServicesManager`). `ThrivelingApp` owns it and implements `PassiveDataDependencies` for `:core:health`.
    - Wear OS surfaces: `PetStatusTileService` (Carousel Tile), `PetMoodComplicationService` and `StepGoalComplicationService` (Watch Face Complications).
    - Critical-vital notifications: `VitalAlertWorker` (scheduling) and `VitalAlertNotifier` (channel, posting, clearing).
 
@@ -185,7 +185,7 @@ health-companion/
 ├── wearApp/                              # Wear OS Application Module
 │   ├── src/main/AndroidManifest.xml      # Standalone watch app configuration
 │   └── src/main/java/com/healthcompanion/wear/
-│       ├── HealthCompanionApp.kt         # Application: owns AppContainer, WorkManager scheduling
+│       ├── ThrivelingApp.kt              # Application: owns AppContainer, WorkManager scheduling
 │       ├── AppContainer.kt               # Composition root (manual DI)
 │       ├── MainActivity.kt               # Main Wear ComponentActivity
 │       ├── presentation/                 # CompanionNavHost: pet pager and settings screens
@@ -580,7 +580,7 @@ To keep the primary diagrams manageable and focused on the core runtime loop, th
 
 On Wear OS smartwatches, network connectivity is intermittent—wearers leave their phones behind during workouts, Wi-Fi radios sleep to preserve the ~300–400 mAh battery, and cellular (LTE) hardware is either absent or power-prohibitive. Consequently, **Health Companion** employs an **offline-first local persistence architecture**:
 
-1. **Single Source of Truth**: The local SQLite database (`health_companion.db`) is the authoritative source for companion state, vitals, XP, and habit records. No surface or component maintains a diverging in-memory state.
+1. **Single Source of Truth**: The local SQLite database (`companion.db`) is the authoritative source for companion state, vitals, XP, and habit records. No surface or component maintains a diverging in-memory state.
 2. **Reactive Observation**: In-app UI screens (`PetScreen`) subscribe directly to the database via reactive Kotlin `Flow` streams. Any write to the database (whether initiated by a button tap or background sensor event) immediately and automatically updates them. System surfaces (Tiles, Complications) are pull-based and are asked to refresh after every committed write by the `NotifyingPetRepository` decorator.
 3. **Microscopic Disk Footprint**: Companion state is stored in a normalized, compact table (`pets`). A single primary record (`id = "companion_primary"`) occupies less than 4 KB of flash storage, ensuring sub-millisecond query latency and zero disk pressure on wearable NAND storage.
 
@@ -592,7 +592,7 @@ For developers transitioning from C++, Android's persistence terminology maps di
 
 | Term | Android / Kotlin Definition | C++ Equivalent / Native Parallel | Role in Health Companion |
 | :--- | :--- | :--- | :--- |
-| **SQLite** | An embedded, serverless, transactional SQL engine bundled in the Android OS userland (written in pure C). Operates directly on a local binary file on the device filesystem. | Linking `sqlite3.c` / `libsqlite3.so` directly into a C++ process and calling the raw C API (`sqlite3_open()`, `sqlite3_step()`). | Underpins all persistent storage. The database file is located at `/data/data/com.healthcompanion.wear/databases/health_companion.db`. |
+| **SQLite** | An embedded, serverless, transactional SQL engine bundled in the Android OS userland (written in pure C). Operates directly on a local binary file on the device filesystem. | Linking `sqlite3.c` / `libsqlite3.so` directly into a C++ process and calling the raw C API (`sqlite3_open()`, `sqlite3_step()`). | Underpins all persistent storage. The database file is located at `/data/data/com.healthcompanion.wear/databases/companion.db`. |
 | **ORM** *(Object-Relational Mapping)* | An architectural technique that automatically bridges the impedance mismatch between relational tables (flat scalar columns: `REAL`, `INTEGER`, `TEXT`) and object-oriented memory graphs (nested domain classes, value objects, and enum types). | C++ compile-time ORM libraries such as [`sqlite_orm`](https://github.com/fnc12/sqlite_orm) or [ODB](https://www.codesynthesis.com/products/odb/), or manual struct serialization mapping. | Eliminates manual `Cursor` indexing (e.g. `cursor.getFloat(4)`). Translates relational rows directly to/from `PetEntity`. |
 | **Room** | Google's official Android persistence library built on SQLite. It provides compile-time SQL verification, Kotlin Symbol Processing (KSP) code generation, schema migration management, and native Coroutine/Flow streaming. | A compile-time code-generation tool (like Protobuf / FlatBuffers compilers or C++ template metaprogramming) that verifies SQL queries during compilation, generates prepared statements, and handles object deserialization with zero reflection. | Acts as the persistence abstraction layer in `:core:data`. Generates concrete SQLite implementations for DAOs at build time. |
 | **DAO** *(Data Access Object)* | An architectural design pattern isolating database interactions behind an abstract interface. The developer declares queries and mutations using annotations (`@Query`, `@Insert`, `@Update`), and the framework generates the underlying SQL execution code. | An abstract C++ interface (`class IPetDao { virtual PetEntity getPet() = 0; ... }`) whose concrete implementation is generated by a preprocessor or code generator. | `PetDao` interface defines all SQL CRUD operations, completely decoupling persistence mechanisms from domain business logic. |
@@ -664,7 +664,7 @@ package "Persistence Layer (:core:data)" {
     }
 }
 
-database "SQLite Flash Storage\n(health_companion.db)" as SQLite
+database "SQLite Flash Storage\n(companion.db)" as SQLite
 
 PetRepository <|.. PetRepositoryImpl : implements
 PetRepositoryImpl --> PetDao : queries / writes
@@ -889,7 +889,7 @@ Health Services **forgets passive registrations on reboot**, and registering is 
 - **What is registered**: `PassiveSensorPlanner.permittedSensors()` (from the current grants), intersected with device capabilities. If nothing is permitted, the listener is cleared.
 - **Idempotency**: the last successful registration is stored (`passive_registration` SharedPreferences) as a key made of the permitted sensors plus `Settings.Global.BOOT_COUNT`. If the key is unchanged, the call returns immediately without contacting Health Services. A new boot or a permission change yields a new key. A process-wide `Mutex` serializes concurrent callers.
 - **Callers**:
-  - `HealthCompanionApp.onCreate()` on every process start (cheap).
+  - `ThrivelingApp.onCreate()` on every process start (cheap).
   - `PermissionViewModel` after permission results and on resume.
   - `BootCompletedReceiver` → `PassiveRegistrationWorker` (WorkManager, `force = true`), as the Health Services docs recommend, because registration at boot can exceed a receiver's time limit.
 

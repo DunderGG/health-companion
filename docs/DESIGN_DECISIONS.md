@@ -111,6 +111,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 | [DD-53](#dd-53--the-archetype-moves-to-a-pet-details-screen-the-pets-name-and-stage-never-reach-the-ring) | The archetype moves to a pet details screen; the pet's name and stage never reach the ring | UI | Accepted · 🟠 verify on device |
 | [DD-54](#dd-54--the-goals-page-counts-its-four-rows-and-each-one-filling-up-vibrates) | The goals page counts its four rows, and each one filling up vibrates | UI / game design | Accepted |
 | [DD-55](#dd-55--the-app-is-called-thriveling-the-applicationid-is-chosen-last) | The app is called Thriveling; the `applicationId` is chosen last | Brand | Accepted · 🟣 your call · 🟠 verify on device |
+| [DD-56](#dd-56--the-database-file-has-a-neutral-name-companiondb-renamed-without-a-migration) | The database file has a neutral name, `companion.db`, renamed without a migration | Persistence / brand | Accepted |
 
 ---
 
@@ -359,7 +360,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 ### DD-26 — Manual `AppContainer` instead of a DI framework
 - **Status**: Accepted (AR-7, 2026-09-26).
-- **Decision**: A hand-written `AppContainer` in `:wearApp`, owned by `HealthCompanionApp`, builds the whole graph with `by lazy` members. There is no Hilt or Koin.
+- **Decision**: A hand-written `AppContainer` in `:wearApp`, owned by `ThrivelingApp`, builds the whole graph with `by lazy` members. There is no Hilt or Koin.
 - **Why**: The graph is small (about ten objects), and adding Hilt would bring a Gradle plugin, annotation processing and build time. Lazy members keep cold starts cheap when the process is only woken to deliver a sensor batch or render a tile.
 - **Alternatives**: Hilt (worth adopting if the graph grows or needs per-screen scopes). Koin.
 - **Consequences**: New dependencies are added by hand in one place. `PetDecayWorker` still constructs its own graph (removed in AR-5).
@@ -417,7 +418,7 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 - **Status**: Accepted (AR-5, 2026-09-26).
 - **Decision**:
   - Removed `PetDecayWorker` (2-hour periodic decay snapshot) and `CalculateDecayUseCase`, which only it used.
-  - `HealthCompanionApp` calls `WorkManager.cancelUniqueWork("PetPeriodicDecayWork")` on every start, so upgraded installs drop the persisted job instead of failing to instantiate a deleted class.
+  - `ThrivelingApp` calls `WorkManager.cancelUniqueWork("PetPeriodicDecayWork")` on every start, so upgraded installs drop the persisted job instead of failing to instantiate a deleted class.
   - The only remaining WorkManager use is the one-time boot re-registration (DD-25).
 - **Why**: Under decay-on-read (DD-02), a stored snapshot changes nothing the user sees. The jobs the worker could have taken on are handled better elsewhere: tile refresh on every write (DD-29), day rollover on the next sensor reading (DD-08). Every periodic wake-up costs battery.
 - **Alternatives**: Repurpose the worker for tile refresh, baseline pruning, or notifications. Tile refresh and pruning aren't needed, and notifications are a separate feature.
@@ -949,3 +950,17 @@ A log of the non-trivial design choices in Health Companion: what was chosen, wh
 
 > [!WARNING]
 > **🟠 Verify on device:** whether "Thriveling" fits the launcher label on a small round screen.
+
+### DD-56 — The database file has a neutral name, `companion.db`, renamed without a migration
+- **Status**: Accepted (2026-09-27). The project owner asked for a file name that is not tied to the app name.
+- **Decision**:
+  - `CompanionDatabase` opens `companion.db` instead of `health_companion.db`, matching the class name rather than any brand.
+  - There is no code that moves the old file. Existing development installs start over with a new pet.
+- **Why**:
+  - Room accepts any file name, and users never see it. A brand-free name never has to change again, even if the app is renamed after launch, which would otherwise mean moving the file to keep users' pets.
+  - The app isn't published, so the only installs are development builds. The final rebrand step changes the `applicationId`, which makes Android treat the app as a new one with empty storage anyway.
+- **Alternatives**:
+  - `thriveling.db`: would tie the file to the brand again.
+  - Move `health_companion.db` (and its `-wal` / `-shm` files) on first start: keeps development pets, but is permanent code for a situation no real user will ever be in.
+- **Consequences**:
+  - Updating an existing development install creates an empty `companion.db` and a new pet. The old file stays in the app's storage until the app is uninstalled.

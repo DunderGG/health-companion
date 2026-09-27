@@ -82,7 +82,7 @@ abstract class CompanionDatabase : RoomDatabase() {
             return builder.build()
         }
 
-        private const val DATABASE_NAME = "health_companion.db"
+        private const val DATABASE_NAME = "companion.db"
 
         /** Current schema version. Bump together with a migration in [ALL_MIGRATIONS]. */
         const val VERSION = 2

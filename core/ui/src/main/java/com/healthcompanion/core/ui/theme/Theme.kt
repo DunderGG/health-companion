@@ -61,7 +61,7 @@ val ModernColorScheme = ColorScheme(
  * @param content The nested Composable hierarchy to be themed.
  */
 @Composable
-fun HealthCompanionTheme(
+fun ThrivelingTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(

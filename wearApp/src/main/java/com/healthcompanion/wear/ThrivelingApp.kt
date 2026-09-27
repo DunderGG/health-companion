@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
  * Wear OS Application class owning the app's single dependency graph ([AppContainer]).
  *
  * Android components obtain dependencies from here: activities and the tile via
- * `(application as HealthCompanionApp).container`, and the library-module
+ * `(application as ThrivelingApp).container`, and the library-module
  * [com.healthcompanion.core.health.PassiveDataService] via the [PassiveDataDependencies] interface.
  *
  * ### Kotlin vs C++ Note:
@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
  * - **`private set`**: Exposes a public read-only property with a private mutating setter, equivalent
  *   to `const T& getProperty() const` in C++ with a private `setProperty(...)`.
  */
-class HealthCompanionApp : Application(), PassiveDataDependencies {
+class ThrivelingApp : Application(), PassiveDataDependencies {
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -75,7 +75,7 @@ class HealthCompanionApp : Application(), PassiveDataDependencies {
     }
 
     private companion object {
-        const val TAG = "HealthCompanionApp"
+        const val TAG = "ThrivelingApp"
         const val LEGACY_DECAY_WORK_NAME = "PetPeriodicDecayWork"
     }
 }

@@ -19,7 +19,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "HealthCompanion"
+rootProject.name = "Thriveling"
 
 // Wear OS Application Module
 include(":wearApp")

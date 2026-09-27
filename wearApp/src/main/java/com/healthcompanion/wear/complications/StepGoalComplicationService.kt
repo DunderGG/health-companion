@@ -19,7 +19,7 @@ import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
-import com.healthcompanion.wear.HealthCompanionApp
+import com.healthcompanion.wear.ThrivelingApp
 import com.healthcompanion.wear.MainActivity
 import com.healthcompanion.wear.R
 import java.text.NumberFormat
@@ -43,7 +43,7 @@ import java.util.Locale
 class StepGoalComplicationService : SuspendingComplicationDataSourceService() {
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? {
-        val progress = (application as HealthCompanionApp).container.observeDailyProgressUseCase.current()
+        val progress = (application as ThrivelingApp).container.observeDailyProgressUseCase.current()
         return build(request.complicationType, progress.steps, progress.goals.steps)
     }
 

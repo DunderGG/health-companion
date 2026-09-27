@@ -102,16 +102,16 @@ Open work that came out of the review. None of it blocks merging the remediation
   - **AuraSync**: Synchronizing your aura and well-being directly with watch sensors.
 - [ ] **Brand Refactor**: Replace the working title across the project. The steps are ordered so that the permanent choice, the `applicationId`, comes last.
   1. **App identity and code names** (no package change)
-     - [ ] `wearApp/src/main/res/values/strings.xml` — `app_name` (`"Health Companion"` → `"Thriveling"`)
-     - [ ] `wearApp/src/main/java/com/healthcompanion/wear/HealthCompanionApp.kt` — class and file → `ThrivelingApp`, plus `android:name` in `AndroidManifest.xml` and all call sites
-     - [ ] `core/ui/src/main/java/com/healthcompanion/core/ui/theme/Theme.kt` — `HealthCompanionTheme` → `ThrivelingTheme`, and all call sites
-     - [ ] `settings.gradle.kts` — `rootProject.name = "HealthCompanion"` → `"Thriveling"`
-     - [ ] `CompanionDatabase.DATABASE_NAME` — `health_companion.db` → `companion.db`, so the file name is not tied to any app name (DD-56)
+     - [x] `wearApp/src/main/res/values/strings.xml` — `app_name` (`"Health Companion"` → `"Thriveling"`)
+     - [x] `HealthCompanionApp` → `ThrivelingApp` (class and file), plus `android:name` in `AndroidManifest.xml` and all call sites
+     - [x] `core/ui/src/main/java/com/healthcompanion/core/ui/theme/Theme.kt` — `HealthCompanionTheme` → `ThrivelingTheme`, and all call sites
+     - [x] `settings.gradle.kts` — `rootProject.name = "HealthCompanion"` → `"Thriveling"`
+     - [x] `CompanionDatabase.DATABASE_NAME` — `health_companion.db` → `companion.db`, so the file name is not tied to any app name (DD-56)
   2. **Documentation**
      - [ ] `README.md` — title heading and the working-title note
-     - [ ] `docs/ARCHITECTURE.md` — `Health Companion` in the overview and prose, `HealthCompanionApp` references, the database file name
+     - [ ] `docs/ARCHITECTURE.md` — `Health Companion` in the overview and prose
      - [ ] `docs/ROADMAP.md` — title heading (`# Health Companion: Project Roadmap`)
-     - [ ] `docs/DESIGN_DECISIONS.md` and `docs/reviews/README.md` — `Health Companion` in the intros, `HealthCompanionApp` references in current entries. The dated review files are point-in-time records and keep the names they were written with.
+     - [ ] `docs/DESIGN_DECISIONS.md` and `docs/reviews/README.md` — `Health Companion` in the intros. The dated review files are point-in-time records and keep the names they were written with.
      - [ ] `CONTRIBUTING.md` — title and working-title note
      - [ ] `NOTICE` and `SECURITY.md` — project name
   3. **CI / GitHub**
