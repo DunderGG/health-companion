@@ -7,7 +7,7 @@
 
 ### A little creature on your wrist that thrives when you do
 
-Thriveling is a virtual pet for Wear OS smartwatches, in the spirit of the classic Tamagotchi. Unlike a Tamagotchi, its needs aren't made up: they're yours. Walk, drink water, eat well and keep to a bedtime, and your Thriveling stays happy, grows and evolves. Neglect those habits, and it gets tired, thirsty and hungry. Its five vitals (Energy, Hydration, Nutrition, Fitness and Happiness) mirror how you're looking after yourself.
+Thriveling is a virtual pet for Wear OS smartwatches, in the spirit of the classic Tamagotchi. Unlike a Tamagotchi, its needs aren't made up: they're yours. Walk, drink water, eat well and keep to a bedtime, and your Thriveling stays happy, grows and evolves. Neglect those habits, and it gets tired, thirsty and hungry. Its five vitals (Energy, Hydration, Nutrition, Fitness and Happiness) mirror how you're looking after yourself. And it all stays on your watch: no internet, no account, no ads.
 
 The idea is that healthy habits are easier to keep when they feel like caring for someone rather than chasing a streak. A thirsty little friend is a friendlier nudge to drink water than a number on a dashboard.
 
@@ -22,7 +22,7 @@ The idea is that healthy habits are easier to keep when they feel like caring fo
 
 ---
 
-## 🐾 How It Works
+## 🐣 How It Works
 
 Your Thriveling's vitals slowly drop over time. Healthy habits fill them back up:
 
@@ -40,18 +40,11 @@ Neglect shows too. If hydration or hunger gets critically low, your Thriveling l
 ---
 
 ## ✨ Key Features
-- **Health-Mirroring Game Mechanics**: Steps, floors, heart rate, water and meals feed five vitals, evolution XP and a mood.
-- **Battery-Friendly Time-Delta Decay**: Vitals are calculated from timestamps when needed, rather than by continuous CPU wakeups.
-- **Wear OS Health Services**: Passively monitors daily steps, floors and heart rate via `PassiveMonitoringClient`.
 - **Live Step Reactions**: While the pet screen is open, the pet walks or runs in step with you.
-- **Modern Vector-Native Companion**: Dynamic vector rendering with breathing bounce, blinking eyes, blushing cheeks, and mood expressions. The pet sleeps during its night.
-- **Round-Screen UI**: A circular multi-vital progress ring (`VitalsRing`), with the rotary crown paging between the pet, a vitals breakdown, today's goals and settings.
-- **Daily Goals & Settings**: Set your own goals for steps, water and healthy meals, pick the pet's bedtime, turn vibration on or off, or start over and hatch a new Thriveling.
-- **Haptic Feedback**: A purr when petted, a success buzz when you reach a daily goal, a fanfare on evolution, and a tick when a vital fills up.
-- **Wear OS Carousel Tile**: Swipe from your watch face to glance at your companion's status, and log a glass of water with one tap.
-- **Watch Face Complications**: *Pet Mood* shows the pet's mood and overall health. *Pet Steps* shows today's steps towards your step goal.
-- **Critical-Vital Notifications**: A reminder when hydration or hunger gets critically low, never during the pet's night.
-- **Always-On**: The pet screen stays visible in a low-power ambient look when your wrist drops.
+- **Always on Your Wrist**: A tile to check on your Thriveling and log a glass of water with one tap, *Pet Mood* and *Pet Steps* complications for your watch face, and an always-on screen that stays visible in a low-power look when your wrist drops.
+- **Private by Design**: Your health data never leaves your watch. The app can't connect to the internet, and has no account, analytics or ads (see [Privacy & Permissions](#-privacy--permissions)).
+- **Daily Goals & Settings**: Set your own goals for steps, water and healthy meals, and feel a buzz each time you reach one. Pick the pet's bedtime, turn vibration on or off, or start over and hatch a new Thriveling.
+- **Made for Round Screens**: Your Thriveling sits inside a ring showing its energy, hydration, nutrition and fitness, while its face shows how happy it is. Turn the crown to page between the pet, its vitals, today's goals and settings.
 
 ---
 
@@ -143,17 +136,17 @@ Emulators don't walk, so Health Services sensor data has to be simulated. The [V
 
 Detailed architectural specifications and development plans are maintained in the [`docs/`](docs/) directory:
 
-- 📖 **[System Architecture](docs/ARCHITECTURE.md)** — PlantUML system flows, module responsibilities, mathematical decay formulas, and source tree.
+- 📖 **[System Architecture](docs/ARCHITECTURE.md)** — System flows, module responsibilities, mathematical decay formulas, and source tree.
 - ✅ **[Verification Guide](docs/VERIFICATION.md)** — Emulator and watch checks, sensor simulation, and battery profiling.
-- 🧭 **[Design Decisions](docs/DESIGN_DECISIONS.md)** — Why the system works the way it does: alternatives, trade-offs, and open questions (highlighted).
+- 🧭 **[Design Decisions](docs/DESIGN_DECISIONS.md)** — Why the system works the way it does: alternatives, trade-offs, and open questions.
 - 🔍 **[Reviews](docs/reviews/README.md)** — Dated architecture reviews and their findings (e.g. AR-1 … AR-8).
-- 🗺️ **[Project Roadmap](docs/ROADMAP.md)** — 5-phase development roadmap and the **Phase 2b** community naming survey (*Resona*, *Symbio*, *Vitalkin*, *Paravita*, *Vitecho*, *AuraSync*).
+- 🗺️ **[Project Roadmap](docs/ROADMAP.md)** — 5-phase development roadmap and future plans.
 
 ---
 
 ## 🤝 Contributing
 
-Contributions, bug reports, and ideas are welcome! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for developer setup, code style standards, and the required copyright header for new source files.
+Contributions, bug reports, and ideas are welcome! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for developer setup and code style standards.
 
 ---
 
